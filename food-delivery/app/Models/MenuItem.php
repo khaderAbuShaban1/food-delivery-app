@@ -16,6 +16,7 @@ class MenuItem extends \Illuminate\Database\Eloquent\Model
         'price',
         'description',
         'image',
+        'category',
     ];
 
     protected function casts(): array

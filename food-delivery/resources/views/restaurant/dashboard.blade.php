@@ -3,7 +3,7 @@
 @section('content')
 <div class="mb-4">
     <h1 class="page-title">لوحة التحكم</h1>
-    <p class="page-subtitle">مرحباً، {{ session('user')['name'] ?? 'المطعم' }}</p>
+    <p class="page-subtitle">مرحباً، {{ session('restaurant')['name'] ?? 'المطعم' }}</p>
 </div>
 
 <div class="row g-4">

@@ -30,6 +30,9 @@
             </div>
             
             <div class="p-3">
+                <span class="badge mb-2" style="background: rgba(249, 115, 22, 0.15); color: var(--accent-primary); font-size: 0.7rem;">
+                    {{ $categories[$item->category] ?? $item->category ?? 'أخرى' }}
+                </span>
                 <h5 class="fw-semibold mb-1" style="color: var(--text-primary); font-size: 1rem;">{{ $item->name }}</h5>
                 <p class="mb-3" style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.4; min-height: 2.8em; overflow: hidden;">
                     {{ $item->description ?? 'لا يوجد وصف' }}
@@ -41,6 +44,7 @@
                         data-name="{{ $item->name }}"
                         data-price="{{ $item->price }}"
                         data-description="{{ $item->description ?? '' }}"
+                        data-category="{{ $item->category ?? '' }}"
                         data-image="{{ $item->image ?? '' }}"
                         data-url="{{ $restaurant ? route('restaurant.menu.update', [$restaurant->id, $item->id]) : '#' }}">
                         <i class="bi bi-pencil me-1"></i>تعديل
@@ -103,6 +107,15 @@
                         <input type="number" name="price" id="editPrice" class="form-control" step="0.01" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">الفئة</label>
+                        <select name="category" id="editCategory" class="form-select">
+                            <option value="">اختر الفئة</option>
+                            @foreach($categories as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">الوصف</label>
                         <textarea name="description" id="editDescription" class="form-control" rows="2"></textarea>
                     </div>
@@ -140,6 +153,15 @@
                     <div class="mb-3">
                         <label class="form-label">السعر (₪)</label>
                         <input type="number" name="price" class="form-control" placeholder="0.00" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الفئة</label>
+                        <select name="category" class="form-select">
+                            <option value="">اختر الفئة</option>
+                            @foreach($categories as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">الوصف</label>
@@ -231,6 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const editForm = document.getElementById('editForm');
     const editName = document.getElementById('editName');
     const editPrice = document.getElementById('editPrice');
+    const editCategory = document.getElementById('editCategory');
     const editDescription = document.getElementById('editDescription');
     const editCurrentImage = document.getElementById('editCurrentImage');
     const noImagePlaceholder = document.getElementById('noImagePlaceholder');
@@ -239,6 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const name = this.dataset.name;
             const price = this.dataset.price;
+            const category = this.dataset.category;
             const description = this.dataset.description;
             const image = this.dataset.image;
             const url = this.dataset.url;
@@ -246,6 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
             editForm.action = url;
             editName.value = name;
             editPrice.value = price;
+            editCategory.value = category || '';
             editDescription.value = description || '';
 
             if (image) {

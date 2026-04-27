@@ -3,46 +3,41 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
-class Restaurant extends Model implements Authenticatable
+class Driver extends Model implements Authenticatable
 {
-    use HasFactory, Notifiable, AuthenticatableTrait;
+    use HasFactory, HasApiTokens, Notifiable, AuthenticatableTrait;
 
     protected $fillable = [
         'name',
         'email',
-        'password',
         'phone',
-        'category',
-        'image',
-        'is_open',
+        'password',
+        'is_available',
+        'vehicle_type',
+        'license_number',
     ];
 
     protected $hidden = [
         'password',
+        'remember_token',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_open' => 'boolean',
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
+            'is_available' => 'boolean',
         ];
     }
 
-    public function menuItems(): HasMany
+    public function orders()
     {
-        return $this->hasMany(MenuItem::class);
-    }
-
-    public function orders(): HasMany
-    {
-        return $this->hasMany(Order::class);
+        return $this->hasMany(Order::class, 'driver_id');
     }
 }

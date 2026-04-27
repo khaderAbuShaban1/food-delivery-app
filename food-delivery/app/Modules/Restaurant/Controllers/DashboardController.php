@@ -14,22 +14,10 @@ class DashboardController extends Controller
 {
     public function index(): View|RedirectResponse
     {
-        $user = session()->get('user');
+        $restaurant = session()->get('restaurant');
         
-        if (!$user) {
+        if (!$restaurant || !$restaurant->id) {
             return redirect()->route('restaurant.login');
-        }
-        
-        $restaurant = Restaurant::where('user_id', $user['id'])->first();
-        
-        if (!$restaurant) {
-            return view('restaurant::dashboard', [
-                'restaurant' => null,
-                'menuItems' => [],
-                'myOrders' => [],
-                'ordersCount' => 0,
-                'pendingOrders' => 0,
-            ]);
         }
         
         $menuItems = MenuItem::where('restaurant_id', $restaurant->id)->get();
@@ -42,15 +30,18 @@ class DashboardController extends Controller
         return view('restaurant::dashboard', compact('restaurant', 'menuItems', 'myOrders', 'ordersCount', 'pendingOrders'));
     }
 
-    public function updateStatus(Request $request, int $id): RedirectResponse
+    public function updateStatus(Request $request, int $restaurantId): RedirectResponse
     {
-        $restaurant = Restaurant::find($id);
+        $restaurant = Restaurant::find($restaurantId);
         
-        if ($restaurant) {
-            $restaurant->update(['is_open' => $request->is_open == 1]);
-            return back()->with('success', 'Status updated');
+        if (!$restaurant) {
+            return back()->with('error', 'المطعم غير موجود');
         }
 
-        return back()->with('error', 'Restaurant not found');
+        $restaurant->update([
+            'is_open' => $request->is_open == 1,
+        ]);
+
+        return back()->with('success', 'تم تحديث الحالة!');
     }
 }

@@ -11,35 +11,45 @@ use Illuminate\View\View;
 
 class MenuController extends Controller
 {
+    public const CATEGORIES = [
+        'Pizza' => 'بيتزا',
+        'Burgers' => 'برجر',
+        'Drinks' => 'مشروبات',
+        'Desserts' => 'حلويات',
+        'Fast Food' => 'وجبات سريعة',
+        'Sandwiches' => 'ساندويتشات',
+        'Salad' => 'سلطة',
+        'Seafood' => 'مأكولات بحرية',
+        'Breakfast' => 'فطور',
+        'Other' => 'أخرى',
+    ];
+
     public function index(): View|RedirectResponse
     {
-        $user = session()->get('user');
+        $restaurant = session()->get('restaurant');
         
-        if (!$user) {
+        if (!$restaurant) {
             return redirect()->route('restaurant.login');
         }
         
-        $restaurant = Restaurant::where('user_id', $user['id'])->first();
-
-        if (!$restaurant) {
+        if (!$restaurant || !$restaurant->id) {
             return view('restaurant::menu', [
                 'restaurant' => null,
-                'menuItems' => collect([])
+                'menuItems' => collect([]),
+                'categories' => self::CATEGORIES
             ]);
         }
 
         $menuItems = MenuItem::where('restaurant_id', $restaurant->id)->get();
 
-        return view('restaurant::menu', compact('restaurant', 'menuItems'));
+        return view('restaurant::menu', compact('restaurant', 'menuItems') + ['categories' => self::CATEGORIES]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $user = session()->get('user');
+        $restaurant = session()->get('restaurant');
         
-        $restaurant = Restaurant::where('user_id', $user['id'])->first();
-        
-        if (!$restaurant) {
+        if (!$restaurant || !$restaurant->id) {
             return back()->with('error', 'لم يتم العثور على مطعم');
         }
 
@@ -48,6 +58,7 @@ class MenuController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'category' => 'nullable|string|in:' . implode(',', array_keys(self::CATEGORIES)),
         ]);
 
         $imagePath = null;
@@ -61,6 +72,7 @@ class MenuController extends Controller
             'price' => $request->price,
             'description' => $request->description ?? '',
             'image' => $imagePath,
+            'category' => $request->category ?? null,
         ]);
 
         return back()->with('success', 'تمت إضافة الصنف بنجاح!');
@@ -73,6 +85,7 @@ class MenuController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'category' => 'nullable|string|in:' . implode(',', array_keys(self::CATEGORIES)),
         ]);
 
         $menuItem = MenuItem::where('id', $menuItemId)->where('restaurant_id', $restaurantId)->first();
@@ -90,6 +103,7 @@ class MenuController extends Controller
             'name' => $request->name,
             'price' => $request->price,
             'description' => $request->description ?? '',
+            'category' => $request->category ?? null,
         ]);
 
         return back()->with('success', 'تم تحديث الصنف بنجاح!');

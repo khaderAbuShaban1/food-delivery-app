@@ -11,7 +11,7 @@ class Order extends \Illuminate\Database\Eloquent\Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
+        'customer_id',
         'restaurant_id',
         'driver_id',
         'total_price',
@@ -25,9 +25,9 @@ class Order extends \Illuminate\Database\Eloquent\Model
         ];
     }
 
-    public function user(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 
     public function restaurant(): BelongsTo
@@ -37,7 +37,7 @@ class Order extends \Illuminate\Database\Eloquent\Model
 
     public function driver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'driver_id');
+        return $this->belongsTo(Driver::class);
     }
 
     public function orderItems(): HasMany

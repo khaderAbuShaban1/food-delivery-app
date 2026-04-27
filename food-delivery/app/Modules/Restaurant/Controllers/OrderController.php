@@ -13,19 +13,10 @@ class OrderController extends Controller
 {
     public function index(): View|RedirectResponse
     {
-        $user = session()->get('user');
+        $restaurant = session()->get('restaurant');
         
-        if (!$user) {
+        if (!$restaurant || !$restaurant->id) {
             return redirect()->route('restaurant.login');
-        }
-        
-        $restaurant = Restaurant::where('user_id', $user['id'])->first();
-
-        if (!$restaurant) {
-            return view('restaurant::orders', [
-                'restaurant' => null,
-                'myOrders' => collect([])
-            ]);
         }
 
         $myOrders = Order::where('restaurant_id', $restaurant->id)
@@ -40,11 +31,14 @@ class OrderController extends Controller
     {
         $order = Order::find($orderId);
         
-        if ($order) {
-            $order->update(['status' => $request->status]);
-            return back()->with('success', 'تم تحديث حالة الطلب بنجاح!');
+        if (!$order) {
+            return back()->with('error', 'الطلب غير موجود');
         }
 
-        return back()->with('error', 'الطلب غير موجود');
+        $order->update([
+            'status' => $request->status,
+        ]);
+
+        return back()->with('success', 'تم تحديث حالة الطلب!');
     }
 }
