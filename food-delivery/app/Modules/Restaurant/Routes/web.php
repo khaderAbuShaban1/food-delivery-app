@@ -7,10 +7,8 @@ use App\Modules\Restaurant\Controllers\OrderController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('restaurant')->name('restaurant.')->group(function () {
-    Route::middleware('guest')->group(function () {
-        Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-        Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
-    });
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 
     Route::middleware('auth.restaurant')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

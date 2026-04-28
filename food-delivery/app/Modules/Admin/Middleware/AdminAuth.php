@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Modules\Restaurant\Middleware;
+namespace App\Modules\Admin\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class RestaurantAuth
+class AdminAuth
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!session()->has('restaurant')) {
-            return redirect()->route('restaurant.login');
+        if (!session()->has('admin')) {
+            return redirect()->route('admin.login');
         }
 
         return $next($request);

@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'isRestaurant' => \App\Http\Middleware\IsRestaurant::class,
             'auth.restaurant' => \App\Modules\Restaurant\Middleware\RestaurantAuth::class,
+            'admin' => \App\Modules\Admin\Middleware\AdminAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

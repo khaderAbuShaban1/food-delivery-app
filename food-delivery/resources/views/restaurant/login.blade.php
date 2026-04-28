@@ -155,7 +155,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('restaurant.login') }}">
+            <form method="POST" action="{{ route('restaurant.login.submit') }}">
                 @csrf
                 <div class="form-group">
                     <label class="form-label">البريد الإلكتروني</label>

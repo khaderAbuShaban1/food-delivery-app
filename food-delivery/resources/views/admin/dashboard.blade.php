@@ -1,16 +1,126 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-</head>
-<body>
-    <div class="container py-5">
-        <h1>Admin Dashboard</h1>
-        <p>This module is under development.</p>
+@extends('layouts.admin')
+
+@section('title', 'لوحة المؤشرات')
+
+@section('content')
+<div class="header">
+    <h1 class="page-title">لوحة المؤشرات</h1>
+    <p class="page-subtitle">مرحباً! إليك ملخصاً لما يحدث اليوم</p>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="fas fa-store"></i>
+            </div>
+            <div class="stat-value">{{ $stats['activeRestaurants'] }}</div>
+            <div class="stat-label">المطاعم الفعالة</div>
+        </div>
     </div>
-</body>
-</html>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-value">{{ $stats['activeCustomers'] }}</div>
+            <div class="stat-label">العملاء النشطون</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="fas fa-shekel-sign"></i>
+            </div>
+            <div class="stat-value">₪{{ number_format($stats['todayRevenue'], 2) }}</div>
+            <div class="stat-label">الإيراد اليومي</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="fas fa-shopping-bag"></i>
+            </div>
+            <div class="stat-value">{{ $stats['todayOrders'] }}</div>
+            <div class="stat-label">طلبات اليوم</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <h2 class="section-title">إجراءات سريعة</h2>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a href="{{ route('admin.restaurants') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-store-alt"></i>
+            </div>
+            <span class="action-text">إدارة المطاعم</span>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a href="{{ route('admin.menu') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <span class="action-text">تحديث القوائم</span>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a href="{{ route('admin.menu') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-tags"></i>
+            </div>
+            <span class="action-text">إدارة التصنيفات</span>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <a href="{{ route('admin.offers') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-gift"></i>
+            </div>
+            <span class="action-text">العروض النشطة</span>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12">
+        <h2 class="section-title">حالة الطلبات</h2>
+    </div>
+    <div class="col-md-4">
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-label">قيد التجهيز</span>
+                <span class="status-count">{{ $orderStats['preparing'] }}</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar primary" style="width: {{ $progressPreparing }}%"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-label">في الطريق</span>
+                <span class="status-count">{{ $orderStats['delivering'] }}</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar info" style="width: {{ $progressDelivering }}%"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-label">مكتمل</span>
+                <span class="status-count">{{ $orderStats['completed'] }}</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar success" style="width: {{ $progressCompleted }}%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

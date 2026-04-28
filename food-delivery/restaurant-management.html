@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المطاعم</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --primary-hover: #2563EB;
+            --success: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --bg: #F5F6FA;
+            --white: #FFFFFF;
+            --text: #1A1A1A;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
+        * { font-family: 'Cairo', sans-serif; }
+
+        body { background: var(--bg); color: var(--text); }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .page-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+
+        .filters {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--white);
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.9rem;
+            min-width: 150px;
+            cursor: pointer;
+        }
+
+        .filter-select:focus { outline: none; border-color: var(--primary); }
+
+        .btn-primary {
+            background: var(--primary);
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: var(--radius);
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .data-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-container { overflow-x: auto; }
+
+        .table {
+            margin: 0;
+            width: 100%;
+        }
+
+        .table th {
+            background: #F9FAFB;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0.875rem 1rem;
+            border: none;
+            white-space: nowrap;
+        }
+
+        .table td {
+            padding: 0.875rem 1rem;
+            border-color: var(--border);
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+
+        .table tr:hover { background: #F9FAFB; }
+
+        .restaurant-name {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .restaurant-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), #60A5FA);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .rating-count {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .badge {
+            padding: 0.25rem 0.625rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success { background: #D1FAE5; color: #059669; }
+        .badge-danger { background: #FEE2E2; color: #DC2626; }
+        .badge-outline-success { background: transparent; border: 1px solid #059669; color: #059669; }
+        .badge-outline-danger { background: transparent; border: 1px solid #DC2626; color: #DC2626; }
+
+        .btn-action {
+            padding: 0.375rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+            background: var(--white);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-action:hover { background: #F9FAFB; color: var(--text); }
+
+        .btn-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: var(--white);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .modal-body { padding: 1.5rem; }
+
+        .form-group { margin-bottom: 1rem; }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 8px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: var(--white);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-secondary:hover { background: #F9FAFB; }
+
+        .btn-save {
+            background: var(--primary);
+            border: none;
+            color: white;
+        }
+
+        .btn-save:hover { background: var(--primary-hover); }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; align-items: stretch; }
+            .filters { justify-content: space-between; }
+            .filter-select { flex: 1; min-width: 140px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="page-title">إدارة المطاعم</h1>
+        <div class="filters">
+            <button class="btn btn-primary" onclick="openModal()">
+                <i class="fas fa-plus"></i>
+                إضافة مطعم جديد
+            </button>
+            <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+                <option value="all">كل الحالات</option>
+                <option value="active">نشط</option>
+                <option value="inactive">غير نشط</option>
+            </select>
+            <select class="filter-select" id="categoryFilter" onchange="applyFilters()">
+                <option value="all">كل التصنيفات</option>
+                <option value="مشروبات">مشروبات</option>
+                <option value="حلويات">حلويات</option>
+                <option value="شاورما">شاورما</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="data-card">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>المطعم</th>
+                        <th>التقييم</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="restaurantTable">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="restaurantModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">
+                    <i class="fas fa-store"></i>
+                    <span id="modalTitle">إضافة مطعم جديد</span>
+                </span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="restaurantForm">
+                    <input type="hidden" id="restaurantId">
+                    <div class="form-group">
+                        <label class="form-label">اسم المطعم</label>
+                        <input type="text" class="form-control" id="restaurantName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">التصنيف</label>
+                        <select class="form-control" id="restaurantCategory" required>
+                            <option value="مشروبات">مشروبات</option>
+                            <option value="حلويات">حلويات</option>
+                            <option value="شاورما">شاورما</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">التقييم</label>
+                        <input type="number" class="form-control" id="restaurantRating" step="0.1" min="0" max="5" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">عدد التقييمات</label>
+                        <input type="number" class="form-control" id="restaurantRatingCount" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الحالة</label>
+                        <select class="form-control" id="restaurantStatus" required>
+                            <option value="active">نشط</option>
+                            <option value="inactive">غير نشط</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">حالة الفتح</label>
+                        <select class="form-control" id="restaurantOpen" required>
+                            <option value="open">مفتوح</option>
+                            <option value="closed">مغلق</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+                <button class="btn btn-save" onclick="saveRestaurant()">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Restaurant data
+        let restaurants = [
+            {
+                id: 1,
+                name: "قهوة الصباح الذهبية",
+                category: "مشروبات",
+                rating: 4.5,
+                ratingCount: 260,
+                status: "active",
+                open: "open"
+            },
+            {
+                id: 2,
+                name: "عصائر ومشروبات النتائج",
+                category: "مشروبات",
+                rating: 4.5,
+                ratingCount: 250,
+                status: "active",
+                open: "open"
+            }
+        ];
+
+        // Render table
+        function renderTable() {
+            const tbody = document.getElementById('restaurantTable');
+            tbody.innerHTML = '';
+
+            restaurants.forEach(restaurant => {
+                const statusBadge = restaurant.status === 'active' 
+                    ? '<span class="badge badge-success">نشط</span>' 
+                    : '<span class="badge badge-danger">غير نشط</span>';
+                
+                const openBadge = restaurant.open === 'open'
+                    ? '<span class="badge badge-outline-success">مفتوح</span>'
+                    : '<span class="badge badge-outline-danger">مغلق</span>';
+
+                const row = document.createElement('tr');
+                row.dataset.status = restaurant.status;
+                row.dataset.category = restaurant.category;
+                row.innerHTML = `
+                    <td>
+                        <div class="restaurant-name">
+                            <div class="restaurant-icon"><i class="fas fa-store"></i></div>
+                            <div>
+                                <div>${restaurant.name}</div>
+                                <small style="color: var(--text-muted); font-size: 0.8rem;">${restaurant.category}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="rating">
+                            <span>${restaurant.rating}</span>
+                            <i class="fas fa-star text-warning"></i>
+                            <span class="rating-count">(${restaurant.ratingCount})</span>
+                        </div>
+                    </td>
+                    <td>${statusBadge} ${openBadge}</td>
+                    <td>
+                        <button class="btn-action btn-edit" onclick="editRestaurant(${restaurant.id})">
+                            <i class="fas fa-edit"></i>
+                            تعديل
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const rows = document.querySelectorAll('#restaurantTable tr');
+
+            rows.forEach(row => {
+                const rowStatus = row.dataset.status;
+                const rowCategory = row.dataset.category;
+
+                const statusMatch = statusFilter === 'all' || rowStatus === statusFilter;
+                const categoryMatch = categoryFilter === 'all' || rowCategory === categoryFilter;
+
+                if (statusMatch && categoryMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Modal functions
+        function openModal(id = null) {
+            const modal = document.getElementById('restaurantModal');
+            const form = document.getElementById('restaurantForm');
+            
+            if (id) {
+                const restaurant = restaurants.find(r => r.id === id);
+                document.getElementById('modalTitle').textContent = 'تعديل مطعم';
+                document.getElementById('restaurantId').value = restaurant.id;
+                document.getElementById('restaurantName').value = restaurant.name;
+                document.getElementById('restaurantCategory').value = restaurant.category;
+                document.getElementById('restaurantRating').value = restaurant.rating;
+                document.getElementById('restaurantRatingCount').value = restaurant.ratingCount;
+                document.getElementById('restaurantStatus').value = restaurant.status;
+                document.getElementById('restaurantOpen').value = restaurant.open;
+            } else {
+                document.getElementById('modalTitle').textContent = 'إضافة مطعم جديد';
+                form.reset();
+                document.getElementById('restaurantId').value = '';
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('restaurantModal').classList.remove('show');
+        }
+
+        function editRestaurant(id) {
+            openModal(id);
+        }
+
+        function saveRestaurant() {
+            const id = document.getElementById('restaurantId').value;
+            const restaurantData = {
+                id: id ? parseInt(id) : Date.now(),
+                name: document.getElementById('restaurantName').value,
+                category: document.getElementById('restaurantCategory').value,
+                rating: parseFloat(document.getElementById('restaurantRating').value),
+                ratingCount: parseInt(document.getElementById('restaurantRatingCount').value),
+                status: document.getElementById('restaurantStatus').value,
+                open: document.getElementById('restaurantOpen').value
+            };
+
+            if (id) {
+                const index = restaurants.findIndex(r => r.id === parseInt(id));
+                restaurants[index] = restaurantData;
+            } else {
+                restaurants.push(restaurantData);
+            }
+
+            closeModal();
+            renderTable();
+            applyFilters();
+        }
+
+        // Close modal on outside click
+        document.getElementById('restaurantModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // Initial render
+        renderTable();
+    </script>
+</body>
+</html>
