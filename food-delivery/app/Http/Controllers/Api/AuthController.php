@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use App\Services\SystemSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,22 @@ class AuthController extends Controller
 {
     public function register(RegisterRequest $request): JsonResponse
     {
+        /** @var SystemSettingsService $settings */
+        $settings = app(SystemSettingsService::class);
+        if (!(bool) $settings->get('platform', 'platform_open', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Platform is currently closed',
+            ], 503);
+        }
+
+        if (!(bool) $settings->get('platform', 'registration_enabled', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration is currently disabled',
+            ], 403);
+        }
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -48,6 +65,13 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Invalid credentials',
             ], 401);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تم حظر هذا الحساب',
+            ], 403);
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;

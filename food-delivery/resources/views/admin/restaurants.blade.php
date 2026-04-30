@@ -4,29 +4,29 @@
 
 @section('styles')
 <style>
-.filter-tabs { display: flex; gap: 0.5rem; padding: 0.5rem; background: var(--white); border-radius: 12px; flex-wrap: wrap; box-shadow: var(--shadow-sm); }
-.filter-tab { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; cursor: pointer; border: none; background: transparent; font-family: 'Cairo', sans-serif; }
-.filter-tab:hover, .filter-tab.active { background: var(--primary-muted); color: var(--primary); }
+.stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.stats-card { background: var(--white); border-radius: 14px; box-shadow: var(--shadow-sm); padding: 0.85rem 1rem; }
+.stats-label { font-size: 0.78rem; color: var(--text-muted); }
+.stats-value { margin-top: 0.2rem; font-size: 1.2rem; font-weight: 700; color: var(--text-dark); }
+.filter-form { display: grid; grid-template-columns: 1.7fr 1fr 1fr 1fr auto; gap: 0.55rem; padding: 0.65rem; background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); margin-bottom: 1rem; }
+.filter-input,.filter-select { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.75rem; font-family: 'Cairo', sans-serif; font-size: 0.85rem; }
+.filter-input:focus,.filter-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-muted); }
+.filter-btn { border: none; border-radius: 10px; padding: 0.55rem 1rem; background: var(--primary); color: #fff; font-size: 0.84rem; font-weight: 600; }
+.filter-btn.clear { background: #F3F4F6; color: #4B5563; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .data-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .table { margin: 0; }
-.table th { background: var(--bg-page); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: 0.875rem 1rem; border: none; white-space: nowrap; }
+.table th { background: var(--bg-page); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 0.875rem 1rem; border: none; white-space: nowrap; }
 .table td { padding: 0.875rem 1rem; border-color: var(--border); vertical-align: middle; font-size: 0.9rem; }
-.table tr:hover { background: var(--bg-page); }
 .restaurant-name { font-weight: 600; display: flex; align-items: center; gap: 0.75rem; }
 .restaurant-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1rem; object-fit: cover; }
-.rating { display: flex; align-items: center; gap: 0.375rem; }
-.rating-count { font-size: 0.8rem; color: var(--text-muted); }
 .badge { padding: 0.25rem 0.625rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
 .badge-success { background: #D1FAE5; color: #059669; }
 .badge-danger { background: #FEE2E2; color: #DC2626; }
 .badge-outline-success { background: transparent; border: 1px solid #059669; color: #059669; }
 .badge-outline-danger { background: transparent; border: 1px solid #DC2626; color: #DC2626; }
 .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 90px; justify-content: center; cursor: pointer; }
-.status-badge:hover { background: #F3F4F6; transform: scale(1.02); transition: all 0.2s; }
-.btn-action { padding: 0.375rem 0.75rem; border-radius: 8px; font-size: 0.8rem; border: 1px solid var(--border); background: var(--white); color: var(--text-muted); cursor: pointer; transition: all 0.2s; margin-left: 0.5rem; }
+.btn-action { padding: 0.375rem 0.75rem; border-radius: 8px; font-size: 0.8rem; border: 1px solid var(--border); background: var(--white); color: var(--text-muted); cursor: pointer; transition: all 0.2s; margin-left: 0.4rem; }
 .btn-action:hover { background: #F9FAFB; color: var(--text-dark); }
-.btn-edit { display: inline-flex; align-items: center; gap: 0.375rem; }
-.btn-delete { display: inline-flex; align-items: center; gap: 0.375rem; }
 .btn-delete:hover { background: #FEE2E2; border-color: #DC2626; color: #DC2626; }
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
 .modal.show { display: flex; }
@@ -47,6 +47,13 @@
 .btn-save:hover { background: var(--primary-hover); }
 .btn-add { background: var(--primary); border: none; padding: 0.6rem 1.25rem; border-radius: var(--radius-sm); font-family: 'Cairo', sans-serif; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; color: white !important; cursor: pointer; }
 .btn-add:hover { background: var(--primary-hover); color: white !important; }
+.pagination-bar { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1rem; background:#fff; border-radius:14px; box-shadow:var(--shadow-sm); padding:0.7rem 1rem; }
+.pagination-info { font-size:0.83rem; color:var(--text-muted); }
+.pagination-links { display:flex; align-items:center; gap:0.35rem; }
+.page-pill { min-width:34px; height:34px; padding:0 0.6rem; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; border:1px solid var(--border); background:#fff; color:#4B5563; text-decoration:none; font-size:0.8rem; font-weight:600; }
+.page-pill.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+.page-pill.disabled { opacity:0.5; pointer-events:none; }
+@media (max-width: 992px) { .filter-form { grid-template-columns: 1fr 1fr; } .stats-grid { grid-template-columns: 1fr; } }
 </style>
 @endsection
 
@@ -62,20 +69,35 @@
     </button>
 </div>
 
-<div class="filter-tabs mb-4">
-    <input type="text" class="filter-tab" id="searchInput" placeholder="🔍 البحث عن مطعم..." onkeyup="searchByName(this.value)" style="min-width: 200px; text-align: right;">
-    <select class="filter-tab" id="statusFilter" onchange="filterByStatus(this.value)" style="border:none;background:transparent; min-width:120px;">
-        <option value="all">كل الحالات</option>
-        <option value="1">نشط</option>
-        <option value="0">غير نشط</option>
-    </select>
-    <select class="filter-tab" id="categoryFilter" onchange="filterByCategory(this.value)" style="border:none;background:transparent;">
-        <option value="all">كل التصنيفات</option>
-        <option value="مشروبات">مشروبات</option>
-        <option value="حلويات">حلويات</option>
-        <option value="شاورما">شاورما</option>
-    </select>
+<div class="stats-grid">
+    <div class="stats-card"><div class="stats-label">إجمالي المطاعم</div><div class="stats-value">{{ number_format($stats['total']) }}</div></div>
+    <div class="stats-card"><div class="stats-label">المطاعم النشطة</div><div class="stats-value">{{ number_format($stats['active']) }}</div></div>
+    <div class="stats-card"><div class="stats-label">المطاعم المفتوحة</div><div class="stats-value">{{ number_format($stats['open']) }}</div></div>
 </div>
+
+<form class="filter-form" method="GET" action="{{ route('admin.restaurants') }}">
+    <input type="text" name="search" class="filter-input" placeholder="🔍 البحث بالاسم أو الإيميل أو الهاتف" value="{{ request('search') }}">
+    <select class="filter-select" name="is_active">
+        <option value="">كل حالات التفعيل</option>
+        <option value="1" {{ request('is_active') === '1' ? 'selected' : '' }}>نشط</option>
+        <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>غير نشط</option>
+    </select>
+    <select class="filter-select" name="is_open">
+        <option value="">كل حالات الفتح</option>
+        <option value="1" {{ request('is_open') === '1' ? 'selected' : '' }}>مفتوح</option>
+        <option value="0" {{ request('is_open') === '0' ? 'selected' : '' }}>مغلق</option>
+    </select>
+    <select class="filter-select" name="category">
+        <option value="">كل التصنيفات</option>
+        @foreach($categories as $category)
+            <option value="{{ $category }}" {{ request('category') === $category ? 'selected' : '' }}>{{ $category }}</option>
+        @endforeach
+    </select>
+    <div style="display:flex; gap:0.45rem;">
+        <button class="filter-btn" type="submit">تطبيق</button>
+        <a href="{{ route('admin.restaurants') }}" class="filter-btn clear">مسح</a>
+    </div>
+</form>
 
 <div class="data-card">
     <div class="table-responsive">
@@ -83,21 +105,24 @@
             <thead>
                 <tr>
                     <th>المطعم</th>
-                    <th>التقييم</th>
+                    <th>البريد / الهاتف</th>
                     <th>الحالة</th>
+                    <th>تاريخ الإضافة</th>
                     <th>الإجراءات</th>
                 </tr>
             </thead>
             <tbody id="restaurantTable">
-                @foreach($restaurants as $restaurant)
-                <tr data-status="{{ $restaurant->is_active ? 'active' : 'inactive' }}" data-category="{{ $restaurant->category }}" data-name="{{ strtolower($restaurant->name) }}">
+                @forelse($restaurants as $restaurant)
+                <tr>
                     <td>
                         <div class="restaurant-name">
-                            @if($restaurant->image)
-                            <img src="{{ asset('storage/' . $restaurant->image) }}" class="restaurant-icon" style="object-fit: cover;">
-                            @else
-                            <div class="restaurant-icon"><i class="fas fa-store"></i></div>
-                            @endif
+                                @php
+                                    $image = $restaurant->image ?? '';
+                                    $imageSrc = $image ? (str_starts_with($image, 'http') ? $image : asset('storage/' . $image)) : null;
+                                @endphp
+                                @if($imageSrc)
+                                    <img src="{{ $imageSrc }}" class="restaurant-icon" style="object-fit: cover;" onerror="this.onerror=null;this.style.display='none'">
+                                @endif
                             <div>
                                 <div>{{ $restaurant->name }}</div>
                                 <small style="color: var(--text-muted); font-size: 0.8rem;">{{ $restaurant->category }}</small>
@@ -105,11 +130,8 @@
                         </div>
                     </td>
                     <td>
-                        <div class="rating">
-                            <span>4.5</span>
-                            <i class="fas fa-star text-warning"></i>
-                            <span class="rating-count">(260)</span>
-                        </div>
+                        <div>{{ $restaurant->email }}</div>
+                        <small style="color: var(--text-muted);">{{ $restaurant->phone ?: '-' }}</small>
                     </td>
                     <td>
                         <div class="d-flex flex-column gap-1">
@@ -123,6 +145,7 @@
                             </span>
                         </div>
                     </td>
+                    <td>{{ $restaurant->created_at?->format('Y-m-d') }}</td>
                     <td>
                         <button class="btn-action btn-edit" onclick="editRestaurant({{ $restaurant->id }}, '{{ $restaurant->name }}', '{{ $restaurant->category }}', '{{ $restaurant->email }}', '{{ $restaurant->phone }}', {{ $restaurant->is_active ? 'true' : 'false' }}, {{ $restaurant->is_open ? 'true' : 'false' }}, '{{ $restaurant->image ?? '' }}')">
                             <i class="fas fa-edit"></i>
@@ -138,11 +161,32 @@
                         </form>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.5rem;">لا توجد مطاعم مطابقة للفلترة الحالية</td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
 </div>
+
+@if($restaurants->hasPages())
+<div class="pagination-bar">
+    <span class="pagination-info">عرض {{ $restaurants->firstItem() }} - {{ $restaurants->lastItem() }} من {{ $restaurants->total() }}</span>
+    <div class="pagination-links">
+        <a href="{{ $restaurants->previousPageUrl() ?: '#' }}" class="page-pill {{ $restaurants->onFirstPage() ? 'disabled' : '' }}">السابق</a>
+        @php
+            $start = max(1, $restaurants->currentPage() - 2);
+            $end = min($restaurants->lastPage(), $restaurants->currentPage() + 2);
+        @endphp
+        @for($page = $start; $page <= $end; $page++)
+            <a href="{{ $restaurants->url($page) }}" class="page-pill {{ $restaurants->currentPage() === $page ? 'active' : '' }}">{{ $page }}</a>
+        @endfor
+        <a href="{{ $restaurants->nextPageUrl() ?: '#' }}" class="page-pill {{ $restaurants->hasMorePages() ? '' : 'disabled' }}">التالي</a>
+    </div>
+</div>
+@endif
 
 <!-- Add/Edit Modal -->
 <div class="modal" id="restaurantModal">
@@ -242,45 +286,6 @@ function toggleOpenStatus(id) {
             'Content-Type': 'application/json'
         }
     }).then(() => window.location.reload());
-}
-
-function filterByStatus(status) {
-    document.getElementById('statusFilter').value = status;
-    applyFilters();
-}
-
-function filterByCategory(category) {
-    document.getElementById('categoryFilter').value = category;
-    applyFilters();
-}
-
-function searchByName(query) {
-    document.getElementById('searchInput').value = query;
-    applyFilters();
-}
-
-function applyFilters() {
-    const rows = document.querySelectorAll('#restaurantTable tr');
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const statusValue = document.getElementById('statusFilter').value;
-    const categoryValue = document.getElementById('categoryFilter').value;
-    
-    rows.forEach(row => {
-        const rowStatus = row.dataset.status;
-        const rowCategory = row.dataset.category;
-        const rowName = row.dataset.name || '';
-        
-        let statusMatch = true;
-        if (statusValue !== 'all') {
-            const filterActive = statusValue == 1;
-            statusMatch = (filterActive && rowStatus === 'active') || (!filterActive && rowStatus === 'inactive');
-        }
-        
-        const categoryMatch = categoryValue === 'all' || rowCategory === categoryValue;
-        const searchMatch = searchTerm === '' || rowName.includes(searchTerm);
-
-        row.style.display = (statusMatch && categoryMatch && searchMatch) ? '' : 'none';
-    });
 }
 
 function openModal() {

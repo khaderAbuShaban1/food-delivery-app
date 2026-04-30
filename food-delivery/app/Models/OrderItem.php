@@ -14,6 +14,8 @@ class OrderItem extends \Illuminate\Database\Eloquent\Model
         'menu_item_id',
         'quantity',
         'price',
+        'image',
+        'name',
     ];
 
     protected function casts(): array

@@ -7,6 +7,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <style>
         :root {
             --primary: #FF6B2C;
@@ -233,7 +236,7 @@
             <div class="sidebar-header">
                 <div class="sidebar-logo">
                     <div class="logo-icon"><i class="fas fa-shop"></i></div>
-                    <span class="logo-text"> Food Delivery</span>
+                    <span class="logo-text">{{ config('app.name', 'Food Delivery') }}</span>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -263,6 +266,10 @@
                     <i class="fas fa-users"></i>
                     <span>إدارة العملاء</span>
                 </a>
+                <a href="{{ route('admin.settings') }}" class="nav-item {{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
+                    <i class="fas fa-cogs"></i>
+                    <span>الإعدادات المتقدمة</span>
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <form action="{{ route('admin.logout') }}" method="POST">
@@ -288,5 +295,71 @@
             @yield('content')
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        toastr.options = { "positionClass": "toast-top-left", "closeButton": true, "debug": false, "newestOnTop": true, "progressBar": true, "preventDuplicates": true, "timeOut": "3000" };
+    </script>
+    @yield('scripts')
+<script>
+        .pagination-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 2rem;
+        }
+
+        .pagination-wrapper {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            color: #374151;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover {
+            background: #F3F4F6;
+            border-color: #D1D5DB;
+        }
+
+        .page-text {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #6B7280;
+        }
+
+        .page-label {
+            padding: 0.5rem 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .pagination-info {
+            font-size: 0.85rem;
+            color: #6B7280;
+            font-family: 'Cairo', sans-serif;
+            background: transparent;
+            border: none;
+            padding: 0;
+            text-align: center;
+        }
+    </script>
 </body>
 </html>

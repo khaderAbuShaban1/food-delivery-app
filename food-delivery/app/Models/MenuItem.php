@@ -17,12 +17,15 @@ class MenuItem extends \Illuminate\Database\Eloquent\Model
         'description',
         'image',
         'category',
+        'is_available',
+        'id_number',
     ];
 
     protected function casts(): array
     {
         return [
             'price' => 'decimal:2',
+            'is_available' => 'boolean',
         ];
     }
 
@@ -34,5 +37,22 @@ class MenuItem extends \Illuminate\Database\Eloquent\Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function hasActiveOrders(): bool
+    {
+        return $this->orderItems()
+            ->whereHas('order', fn($q) => $q->whereNotIn('status', ['completed', 'cancelled']))
+            ->exists();
+    }
+
+    public function scopeAvailable($query)
+    {
+        return $query->where('is_available', true);
+    }
+
+    public static function generateIdNumber(): string
+    {
+        return strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
     }
 }

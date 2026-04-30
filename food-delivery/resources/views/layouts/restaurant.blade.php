@@ -212,6 +212,7 @@
         ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); }
     </style>
+    @yield('styles')
 </head>
 <body>
     <div class="dashboard-layout">
@@ -223,7 +224,7 @@
                     </div>
                     <div>
                         <h5 class="mb-0 fw-bold" style="font-size: 0.95rem; white-space: nowrap;">{{ $restaurant->name ?? 'Restaurant' }}</h5>
-                        <span class="badge {{ $restaurant && $restaurant->is_open ? 'badge-open' : 'badge-closed' }}" style="font-size: 0.65rem;">
+                        <span id="sidebarRestaurantStatusBadge" class="badge {{ $restaurant && $restaurant->is_open ? 'badge-open' : 'badge-closed' }}" style="font-size: 0.65rem;">
                             {{ $restaurant && $restaurant->is_open ? 'مفتوح' : 'مغلق' }}
                         </span>
                     </div>
@@ -246,6 +247,11 @@
                 <a href="{{ route('restaurant.orders') }}" class="sidebar-link {{ request()->routeIs('restaurant.orders') ? 'active' : '' }}">
                     <i class="bi bi-bag-check"></i>
                     <span>الطلبات</span>
+                </a>
+
+                <a href="{{ route('restaurant.settings') }}" class="sidebar-link {{ request()->routeIs('restaurant.settings*') ? 'active' : '' }}">
+                    <i class="bi bi-gear"></i>
+                    <span>الإعدادات</span>
                 </a>
             </nav>
 
