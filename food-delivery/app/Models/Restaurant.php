@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 
@@ -11,26 +11,33 @@ class Restaurant extends Model
 {
     use HasFactory, Notifiable;
 
+    protected $table = 'restaurants';
+
     protected $fillable = [
         'name',
+        'description',
         'email',
         'password',
         'phone',
         'category',
         'image',
         'is_open',
+        'minimum_order_amount',
+        'delivery_available',
+        'working_hours',
+        'is_active',
     ];
 
     protected $hidden = [
         'password',
+        'remember_token',
     ];
 
     protected function casts(): array
     {
         return [
             'is_open' => 'boolean',
-            'password' => 'hashed',
-            'email_verified_at' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -44,7 +51,7 @@ class Restaurant extends Model
         return $this->hasMany(Order::class);
     }
 
-    public function ratings(): HasMany
+    public function ratings()
     {
         return $this->hasMany(RestaurantRating::class);
     }

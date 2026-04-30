@@ -3,10 +3,9 @@
 namespace App\Modules\Restaurant\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Restaurant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -23,20 +22,29 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $restaurant = Restaurant::where('email', $request->email)->first();
+        $credentials = $request->only('email', 'password');
 
-        if (!$restaurant || !Hash::check($request->password, $restaurant->password)) {
-            return back()->with('error', 'Invalid credentials')->withInput($request->only('email'));
+        if (Auth::guard('restaurant')->attempt($credentials, $request->filled('remember'))) {
+            $restaurant = Auth::guard('restaurant')->user();
+            
+            if (!$restaurant->is_active) {
+                Auth::guard('restaurant')->logout();
+                $request->session()->invalidate();
+                return back()->with('error', 'تم حظر هذا الحساب')->withInput($request->only('email'));
+            }
+            
+            $request->session()->regenerate();
+            return redirect()->intended(route('restaurant.dashboard'));
         }
 
-        session()->put('restaurant', $restaurant);
-
-        return redirect()->route('restaurant.dashboard');
+        return back()->with('error', 'بيانات الاعتماد غير صحيحة')->withInput($request->only('email'));
     }
 
-    public function logout(): RedirectResponse
+    public function logout(Request $request): RedirectResponse
     {
-        session()->forget('restaurant');
+        Auth::guard('restaurant')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         
         return redirect()->route('restaurant.login');
     }

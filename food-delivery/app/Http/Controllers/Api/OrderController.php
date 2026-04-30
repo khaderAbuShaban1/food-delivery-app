@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\SystemSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -101,6 +102,29 @@ class OrderController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        /** @var SystemSettingsService $settings */
+        $settings = app(SystemSettingsService::class);
+        if (!(bool) $settings->get('platform', 'platform_open', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Platform is currently closed',
+            ], 503);
+        }
+
+        if (!(bool) $settings->get('platform', 'orders_enabled', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Orders are temporarily disabled for maintenance',
+            ], 503);
+        }
+
+        if (!(bool) $settings->get('platform', 'restaurants_enabled', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Restaurants are temporarily unavailable',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'restaurant_id' => 'required|exists:restaurants,id',
             'items' => 'required|array|min:1',

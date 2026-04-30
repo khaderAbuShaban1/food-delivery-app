@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Controllers\AuthController;
 use App\Modules\Admin\Controllers\DashboardController;
+use App\Modules\Admin\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -12,6 +13,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/users', [DashboardController::class, 'users'])->name('users');
+        Route::get('/users/{id}', [DashboardController::class, 'getUser'])->name('users.show');
+        Route::post('/users/{id}/ban', [DashboardController::class, 'toggleUserStatusApi'])->name('users.ban');
+        Route::post('/users/{id}/toggle', [DashboardController::class, 'toggleUserStatus'])->name('users.toggle');
         
         Route::get('/restaurants', [DashboardController::class, 'restaurants'])->name('restaurants');
         Route::post('/restaurants', [DashboardController::class, 'storeRestaurant'])->name('restaurants.store');
@@ -22,7 +26,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/restaurants/{id}/toggle', [DashboardController::class, 'toggleRestaurant'])->name('restaurants.toggle');
         
         Route::get('/menu', [DashboardController::class, 'menu'])->name('menu');
+        Route::post('/menu/{id}', [DashboardController::class, 'updateMenuItem'])->name('menu.update');
+        Route::post('/menu/{id}/delete', [DashboardController::class, 'deleteMenuItem'])->name('menu.destroy');
         Route::get('/orders', [DashboardController::class, 'orders'])->name('orders');
+        Route::get('/orders/list', [DashboardController::class, 'getOrders'])->name('orders.list');
+        Route::get('/orders/{id}/data', [DashboardController::class, 'getOrderData'])->name('orders.data');
+        Route::patch('/orders/{id}/accept', [DashboardController::class, 'acceptOrder'])->name('orders.accept');
+        Route::patch('/orders/{id}/cancel', [DashboardController::class, 'cancelOrder'])->name('orders.cancel');
         Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
+
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+        Route::put('/settings/general', [SettingsController::class, 'updateGeneral'])->name('settings.general');
+        Route::put('/settings/platform', [SettingsController::class, 'updatePlatform'])->name('settings.platform');
+        Route::put('/settings/payment', [SettingsController::class, 'updatePayment'])->name('settings.payment');
+        Route::put('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::put('/settings/security', [SettingsController::class, 'updateSecurity'])->name('settings.security');
     });
 });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\SystemSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,22 @@ class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
+        /** @var SystemSettingsService $settings */
+        $settings = app(SystemSettingsService::class);
+        if (!(bool) $settings->get('platform', 'platform_open', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Platform is currently closed',
+            ], 503);
+        }
+
+        if (!(bool) $settings->get('platform', 'registration_enabled', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration is currently disabled',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|min:3|max:255',
             'email' => 'required|email|unique:users,email',
@@ -36,8 +53,8 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
-                'message' => 'خطأ في التحقق',
+                'success' => false,
+                'message' => 'Validation error',
                 'errors' => $validator->errors(),
             ], 422);
         }
@@ -52,7 +69,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'message' => 'تم إنشاء الحساب بنجاح',
             'token' => $token,
             'data' => $user,
@@ -72,8 +89,8 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
-                'message' => 'خطأ في التحقق',
+                'success' => false,
+                'message' => 'Validation error',
                 'errors' => $validator->errors(),
             ], 422);
         }
@@ -82,22 +99,22 @@ class AuthController extends Controller
 
         if (!$user) {
             return response()->json([
-                'status' => false,
-                'message' => 'المستخدم غير موجود',
+                'success' => false,
+                'message' => 'User not found',
             ], 401);
         }
 
         if (!Hash::check($request->password, $user->password)) {
             return response()->json([
-                'status' => false,
-                'message' => 'كلمة المرور غير صحيحة',
+                'success' => false,
+                'message' => 'Invalid password',
             ], 401);
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'message' => 'تم تسجيل الدخول بنجاح',
             'token' => $token,
             'data' => $user,
@@ -109,7 +126,7 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'message' => 'تم تسجيل الخروج بنجاح',
         ]);
     }
@@ -117,7 +134,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'status' => true,
+            'success' => true,
             'data' => $request->user(),
         ]);
     }
@@ -139,8 +156,8 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
-                'message' => 'خطأ في التحقق',
+                'success' => false,
+                'message' => 'Validation error',
                 'errors' => $validator->errors(),
             ], 422);
         }
@@ -151,7 +168,7 @@ class AuthController extends Controller
         ]);
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'message' => 'تم تحديث الملف الشخصي بنجاح',
             'data' => $user,
         ]);
@@ -173,16 +190,16 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
-                'message' => 'خطأ في التحقق',
+                'success' => false,
+                'message' => 'Validation error',
                 'errors' => $validator->errors(),
             ], 422);
         }
 
         if (!Hash::check($request->current_password, $user->password)) {
             return response()->json([
-                'status' => false,
-                'message' => 'كلمة المرور الحالية غير صحيحة',
+                'success' => false,
+                'message' => 'Current password is incorrect',
             ], 400);
         }
 
@@ -191,7 +208,7 @@ class AuthController extends Controller
         ]);
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'message' => 'تم تغيير كلمة المرور بنجاح',
         ]);
     }
@@ -202,7 +219,7 @@ class AuthController extends Controller
         
         if (!$request->hasFile('image')) {
             return response()->json([
-                'status' => false,
+                'success' => false,
                 'message' => 'لم يتم تحديد صورة',
             ], 400);
         }
@@ -219,7 +236,7 @@ class AuthController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'success' => false,
                 'message' => $validator->errors()->first(),
             ], 422);
         }
@@ -244,7 +261,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'message' => 'تم رفع الصورة بنجاح',
             'data' => [
                 'profile_image' => $imageUrl,
