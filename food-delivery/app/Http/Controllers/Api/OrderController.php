@@ -316,9 +316,7 @@ class OrderController extends Controller
             'driver_id' => 'required|exists:users,id',
         ]);
 
-        $driver = \App\Models\User::where('id', $validated['driver_id'])
-            ->where('role', 'driver')
-            ->first();
+        $driver = \App\Models\Driver::find($validated['driver_id']);
 
         if (!$driver) {
             return response()->json([

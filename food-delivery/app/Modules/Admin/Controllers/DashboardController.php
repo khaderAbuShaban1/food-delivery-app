@@ -42,8 +42,8 @@ class DashboardController extends Controller
             'activeRestaurants' => (int) Restaurant::where('is_active', true)->count(),
             'openRestaurants' => (int) Restaurant::where('is_open', true)->count(),
             'totalRestaurants' => (int) Restaurant::count(),
-            'totalCustomers' => (int) User::where('role', 'customer')->count(),
-            'activeCustomers' => (int) User::where('role', 'customer')->where('is_active', true)->count(),
+            'totalCustomers' => (int) User::count(),
+            'activeCustomers' => (int) User::where('is_active', true)->count(),
             'totalDrivers' => (int) Driver::count(),
             'activeDrivers' => (int) Driver::where('is_available', true)->count(),
             'totalAdmins' => (int) Admin::count(),
@@ -84,7 +84,7 @@ class DashboardController extends Controller
                 name,
                 email,
                 phone,
-                avatar,
+                profile_image as avatar,
                 created_at,
                 COALESCE(is_active, 1) as is_active,
                 'customer' as account_type,
@@ -100,7 +100,7 @@ class DashboardController extends Controller
                     and orders.status = 'completed'
                 ) as total_spent
             ")
-            ->where('role', 'customer');
+            ->whereNotNull('id');
 
         $driverQuery = DB::table('drivers')
             ->selectRaw("
@@ -597,7 +597,7 @@ class DashboardController extends Controller
     private function resolveAccountByType(int $id, string $type)
     {
         return match ($type) {
-            'customer' => User::where('role', 'customer')->findOrFail($id),
+            'customer' => User::findOrFail($id),
             'driver' => Driver::findOrFail($id),
             'restaurant' => Restaurant::findOrFail($id),
             'admin' => Admin::findOrFail($id),
@@ -650,6 +650,10 @@ class DashboardController extends Controller
     {
         if ($type === 'restaurant' && !empty($account->image)) {
             return '/storage/' . $account->image;
+        }
+
+        if (!empty($account->profile_image)) {
+            return '/storage/' . $account->profile_image;
         }
 
         if (!empty($account->avatar)) {

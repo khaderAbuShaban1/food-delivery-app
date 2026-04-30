@@ -3,6 +3,42 @@ import '../api/api_client.dart';
 class AuthService {
   static Map<String, dynamic>? _currentUser;
 
+  static bool _isSuccess(Map<String, dynamic> response) {
+    return response['status'] == true || response['success'] == true;
+  }
+
+  static String? _extractToken(Map<String, dynamic> response) {
+    final directToken = response['token']?.toString();
+    if (directToken != null && directToken.isNotEmpty) {
+      return directToken;
+    }
+
+    final accessToken = response['access_token']?.toString();
+    if (accessToken != null && accessToken.isNotEmpty) {
+      return accessToken;
+    }
+
+    if (response['data'] is Map<String, dynamic>) {
+      final data = response['data'] as Map<String, dynamic>;
+      final nestedToken = data['token']?.toString() ?? data['access_token']?.toString();
+      if (nestedToken != null && nestedToken.isNotEmpty) {
+        return nestedToken;
+      }
+    }
+
+    return null;
+  }
+
+  static Map<String, dynamic>? _extractUser(Map<String, dynamic> response) {
+    if (response['data'] is Map<String, dynamic>) {
+      return response['data'] as Map<String, dynamic>;
+    }
+    if (response['user'] is Map<String, dynamic>) {
+      return response['user'] as Map<String, dynamic>;
+    }
+    return null;
+  }
+
   static Map<String, dynamic>? get currentUser => _currentUser;
   static String get currentUserName =>
       _currentUser?['name']?.toString() ?? 'ضيف';
@@ -17,16 +53,14 @@ class AuthService {
         'password': password,
       });
 
-      final status = response['status'] ?? false;
-      if (status == true) {
-        final token = response['token']?.toString();
-        if (token != null && token.isNotEmpty) {
-          ApiClient.token = token;
-          _currentUser = response['data'] is Map<String, dynamic>
-              ? response['data'] as Map<String, dynamic>
-              : null;
-          return 'success';
+      if (_isSuccess(response)) {
+        final token = _extractToken(response);
+        if (token == null || token.isEmpty) {
+          return response['message']?.toString() ?? 'تعذر قراءة رمز الدخول';
         }
+        ApiClient.token = token;
+        _currentUser = _extractUser(response);
+        return 'success';
       }
 
       final message = response['message']?.toString() ?? 'حدث خطأ';
@@ -51,16 +85,14 @@ class AuthService {
         'phone': phone,
       });
 
-      final status = response['status'] ?? false;
-      if (status == true) {
-        final token = response['token']?.toString();
-        if (token != null && token.isNotEmpty) {
-          ApiClient.token = token;
-          _currentUser = response['data'] is Map<String, dynamic>
-              ? response['data'] as Map<String, dynamic>
-              : null;
-          return 'success';
+      if (_isSuccess(response)) {
+        final token = _extractToken(response);
+        if (token == null || token.isEmpty) {
+          return response['message']?.toString() ?? 'تعذر قراءة رمز الدخول';
         }
+        ApiClient.token = token;
+        _currentUser = _extractUser(response);
+        return 'success';
       }
 
       final message = response['message']?.toString() ?? 'حدث خطأ';
@@ -95,8 +127,7 @@ class AuthService {
   static Future<Map<String, dynamic>?> fetchCurrentUser() async {
     if (!isLoggedIn()) return null;
     final response = await ApiClient.get('/me');
-    final status = response['status'] ?? response['success'] ?? false;
-    if (status == true && response['data'] is Map<String, dynamic>) {
+    if (_isSuccess(response) && response['data'] is Map<String, dynamic>) {
       _currentUser = response['data'] as Map<String, dynamic>;
       return _currentUser;
     }
@@ -113,8 +144,7 @@ class AuthService {
         if (phone != null) 'phone': phone,
       });
 
-      final status = response['status'] ?? response['success'] ?? false;
-      if (status == true) {
+      if (_isSuccess(response)) {
         if (_currentUser != null) {
           _currentUser!['name'] = name;
           if (phone != null) _currentUser!['phone'] = phone;
@@ -140,8 +170,7 @@ class AuthService {
         'new_password_confirmation': newPassword,
       });
 
-      final status = response['status'] ?? response['success'] ?? false;
-      if (status == true) {
+      if (_isSuccess(response)) {
         return 'success';
       }
 
@@ -156,8 +185,7 @@ class AuthService {
     try {
       final response = await ApiClient.uploadFile('/profile/image', imagePath, 'image');
 
-      final status = response['status'] ?? response['success'] ?? false;
-      if (status == true) {
+      if (_isSuccess(response)) {
         await fetchCurrentUser();
         return 'success';
       }
