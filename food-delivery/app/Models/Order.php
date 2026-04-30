@@ -27,7 +27,7 @@ class Order extends \Illuminate\Database\Eloquent\Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(User::class);
     }
 
     public function restaurant(): BelongsTo

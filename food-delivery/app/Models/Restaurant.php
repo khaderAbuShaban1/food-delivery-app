@@ -6,12 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
-use Illuminate\Contracts\Auth\Authenticatable;
 
-class Restaurant extends Model implements Authenticatable
+class Restaurant extends Model
 {
-    use HasFactory, Notifiable, AuthenticatableTrait;
+    use HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
@@ -44,5 +42,10 @@ class Restaurant extends Model implements Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(RestaurantRating::class);
     }
 }

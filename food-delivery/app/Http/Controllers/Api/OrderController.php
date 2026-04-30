@@ -8,27 +8,90 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class OrderController extends Controller
 {
+    const STATUS_PENDING = 'pending';
+    const STATUS_ACCEPTED = 'accepted';
+    const STATUS_PREPARING = 'preparing';
+    const STATUS_DELIVERING = 'delivering';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_CANCELLED = 'cancelled';
+
+    const STATUS_FLOW = [
+        self::STATUS_PENDING,
+        self::STATUS_ACCEPTED,
+        self::STATUS_PREPARING,
+        self::STATUS_DELIVERING,
+        self::STATUS_COMPLETED,
+    ];
+
+    const STATUS_LABELS = [
+        'pending' => 'بانتظار التأكيد',
+        'accepted' => 'تم التأكيد',
+        'preparing' => 'قيد التحضير',
+        'delivering' => 'في الطريق',
+        'completed' => 'تم التسليم',
+        'cancelled' => 'ملغى',
+    ];
+
+    const STATUS_COLORS = [
+        'pending' => '#6B6B6B',
+        'accepted' => '#3498DB',
+        'preparing' => '#FF7A30',
+        'delivering' => '#9B59B6',
+        'completed' => '#2ECC71',
+        'cancelled' => '#E74C3C',
+    ];
+
+    const ALLOWED_TRANSITIONS = [
+        'pending' => ['accepted', 'cancelled'],
+        'accepted' => ['preparing', 'cancelled'],
+        'preparing' => ['delivering', 'cancelled'],
+        'delivering' => ['completed'],
+    ];
+
+    private function customerColumn(): string
+    {
+        if (Schema::hasColumn('orders', 'customer_id')) {
+            return 'customer_id';
+        }
+
+        return 'user_id';
+    }
+
+    public function getStatusLabel(string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? $status;
+    }
+
+    public function getStatusColor(string $status): string
+    {
+        return self::STATUS_COLORS[$status] ?? '#6B6B6B';
+    }
+
+    public function canTransition(string $currentStatus, string $newStatus): bool
+    {
+        if (!isset(self::ALLOWED_TRANSITIONS[$currentStatus])) {
+            return false;
+        }
+
+        return in_array($newStatus, self::ALLOWED_TRANSITIONS[$currentStatus]);
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $customer = $request->user();
+        $customerColumn = $this->customerColumn();
 
-        if ($user->isRestaurant()) {
-            $orders = Order::where('restaurant_id', $user->restaurants->pluck('id'))
-                ->with(['user', 'restaurant', 'orderItems.menuItem'])
-                ->get();
-        } elseif ($user->isDriver()) {
-            $orders = Order::where('driver_id', $user->id)
-                ->orWhereNull('driver_id')
-                ->with(['user', 'restaurant', 'orderItems.menuItem'])
-                ->get();
-        } else {
-            $orders = $user->orders()
-                ->with(['restaurant', 'orderItems.menuItem'])
-                ->get();
-        }
+        $orders = Order::where($customerColumn, $customer->id)
+            ->with(['restaurant', 'orderItems.menuItem'])
+            ->latest()
+            ->get()
+            ->map(function ($order) {
+                return $this->formatOrder($order);
+            });
 
         return response()->json([
             'success' => true,
@@ -49,7 +112,7 @@ class OrderController extends Controller
         if (!$restaurant->is_open) {
             return response()->json([
                 'success' => false,
-                'message' => 'Restaurant is currently closed',
+                'message' => 'المطعم مغلق حالياً',
             ], 400);
         }
 
@@ -67,10 +130,10 @@ class OrderController extends Controller
         }
 
         $order = Order::create([
-            'user_id' => $request->user()->id,
+            $this->customerColumn() => $request->user()->id,
             'restaurant_id' => $validated['restaurant_id'],
             'total_price' => $totalPrice,
-            'status' => 'pending',
+            'status' => self::STATUS_PENDING,
         ]);
 
         foreach ($orderItems as $orderItem) {
@@ -84,25 +147,28 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Order created successfully',
-            'data' => $order->load(['orderItems.menuItem', 'restaurant']),
+            'message' => 'تم إنشاء الطلب بنجاح',
+            'data' => $this->formatOrder($order->load(['orderItems.menuItem', 'restaurant'])),
         ], 201);
     }
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $order = Order::with(['user', 'restaurant', 'driver', 'orderItems.menuItem'])->find($id);
+        $customerColumn = $this->customerColumn();
+        $order = Order::with(['restaurant', 'driver', 'orderItems.menuItem'])
+            ->where($customerColumn, $request->user()->id)
+            ->find($id);
 
         if (!$order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found',
+                'message' => 'الطلب غير موجود',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $order,
+            'data' => $this->formatOrder($order),
         ]);
     }
 
@@ -118,26 +184,96 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,accepted,preparing,delivering,completed',
+            'status' => 'required|in:pending,accepted,preparing,delivering,completed,cancelled',
         ]);
 
-        $statusFlow = ['pending', 'accepted', 'preparing', 'delivering', 'completed'];
-        $currentIndex = array_search($order->status, $statusFlow);
-        $newIndex = array_search($validated['status'], $statusFlow);
+        $newStatus = $validated['status'];
 
-        if ($newIndex < $currentIndex) {
+        if (!$this->canTransition($order->status, $newStatus)) {
             return response()->json([
                 'success' => false,
-                'message' => 'لا يمكنك التراجع عن حالة الطلب',
+                'message' => 'لا يمكنك تغيير حالة الطلب حالياً',
             ], 400);
         }
 
-        $order->update(['status' => $validated['status']]);
+        $order->update(['status' => $newStatus]);
 
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث حالة الطلب بنجاح',
-            'data' => $order,
+            'data' => $this->formatOrder($order),
+        ]);
+    }
+
+    public function restaurantOrders(Request $request): JsonResponse
+    {
+        $restaurantId = $request->user()->restaurant_id ?? $request->query('restaurant_id');
+
+        if (!$restaurantId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Restaurant ID required',
+            ], 400);
+        }
+
+        $status = $request->query('status');
+
+        $query = Order::where('restaurant_id', $restaurantId)
+            ->with(['orderItems.menuItem', 'customer']);
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $orders = $query->latest()->get()->map(function ($order) {
+            return $this->formatOrder($order);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders,
+        ]);
+    }
+
+    public function restaurantUpdateStatus(Request $request, int $id): JsonResponse
+    {
+        $order = Order::find($id);
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الطلب غير موجود',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:accepted,preparing,delivering,cancelled',
+        ]);
+
+        $newStatus = $validated['status'];
+
+        $allowedForRestaurant = ['accepted', 'preparing', 'delivering', 'cancelled'];
+
+        if (!in_array($newStatus, $allowedForRestaurant)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكنك تغيير إلى هذه الحالة',
+            ], 400);
+        }
+
+        if (!$this->canTransition($order->status, $newStatus)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكنك تغيير حالة الطلب حالياً',
+            ], 400);
+        }
+
+        $order->update(['status' => $newStatus]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث حالة الطلب بنجاح',
+            'data' => $this->formatOrder($order->load('orderItems.menuItem')),
         ]);
     }
 
@@ -172,7 +308,44 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Driver assigned successfully',
-            'data' => $order->load('driver'),
+            'data' => $this->formatOrder($order->load('driver')),
         ]);
+    }
+
+    private function formatOrder($order): array
+    {
+        return [
+            'id' => $order->id,
+            'restaurant_id' => $order->restaurant_id,
+            'restaurant' => $order->restaurant ? [
+                'id' => $order->restaurant->id,
+                'name' => $order->restaurant->name,
+                'image' => $order->restaurant->image,
+            ] : null,
+            'customer' => $order->customer ? [
+                'id' => $order->customer->id,
+                'name' => $order->customer->name,
+                'phone' => $order->customer->phone ?? $order->customer->email,
+            ] : null,
+            'driver' => $order->driver ? [
+                'id' => $order->driver->id,
+                'name' => $order->driver->name,
+            ] : null,
+            'total_price' => (float) $order->total_price,
+            'status' => $order->status,
+            'status_label' => $this->getStatusLabel($order->status),
+            'status_color' => $this->getStatusColor($order->status),
+            'items' => $order->orderItems->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'menu_item_id' => $item->menu_item_id,
+                    'name' => $item->menuItem?->name,
+                    'price' => (float) $item->price,
+                    'quantity' => $item->quantity,
+                ];
+            }),
+            'created_at' => $order->created_at,
+            'updated_at' => $order->updated_at,
+        ];
     }
 }

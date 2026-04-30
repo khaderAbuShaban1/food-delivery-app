@@ -41,10 +41,20 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'url' => env('APP_URL', 'http://localhost') . '/storage',
             'visibility' => 'public',
+            'serve' => true,
             'throw' => false,
             'report' => false,
+        ],
+
+        'profile' => [
+            'driver' => 'local',
+            'root' => public_path('storage/profile-images'),
+            'url' => env('APP_URL', 'http://localhost') . '/storage/profile-images',
+            'visibility' => 'public',
+            'serve' => true,
+            'throw' => false,
         ],
 
         's3' => [
