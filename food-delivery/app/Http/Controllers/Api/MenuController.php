@@ -7,10 +7,28 @@ use App\Models\MenuItem;
 use App\Models\Restaurant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class MenuController extends Controller
 {
+    private function getFullImageUrl($image): string
+    {
+        if (empty($image)) {
+            return '';
+        }
+        
+        if (str_starts_with($image, 'http')) {
+            return $image;
+        }
+
+        $path = ltrim($image, '/');
+        $baseUrl = request()->getSchemeAndHttpHost();
+        if (str_starts_with($path, 'storage/')) {
+            return $baseUrl . '/' . $path;
+        }
+
+        return $baseUrl . '/storage/' . $path;
+    }
+
     public function index(int $restaurantId): JsonResponse
     {
         $restaurant = Restaurant::find($restaurantId);
@@ -22,7 +40,50 @@ class MenuController extends Controller
             ], 404);
         }
 
-        $menuItems = $restaurant->menuItems;
+        $menuItems = $restaurant->menuItems->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'restaurant_id' => $item->restaurant_id,
+                'name' => $item->name,
+                'description' => $item->description,
+                'price' => (float) $item->price,
+                'category' => $item->category ?? 'أخرى',
+                'image' => $this->getFullImageUrl($item->image),
+                'created_at' => $item->created_at,
+                'updated_at' => $item->updated_at,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $menuItems,
+        ]);
+    }
+
+    public function publicIndex(int $restaurantId): JsonResponse
+    {
+        $restaurant = Restaurant::find($restaurantId);
+
+        if (!$restaurant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Restaurant not found',
+            ], 404);
+        }
+
+        $menuItems = $restaurant->menuItems->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'restaurant_id' => $item->restaurant_id,
+                'name' => $item->name,
+                'description' => $item->description,
+                'price' => (float) $item->price,
+                'category' => $item->category ?? 'أخرى',
+                'image' => $this->getFullImageUrl($item->image),
+                'created_at' => $item->created_at,
+                'updated_at' => $item->updated_at,
+            ];
+        });
 
         return response()->json([
             'success' => true,
@@ -33,7 +94,6 @@ class MenuController extends Controller
     public function store(Request $request, int $restaurantId): JsonResponse
     {
         $restaurant = Restaurant::find($restaurantId);
-
         if (!$restaurant) {
             return response()->json([
                 'success' => false,
@@ -45,20 +105,11 @@ class MenuController extends Controller
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'category' => 'nullable|string',
+            'image' => 'nullable|string',
         ]);
 
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('menu-items', 'public');
-        }
-
-        $menuItem = $restaurant->menuItems()->create([
-            'name' => $validated['name'],
-            'price' => $validated['price'],
-            'description' => $validated['description'] ?? null,
-            'image' => $imagePath,
-        ]);
+        $menuItem = $restaurant->menuItems()->create($validated);
 
         return response()->json([
             'success' => true,
@@ -79,26 +130,14 @@ class MenuController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric|min:0',
+            'name' => 'sometimes|string|max:255',
+            'price' => 'sometimes|numeric|min:0',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'category' => 'nullable|string',
+            'image' => 'nullable|string',
         ]);
 
-        $imagePath = $menuItem->image;
-        if ($request->hasFile('image')) {
-            if ($menuItem->image) {
-                Storage::disk('public')->delete($menuItem->image);
-            }
-            $imagePath = $request->file('image')->store('menu-items', 'public');
-        }
-
-        $menuItem->update([
-            'name' => $validated['name'],
-            'price' => $validated['price'],
-            'description' => $validated['description'] ?? null,
-            'image' => $imagePath,
-        ]);
+        $menuItem->update($validated);
 
         return response()->json([
             'success' => true,
@@ -116,10 +155,6 @@ class MenuController extends Controller
                 'success' => false,
                 'message' => 'Menu item not found',
             ], 404);
-        }
-
-        if ($menuItem->image) {
-            Storage::disk('public')->delete($menuItem->image);
         }
 
         $menuItem->delete();

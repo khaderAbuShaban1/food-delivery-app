@@ -11,27 +11,37 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+// User auth routes (public) - for Flutter app
+Route::post('/user/register', [AuthController::class, 'register']);
+Route::post('/user/login', [AuthController::class, 'login']);
 
+// Public restaurant routes
+Route::get('/restaurants', [RestaurantController::class, 'index']);
+
+// Test route  
+Route::get('/test', function () {
+    return ['success' => true, 'message' => 'API working'];
+});
+
+// Menu route  
+Route::get('/restaurants/{id}/menu', [MenuController::class, 'publicIndex']);
+
+// Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
-
-    Route::get('/restaurants', [RestaurantController::class, 'index']);
-    Route::get('/restaurants/{id}', [RestaurantController::class, 'show']);
-    Route::post('/restaurants', [RestaurantController::class, 'store']);
-    Route::put('/restaurants/{id}', [RestaurantController::class, 'update']);
-    Route::delete('/restaurants/{id}', [RestaurantController::class, 'destroy']);
-
-    Route::get('/restaurants/{id}/menu', [MenuController::class, 'index']);
-    Route::post('/restaurants/{restaurantId}/menu', [MenuController::class, 'store']);
-    Route::put('/restaurants/{restaurantId}/menu/{menuItemId}', [MenuController::class, 'update']);
-    Route::delete('/restaurants/{restaurantId}/menu/{menuItemId}', [MenuController::class, 'destroy']);
-
-    Route::get('/orders', [OrderController::class, 'index']);
+    Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/profile/image', [AuthController::class, 'uploadProfileImage']);
+    Route::post('/restaurants/{id}/rate', [RestaurantController::class, 'rate']);
+    
+    // User orders
     Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
-    Route::put('/orders/{id}/assign-driver', [OrderController::class, 'assignDriver']);
+    
+    // Restaurant order management
+    Route::get('/restaurant/orders', [OrderController::class, 'restaurantOrders']);
+    Route::put('/restaurant/orders/{id}/status', [OrderController::class, 'restaurantUpdateStatus']);
 });

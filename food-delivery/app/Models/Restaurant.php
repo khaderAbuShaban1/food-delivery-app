@@ -6,13 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
 
-class Restaurant extends Model implements Authenticatable
+class Restaurant extends Model
 {
-    use HasFactory, Notifiable, AuthenticatableTrait, HasApiTokens;
+    use HasFactory, Notifiable;
 
     protected $table = 'restaurants';
 
@@ -41,11 +38,6 @@ class Restaurant extends Model implements Authenticatable
         return [
             'is_open' => 'boolean',
             'is_active' => 'boolean',
-            'delivery_available' => 'boolean',
-            'minimum_order_amount' => 'decimal:2',
-            'working_hours' => 'array',
-            'password' => 'hashed',
-            'email_verified_at' => 'datetime',
         ];
     }
 
@@ -57,5 +49,10 @@ class Restaurant extends Model implements Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function ratings()
+    {
+        return $this->hasMany(RestaurantRating::class);
     }
 }

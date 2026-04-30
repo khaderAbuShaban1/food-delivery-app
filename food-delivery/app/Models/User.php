@@ -17,8 +17,9 @@ class User extends Authenticatable
         'name',
         'email',
         'phone',
+        'address',
+        'profile_image',
         'password',
-        'role',
     ];
 
     protected $hidden = [
@@ -47,30 +48,5 @@ class User extends Authenticatable
     public function getTotalSpentAttribute(): float
     {
         return $this->orders()->where('status', 'completed')->sum('total_price') ?? 0;
-    }
-
-    public function driverOrders(): HasMany
-    {
-        return $this->hasMany(Order::class, 'driver_id');
-    }
-
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isRestaurant(): bool
-    {
-        return $this->role === 'restaurant';
-    }
-
-    public function isDriver(): bool
-    {
-        return $this->role === 'driver';
-    }
-
-    public function isCustomer(): bool
-    {
-        return $this->role === 'customer';
     }
 }
