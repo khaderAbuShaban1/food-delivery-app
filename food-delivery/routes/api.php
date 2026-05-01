@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\RestaurantController;
@@ -34,6 +35,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/profile/image', [AuthController::class, 'uploadProfileImage']);
     Route::post('/restaurants/{id}/rate', [RestaurantController::class, 'rate']);
+
+    // User addresses
+    Route::get('/addresses', [AddressController::class, 'index']);
+    Route::post('/addresses', [AddressController::class, 'store']);
+    Route::put('/addresses/{id}', [AddressController::class, 'update']);
+    Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
     
     // User orders
     Route::post('/orders', [OrderController::class, 'store']);

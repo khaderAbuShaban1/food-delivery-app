@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/home/main_screen.dart';
+import 'features/profile/my_addresses_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'core/api/api_client.dart';
 import 'core/services/cart_provider.dart';
@@ -42,6 +43,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/register': (context) => const RegisterScreen(),
           '/main': (context) => const MainScreen(),
+          '/addresses': (context) => const MyAddressesScreen(),
         },
       ),
     );

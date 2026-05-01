@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' as intl;
 import '../../core/theme/app_theme.dart';
 
 class FoodCard extends StatelessWidget {
@@ -256,6 +257,11 @@ class MenuItemCard extends StatelessWidget {
   final int quantity;
   final VoidCallback? onIncrease;
   final VoidCallback? onDecrease;
+  static final intl.NumberFormat _currencyFormatter = intl.NumberFormat.currency(
+    locale: 'en_US',
+    symbol: '₪ ',
+    decimalDigits: 2,
+  );
 
   const MenuItemCard({
     super.key,
@@ -340,12 +346,15 @@ class MenuItemCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '₪${price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                    Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Text(
+                        _currencyFormatter.format(price),
+                        style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                     quantity > 0 ? _buildQuantityControls() : _buildAddButton(),

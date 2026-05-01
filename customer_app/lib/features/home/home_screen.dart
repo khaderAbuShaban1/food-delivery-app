@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/models/address.dart';
 import '../../core/models/restaurant.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/services/address_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../restaurant/restaurant_screen.dart';
 
@@ -29,6 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
   String? _profileImage;
   int _imageCacheKey = 0;
+  List<Address> _addresses = [];
+  Address? _selectedAddress;
+  bool _isAddressLoading = true;
 
   final List<Map<String, String>> _quickFilters = const [
     {'icon': '⚡', 'label': 'سريع'},
@@ -41,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadRestaurants();
     _loadUserProfile();
+    _loadAddresses();
   }
 
   Future<void> _loadUserProfile() async {
@@ -56,6 +62,207 @@ class _HomeScreenState extends State<HomeScreen> {
     if (url == null || url.isEmpty) return null;
     final separator = url.contains('?') ? '&' : '?';
     return '$url${separator}v=$_imageCacheKey';
+  }
+
+  Future<void> _loadAddresses() async {
+    setState(() => _isAddressLoading = true);
+    try {
+      final addresses = await AddressService.getAddresses();
+      if (!mounted) return;
+      setState(() {
+        _addresses = addresses;
+        _selectedAddress = _resolveSelectedAddress(addresses);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _addresses = [];
+        _selectedAddress = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isAddressLoading = false);
+      }
+    }
+  }
+
+  Address? _resolveSelectedAddress(List<Address> addresses) {
+    if (addresses.isEmpty) return null;
+    final currentId = _selectedAddress?.id;
+    if (currentId != null) {
+      for (final address in addresses) {
+        if (address.id == currentId) return address;
+      }
+    }
+    for (final address in addresses) {
+      if (address.isDefault) return address;
+    }
+    return addresses.first;
+  }
+
+  Future<void> _onAddressTap() async {
+    if (_isAddressLoading) return;
+
+    if (_addresses.isEmpty) {
+      await Navigator.pushNamed(context, '/addresses');
+      if (!mounted) return;
+      await _loadAddresses();
+      return;
+    }
+
+    final selected = await showModalBottomSheet<Address>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            itemCount: _addresses.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return const Text(
+                  'اختر عنوان التوصيل',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                );
+              }
+
+              final address = _addresses[index - 1];
+              final isSelected = _selectedAddress?.id == address.id;
+              return InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: () => Navigator.pop(ctx, address),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.08)
+                        : AppColors.background,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      if (address.isDefault)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: const Text(
+                            'الافتراضي',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              address.title,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              address.fullAddress,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        isSelected
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textHint,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+
+    // Reflect selection immediately in the header.
+    setState(() => _selectedAddress = selected);
+
+    if (!selected.isDefault) {
+      try {
+        await AddressService.updateAddress(
+          id: selected.id,
+          title: selected.title,
+          city: selected.city,
+          street: selected.street,
+          details: selected.details,
+          isDefault: true,
+        );
+        if (!mounted) return;
+        setState(() {
+          _addresses = _addresses
+              .map(
+                (a) => Address(
+                  id: a.id,
+                  title: a.title,
+                  city: a.city,
+                  street: a.street,
+                  details: a.details,
+                  isDefault: a.id == selected.id,
+                ),
+              )
+              .toList();
+          _selectedAddress = _resolveSelectedAddress(_addresses);
+        });
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        await _loadAddresses();
+      }
+    }
   }
 
   @override
@@ -161,7 +368,9 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppColors.background,
         body: SafeArea(
           child: RefreshIndicator(
-            onRefresh: _loadRestaurants,
+            onRefresh: () async {
+              await Future.wait([_loadRestaurants(), _loadAddresses()]);
+            },
             color: AppColors.primary,
             child: CustomScrollView(
               slivers: [
@@ -219,6 +428,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final addressTitle = _selectedAddress?.title ?? 'إضافة عنوان';
+    final addressDetails = _selectedAddress?.fullAddress ?? 'اختر عنوان التوصيل';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -226,7 +438,9 @@ class _HomeScreenState extends State<HomeScreen> {
         AppSpacing.lg,
         AppSpacing.md,
       ),
-      child: Row(
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Row(
         children: [
           GestureDetector(
             onTap: () async {
@@ -263,49 +477,106 @@ class _HomeScreenState extends State<HomeScreen> {
                   : null,
             ),
           ),
-          const Spacer(),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.tune_rounded, color: AppColors.textPrimary),
-          ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: const [
-                Text(
-                  'التوصيل إلى',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
+            child: InkWell(
+              onTap: _onAddressTap,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'HH#21, ST#22, ISB',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: _isAddressLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppColors.primary,
+                            ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'التوصيل إلى',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            addressTitle,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            addressDetails,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
+      ),
       ),
     );
   }

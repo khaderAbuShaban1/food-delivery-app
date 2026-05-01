@@ -175,7 +175,9 @@ Container(
             _buildMenuItem(
               icon: Icons.location_on_outlined,
               title: 'العناوين',
-              onTap: () => _showComingSoon(context),
+              onTap: () {
+                Navigator.pushNamed(context, '/addresses');
+              },
             ),
             _buildMenuItem(
               icon: Icons.payment_outlined,

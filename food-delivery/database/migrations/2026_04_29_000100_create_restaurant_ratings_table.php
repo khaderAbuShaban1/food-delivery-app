@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('restaurant_ratings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('restaurant_id')->constrained('restaurants')->onDelete('cascade');
-            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
+            $table->foreignId('customer_id')->constrained('users')->onDelete('cascade');
             $table->unsignedTinyInteger('rating');
             $table->timestamps();
 
