@@ -7,6 +7,7 @@ import '../../core/models/address.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/services/address_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../restaurant/restaurant_screen.dart';
@@ -28,7 +29,11 @@ class _HomeScreenState extends State<HomeScreen> {
   double _minRating = 0;
   String _priceFilter = 'all';
   Timer? _searchDebounce;
+  StreamSubscription<Map<String, dynamic>?>? _userSub;
+  StreamSubscription<List<Address>>? _addressesSub;
+  StreamSubscription<List<Restaurant>>? _restaurantsSub;
   final _searchController = TextEditingController();
+  Timer? _realtimeBackfillTimer;
   String? _profileImage;
   int _imageCacheKey = 0;
   List<Address> _addresses = [];
@@ -45,8 +50,62 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadRestaurants();
+    _subscribeToUser();
     _loadUserProfile();
     _loadAddresses();
+    _startRealtimeListeners();
+    _startRealtimeBackfillLoop();
+  }
+
+  void _startRealtimeBackfillLoop() {
+    _realtimeBackfillTimer?.cancel();
+    _realtimeBackfillTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadRestaurants(showLoading: false);
+    });
+  }
+
+  void _subscribeToUser() {
+    _userSub?.cancel();
+    _userSub = AuthService.watchCurrentUser().listen((user) {
+      if (!mounted || user == null) return;
+      setState(() {
+        _profileImage = user['profile_image']?.toString();
+        _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
+      });
+    });
+  }
+
+  Future<void> _startRealtimeListeners() async {
+    await AuthService.fetchCurrentUser();
+    final userId = RealtimeSyncService.currentUserId();
+    if (userId != null) {
+      _addressesSub?.cancel();
+      _addressesSub = RealtimeSyncService.watchAddresses(userId).listen((items) {
+        if (!mounted) return;
+        setState(() {
+          _addresses = items;
+          _selectedAddress = _resolveSelectedAddress(items);
+          _isAddressLoading = false;
+        });
+      });
+    }
+
+    _restaurantsSub?.cancel();
+    _restaurantsSub = RealtimeSyncService.watchRestaurants().listen((items) {
+      if (!mounted) return;
+      if (items.isEmpty && _restaurants.isNotEmpty) return;
+      setState(() {
+        _restaurants = items;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    }, onError: (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'تعذر مزامنة المطاعم مباشرة';
+        _isLoading = false;
+      });
+    });
   }
 
   Future<void> _loadUserProfile() async {
@@ -64,25 +123,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return '$url${separator}v=$_imageCacheKey';
   }
 
-  Future<void> _loadAddresses() async {
-    setState(() => _isAddressLoading = true);
+  Future<void> _loadAddresses({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() => _isAddressLoading = true);
+    }
     try {
       final addresses = await AddressService.getAddresses();
       if (!mounted) return;
       setState(() {
         _addresses = addresses;
         _selectedAddress = _resolveSelectedAddress(addresses);
+        if (showLoading) _isAddressLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _addresses = [];
         _selectedAddress = null;
+        if (showLoading) _isAddressLoading = false;
       });
-    } finally {
-      if (mounted) {
-        setState(() => _isAddressLoading = false);
-      }
     }
   }
 
@@ -268,6 +327,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _realtimeBackfillTimer?.cancel();
+    _userSub?.cancel();
+    _addressesSub?.cancel();
+    _restaurantsSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -281,31 +344,40 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _loadRestaurants() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadRestaurants({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final response = await ApiClient.get('/restaurants');
 
       if (response['success'] == true && response['data'] != null) {
         final List data = response['data'];
+        final restaurants = data.map((json) => Restaurant.fromJson(json)).toList();
+        try {
+          await RealtimeSyncService.syncRestaurants(restaurants);
+        } catch (_) {
+          // Firestore sync must not block showing API restaurants.
+        }
         setState(() {
-          _restaurants = data.map((json) => Restaurant.fromJson(json)).toList();
-          _isLoading = false;
+          _restaurants = restaurants;
+          if (showLoading) _isLoading = false;
+          if (!showLoading && _errorMessage != null) _errorMessage = null;
         });
       } else {
         setState(() {
           _errorMessage = response['message'] ?? 'حدث خطأ';
-          _isLoading = false;
+          if (showLoading) _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'فشل في الاتصال بالخادم';
-        _isLoading = false;
+        if (showLoading) _isLoading = false;
       });
     }
   }
@@ -367,60 +439,54 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              await Future.wait([_loadRestaurants(), _loadAddresses()]);
-            },
-            color: AppColors.primary,
-            child: CustomScrollView(
-              slivers: [
-                // Header
-                SliverToBoxAdapter(child: _buildHeader()),
-                // Search
-                SliverToBoxAdapter(child: _buildSearch()),
-                // Featured banner
-                SliverToBoxAdapter(child: _buildFeaturedBanner()),
-                // Categories
-                SliverToBoxAdapter(child: _buildCategories()),
-                // Quick filters
-                SliverToBoxAdapter(child: _buildQuickFilters()),
-                // Section title
-                SliverToBoxAdapter(child: _buildSectionHeader()),
-                // Content
-                if (_isLoading)
-                  const SliverToBoxAdapter(child: LoadingShimmer(itemCount: 5))
-                else if (_errorMessage != null)
-                  SliverToBoxAdapter(
-                    child: ErrorState(
-                      message: _errorMessage!,
-                      onRetry: _loadRestaurants,
-                    ),
-                  )
-                else if (_filteredRestaurants.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: EmptyState(
-                      icon: Icons.restaurant_outlined,
-                      title: 'لا توجد مطاعم',
-                      subtitle: 'جرب اختيار فئة أخرى',
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final restaurant = _filteredRestaurants[index];
-                      return RestaurantCard(
-                        restaurant: restaurant,
-                        onTap: () => _navigateToRestaurant(restaurant),
-                        onRateTap: () => _rateRestaurant(restaurant),
-                      );
-                    }, childCount: _filteredRestaurants.length),
+          child: CustomScrollView(
+            slivers: [
+              // Header
+              SliverToBoxAdapter(child: _buildHeader()),
+              // Search
+              SliverToBoxAdapter(child: _buildSearch()),
+              // Featured banner
+              SliverToBoxAdapter(child: _buildFeaturedBanner()),
+              // Categories
+              SliverToBoxAdapter(child: _buildCategories()),
+              // Quick filters
+              SliverToBoxAdapter(child: _buildQuickFilters()),
+              // Section title
+              SliverToBoxAdapter(child: _buildSectionHeader()),
+              // Content
+              if (_isLoading)
+                const SliverToBoxAdapter(child: LoadingShimmer(itemCount: 5))
+              else if (_errorMessage != null)
+                SliverToBoxAdapter(
+                  child: ErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadRestaurants,
                   ),
-                // Bottom padding
+                )
+              else if (_filteredRestaurants.isEmpty)
                 const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xxl),
+                  child: EmptyState(
+                    icon: Icons.restaurant_outlined,
+                    title: 'لا توجد مطاعم',
+                    subtitle: 'جرب اختيار فئة أخرى',
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final restaurant = _filteredRestaurants[index];
+                    return RestaurantCard(
+                      restaurant: restaurant,
+                      onTap: () => _navigateToRestaurant(restaurant),
+                      onRateTap: () => _rateRestaurant(restaurant),
+                    );
+                  }, childCount: _filteredRestaurants.length),
                 ),
-              ],
-            ),
+              // Bottom padding
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.xxl),
+              ),
+            ],
           ),
         ),
       ),
@@ -931,6 +997,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     if (response['success'] == true && response['data'] != null) {
       final updated = Restaurant.fromJson(response['data']);
+      await RealtimeSyncService.syncRestaurant(updated);
       setState(() {
         _restaurants = _restaurants
             .map((r) => r.id == updated.id ? updated : r)

@@ -130,18 +130,18 @@
 <div class="dash-grid">
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">إجمالي الطلبات</span><span class="kpi-icon primary"><i class="bi bi-bag"></i></span></div>
-        <div class="kpi-value">{{ number_format($stats['orders_total']) }}</div>
-        <div class="kpi-meta">طلبات اليوم: {{ number_format($stats['orders_today']) }}</div>
+        <div class="kpi-value" id="kpiOrdersTotal">{{ number_format($stats['orders_total']) }}</div>
+        <div class="kpi-meta">طلبات اليوم: <span id="kpiOrdersToday">{{ number_format($stats['orders_today']) }}</span></div>
     </div>
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">قيد الانتظار</span><span class="kpi-icon warning"><i class="bi bi-hourglass-split"></i></span></div>
-        <div class="kpi-value">{{ number_format($stats['pending_orders']) }}</div>
+        <div class="kpi-value" id="kpiPendingOrders">{{ number_format($stats['pending_orders']) }}</div>
         <div class="kpi-meta">متابعة الطلبات الجديدة</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">إيراد اليوم</span><span class="kpi-icon success"><i class="bi bi-cash-coin"></i></span></div>
-        <div class="kpi-value">@price($stats['revenue_today'])</div>
-        <div class="kpi-meta">الإيراد الكلي: @price($stats['revenue_total'])</div>
+        <div class="kpi-value" id="kpiRevenueToday">@price($stats['revenue_today'])</div>
+        <div class="kpi-meta">الإيراد الكلي: <span id="kpiRevenueTotal">@price($stats['revenue_total'])</span></div>
     </div>
     <div class="kpi-card clickable" id="restaurantStatusCard">
         <div class="kpi-head"><span class="kpi-title">حالة المطعم</span><span class="kpi-icon info"><i class="bi bi-shop"></i></span></div>
@@ -156,12 +156,12 @@
         </div>
         @php $totalOrders = max($stats['orders_total'], 1); @endphp
         <div class="status-list">
-            <div class="status-row"><span class="status-label">قيد الانتظار</span><div class="status-track"><div class="status-fill pending" style="width: {{ ($orderStats['pending'] / $totalOrders) * 100 }}%"></div></div><span class="status-count">{{ $orderStats['pending'] }}</span></div>
-            <div class="status-row"><span class="status-label">مقبول</span><div class="status-track"><div class="status-fill accepted" style="width: {{ ($orderStats['accepted'] / $totalOrders) * 100 }}%"></div></div><span class="status-count">{{ $orderStats['accepted'] }}</span></div>
-            <div class="status-row"><span class="status-label">قيد التجهيز</span><div class="status-track"><div class="status-fill preparing" style="width: {{ ($orderStats['preparing'] / $totalOrders) * 100 }}%"></div></div><span class="status-count">{{ $orderStats['preparing'] }}</span></div>
-            <div class="status-row"><span class="status-label">في الطريق</span><div class="status-track"><div class="status-fill delivering" style="width: {{ ($orderStats['delivering'] / $totalOrders) * 100 }}%"></div></div><span class="status-count">{{ $orderStats['delivering'] }}</span></div>
-            <div class="status-row"><span class="status-label">مكتمل</span><div class="status-track"><div class="status-fill completed" style="width: {{ ($orderStats['completed'] / $totalOrders) * 100 }}%"></div></div><span class="status-count">{{ $orderStats['completed'] }}</span></div>
-            <div class="status-row"><span class="status-label">ملغي</span><div class="status-track"><div class="status-fill cancelled" style="width: {{ ($orderStats['cancelled'] / $totalOrders) * 100 }}%"></div></div><span class="status-count">{{ $orderStats['cancelled'] }}</span></div>
+            <div class="status-row"><span class="status-label">قيد الانتظار</span><div class="status-track"><div id="statusFillPending" class="status-fill pending" style="width: {{ ($orderStats['pending'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountPending" class="status-count">{{ $orderStats['pending'] }}</span></div>
+            <div class="status-row"><span class="status-label">مقبول</span><div class="status-track"><div id="statusFillAccepted" class="status-fill accepted" style="width: {{ ($orderStats['accepted'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountAccepted" class="status-count">{{ $orderStats['accepted'] }}</span></div>
+            <div class="status-row"><span class="status-label">قيد التجهيز</span><div class="status-track"><div id="statusFillPreparing" class="status-fill preparing" style="width: {{ ($orderStats['preparing'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountPreparing" class="status-count">{{ $orderStats['preparing'] }}</span></div>
+            <div class="status-row"><span class="status-label">في الطريق</span><div class="status-track"><div id="statusFillDelivering" class="status-fill delivering" style="width: {{ ($orderStats['delivering'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountDelivering" class="status-count">{{ $orderStats['delivering'] }}</span></div>
+            <div class="status-row"><span class="status-label">مكتمل</span><div class="status-track"><div id="statusFillCompleted" class="status-fill completed" style="width: {{ ($orderStats['completed'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountCompleted" class="status-count">{{ $orderStats['completed'] }}</span></div>
+            <div class="status-row"><span class="status-label">ملغي</span><div class="status-track"><div id="statusFillCancelled" class="status-fill cancelled" style="width: {{ ($orderStats['cancelled'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountCancelled" class="status-count">{{ $orderStats['cancelled'] }}</span></div>
         </div>
     </section>
 
@@ -171,10 +171,10 @@
             <span class="panel-subtitle">جاهزية الأصناف</span>
         </div>
         <div class="summary-grid">
-            <div class="summary-card"><div class="summary-label">عدد الأصناف</div><div class="summary-value">{{ $stats['menu_items_total'] }}</div></div>
-            <div class="summary-card"><div class="summary-label">المتاح</div><div class="summary-value">{{ $stats['menu_items_available'] }}</div></div>
-            <div class="summary-card"><div class="summary-label">طلبات اليوم</div><div class="summary-value">{{ $stats['orders_today'] }}</div></div>
-            <div class="summary-card"><div class="summary-label">قيد الانتظار</div><div class="summary-value">{{ $stats['pending_orders'] }}</div></div>
+            <div class="summary-card"><div class="summary-label">عدد الأصناف</div><div id="summaryMenuItemsTotal" class="summary-value">{{ $stats['menu_items_total'] }}</div></div>
+            <div class="summary-card"><div class="summary-label">المتاح</div><div id="summaryMenuItemsAvailable" class="summary-value">{{ $stats['menu_items_available'] }}</div></div>
+            <div class="summary-card"><div class="summary-label">طلبات اليوم</div><div id="summaryOrdersToday" class="summary-value">{{ $stats['orders_today'] }}</div></div>
+            <div class="summary-card"><div class="summary-label">قيد الانتظار</div><div id="summaryPendingOrders" class="summary-value">{{ $stats['pending_orders'] }}</div></div>
         </div>
     </section>
 
@@ -205,7 +205,7 @@
                         <th>التاريخ</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="recentOrdersBody">
                     @forelse($recentOrders as $order)
                         @php
                             $statusLabel = match($order->status) {
@@ -258,6 +258,89 @@ const statusErrEl = document.getElementById('statusToggleError');
 const statusConfirmBtn = document.getElementById('statusToggleConfirm');
 const sidebarStatusBadge = document.getElementById('sidebarRestaurantStatusBadge');
 let isOpen = @json((bool)($restaurant->is_open ?? false));
+let dashboardRealtimeTimer = null;
+
+function formatPrice(value) {
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) + ' ₪';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function updateStatusBars(orderStats, ordersTotal) {
+    const total = Math.max(Number(ordersTotal || 0), 1);
+    const statuses = ['pending', 'accepted', 'preparing', 'delivering', 'completed', 'cancelled'];
+    statuses.forEach((status) => {
+        const count = Number(orderStats?.[status] || 0);
+        const fillEl = document.getElementById(`statusFill${status.charAt(0).toUpperCase()}${status.slice(1)}`);
+        const countEl = document.getElementById(`statusCount${status.charAt(0).toUpperCase()}${status.slice(1)}`);
+        if (fillEl) fillEl.style.width = `${(count / total) * 100}%`;
+        if (countEl) countEl.textContent = count;
+    });
+}
+
+function renderRecentOrders(orders) {
+    const body = document.getElementById('recentOrdersBody');
+    if (!body) return;
+    if (!orders || !orders.length) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">لا توجد طلبات حديثة</td></tr>';
+        return;
+    }
+    body.innerHTML = orders.map((order) => `
+        <tr>
+            <td>#${escapeHtml(order.order_number)}</td>
+            <td><span class="badge badge-${escapeHtml(order.status)}">${escapeHtml(order.status_label)}</span></td>
+            <td>${formatPrice(order.total_price)}</td>
+            <td>${escapeHtml(order.created_at)}</td>
+        </tr>
+    `).join('');
+}
+
+async function fetchDashboardRealtime() {
+    try {
+        const response = await fetch('{{ route('restaurant.dashboard.realtime') }}', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!payload?.success) return;
+        const data = payload.data || {};
+        const stats = data.stats || {};
+        const orderStats = data.orderStats || {};
+
+        const kpiOrdersTotal = document.getElementById('kpiOrdersTotal');
+        const kpiOrdersToday = document.getElementById('kpiOrdersToday');
+        const kpiPendingOrders = document.getElementById('kpiPendingOrders');
+        const kpiRevenueToday = document.getElementById('kpiRevenueToday');
+        const kpiRevenueTotal = document.getElementById('kpiRevenueTotal');
+        const summaryMenuItemsTotal = document.getElementById('summaryMenuItemsTotal');
+        const summaryMenuItemsAvailable = document.getElementById('summaryMenuItemsAvailable');
+        const summaryOrdersToday = document.getElementById('summaryOrdersToday');
+        const summaryPendingOrders = document.getElementById('summaryPendingOrders');
+
+        if (kpiOrdersTotal) kpiOrdersTotal.textContent = Number(stats.orders_total || 0).toLocaleString();
+        if (kpiOrdersToday) kpiOrdersToday.textContent = Number(stats.orders_today || 0).toLocaleString();
+        if (kpiPendingOrders) kpiPendingOrders.textContent = Number(stats.pending_orders || 0).toLocaleString();
+        if (kpiRevenueToday) kpiRevenueToday.textContent = formatPrice(stats.revenue_today);
+        if (kpiRevenueTotal) kpiRevenueTotal.textContent = formatPrice(stats.revenue_total);
+        if (summaryMenuItemsTotal) summaryMenuItemsTotal.textContent = Number(stats.menu_items_total || 0).toLocaleString();
+        if (summaryMenuItemsAvailable) summaryMenuItemsAvailable.textContent = Number(stats.menu_items_available || 0).toLocaleString();
+        if (summaryOrdersToday) summaryOrdersToday.textContent = Number(stats.orders_today || 0).toLocaleString();
+        if (summaryPendingOrders) summaryPendingOrders.textContent = Number(stats.pending_orders || 0).toLocaleString();
+
+        updateStatusBars(orderStats, stats.orders_total);
+        renderRecentOrders(data.recentOrders || []);
+    } catch (_) {
+        // Keep dashboard running even if one poll fails.
+    }
+}
 
 function openStatusModal() {
     statusErrEl.style.display = 'none';
@@ -316,5 +399,9 @@ async function submitStatusToggle() {
 
 statusCard.addEventListener('click', openStatusModal);
 statusConfirmBtn.addEventListener('click', submitStatusToggle);
+dashboardRealtimeTimer = setInterval(fetchDashboardRealtime, 5000);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) fetchDashboardRealtime();
+});
 </script>
 @endsection

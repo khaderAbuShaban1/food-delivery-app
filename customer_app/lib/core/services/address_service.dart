@@ -1,5 +1,6 @@
 import '../api/api_client.dart';
 import '../models/address.dart';
+import 'realtime_sync_service.dart';
 
 class AddressService {
   static bool _isSuccess(Map<String, dynamic> response) {
@@ -14,10 +15,15 @@ class AddressService {
 
     final data = response['data'];
     if (data is List) {
-      return data
+      final addresses = data
           .whereType<Map<String, dynamic>>()
           .map(Address.fromJson)
           .toList();
+      final userId = RealtimeSyncService.currentUserId();
+      if (userId != null) {
+        await RealtimeSyncService.syncAddresses(userId, addresses);
+      }
+      return addresses;
     }
 
     return [];
@@ -42,7 +48,12 @@ class AddressService {
       throw Exception(response['message']?.toString() ?? 'تعذر إضافة العنوان');
     }
 
-    return Address.fromJson(response['data'] as Map<String, dynamic>);
+    final address = Address.fromJson(response['data'] as Map<String, dynamic>);
+    final userId = RealtimeSyncService.currentUserId();
+    if (userId != null) {
+      await RealtimeSyncService.upsertAddress(userId, address);
+    }
+    return address;
   }
 
   static Future<Address> updateAddress({
@@ -65,7 +76,12 @@ class AddressService {
       throw Exception(response['message']?.toString() ?? 'تعذر تحديث العنوان');
     }
 
-    return Address.fromJson(response['data'] as Map<String, dynamic>);
+    final address = Address.fromJson(response['data'] as Map<String, dynamic>);
+    final userId = RealtimeSyncService.currentUserId();
+    if (userId != null) {
+      await RealtimeSyncService.upsertAddress(userId, address);
+    }
+    return address;
   }
 
   static Future<void> deleteAddress(int id) async {
@@ -73,5 +89,6 @@ class AddressService {
     if (!_isSuccess(response)) {
       throw Exception(response['message']?.toString() ?? 'تعذر حذف العنوان');
     }
+    await RealtimeSyncService.removeAddress(id);
   }
 }

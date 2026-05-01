@@ -840,10 +840,11 @@ function acceptOrder(orderId) {
     if (!confirm('هل أنت متأكد من قبول هذا الطلب؟')) return;
     $.ajax({
         url: `/admin/orders/${orderId}/accept`,
-        type: 'POST',
+        type: 'PATCH',
         data: { _token: '{{ csrf_token() }}' },
         success: function() {
             toastr.success('تم قبول الطلب بنجاح');
+            loadOrders();
             selectOrder(orderId);
         },
         error: function() {
@@ -856,10 +857,11 @@ function cancelOrder(orderId) {
     if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
     $.ajax({
         url: `/admin/orders/${orderId}/cancel`,
-        type: 'POST',
-        data: { _token: '{{ csrf_token() }}', _method: 'PATCH' },
+        type: 'PATCH',
+        data: { _token: '{{ csrf_token() }}' },
         success: function() {
             toastr.success('تم إلغاء الطلب بنجاح');
+            loadOrders();
             selectOrder(orderId);
         },
         error: function() {
@@ -884,6 +886,7 @@ let currentFilters = {
 };
 
 function loadOrders() {
+    const selectedOrderId = $('.order-list-item.selected').data('order-id');
     $.ajax({
         url: '/admin/orders/list',
         type: 'GET',
@@ -891,6 +894,12 @@ function loadOrders() {
         success: function(response) {
             renderOrdersList(response.orders);
             $('#orderCount').text(response.total);
+            if (selectedOrderId) {
+                const exists = $(`.order-list-item[data-order-id="${selectedOrderId}"]`).length > 0;
+                if (exists) {
+                    selectOrder(selectedOrderId);
+                }
+            }
         }
     });
 }
@@ -962,5 +971,10 @@ $('#searchInput').on('input', function() {
 @if($orders->count() > 0)
 selectOrder({{ $orders->first()->id }});
 @endif
+
+setInterval(loadOrders, 5000);
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) loadOrders();
+});
 </script>
 @endsection

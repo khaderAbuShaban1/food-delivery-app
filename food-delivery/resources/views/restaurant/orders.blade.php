@@ -46,12 +46,11 @@
 </div>
 
 <div class="orders-toolbar">
-    <div class="toolbar-card"><div class="toolbar-label">إجمالي الطلبات</div><div class="toolbar-value">{{ count($myOrders ?? []) }}</div></div>
-    <div class="toolbar-card"><div class="toolbar-label">قيد الانتظار</div><div class="toolbar-value">{{ collect($myOrders ?? [])->where('status','pending')->count() }}</div></div>
-    <div class="toolbar-card"><div class="toolbar-label">قيد التنفيذ</div><div class="toolbar-value">{{ collect($myOrders ?? [])->whereIn('status',['accepted','preparing','delivering'])->count() }}</div></div>
+    <div class="toolbar-card"><div class="toolbar-label">إجمالي الطلبات</div><div id="summaryTotalOrders" class="toolbar-value">{{ count($myOrders ?? []) }}</div></div>
+    <div class="toolbar-card"><div class="toolbar-label">قيد الانتظار</div><div id="summaryPendingOrders" class="toolbar-value">{{ collect($myOrders ?? [])->where('status','pending')->count() }}</div></div>
+    <div class="toolbar-card"><div class="toolbar-label">قيد التنفيذ</div><div id="summaryInProgressOrders" class="toolbar-value">{{ collect($myOrders ?? [])->whereIn('status',['accepted','preparing','delivering'])->count() }}</div></div>
 </div>
 
-@if(count($myOrders ?? []) > 0)
 <div class="orders-card">
     <div class="table-responsive">
         <table class="orders-table">
@@ -65,7 +64,8 @@
                     <th>الإجراءات</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="ordersTableBody">
+                @if(count($myOrders ?? []) > 0)
                 @foreach($myOrders as $order)
                 <tr>
                     <td>
@@ -136,17 +136,13 @@
                     </td>
                 </tr>
                 @endforeach
+                @else
+                <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">لا توجد طلبات</td></tr>
+                @endif
             </tbody>
         </table>
     </div>
 </div>
-@else
-<div class="glass-card p-5 text-center">
-    <i class="bi bi-bag-check" style="font-size: 4rem; color: var(--text-muted);"></i>
-    <h3 class="mt-4 mb-2" style="color: var(--text-primary);">لا توجد طلبات</h3>
-    <p class="mb-0" style="color: var(--text-secondary);">الطلبات ستظهر هنا عند وصولها من العملاء</p>
-</div>
-@endif
 
 <!-- Single Reusable Status Update Modal -->
 <div class="modal fade" id="statusUpdateModal" tabindex="-1" aria-hidden="true">
@@ -208,51 +204,175 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelled: 'ملغي',
     };
 
-    document.querySelectorAll('.update-status-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const orderId = this.dataset.orderId;
-            const currentStatus = this.dataset.currentStatus;
-            const url = this.dataset.url;
+    let ordersRealtimeTimer = null;
 
-            statusForm.action = url;
-            modalOrderId.textContent = '#' + orderId;
-            statusSelect.innerHTML = '';
-            const allowed = transitions[currentStatus] || [];
-            if (!allowed.length) {
-                const option = document.createElement('option');
-                option.value = currentStatus;
-                option.textContent = labels[currentStatus] || currentStatus;
-                statusSelect.appendChild(option);
-            } else {
-                allowed.forEach((statusKey) => {
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatPrice(value) {
+        return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) + ' ₪';
+    }
+
+    function normalizeStatusClass(status) {
+        const supported = ['pending', 'accepted', 'preparing', 'delivering', 'completed', 'cancelled'];
+        return supported.includes(status) ? status : 'pending';
+    }
+
+    function renderOrdersRows(orders) {
+        const tbody = document.getElementById('ordersTableBody');
+        if (!tbody) return;
+        if (!orders || !orders.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">لا توجد طلبات</td></tr>';
+            return;
+        }
+        tbody.innerHTML = orders.map((order) => {
+            const statusClass = normalizeStatusClass(order.status);
+            const itemsHtml = (order.items || []).length
+                ? `<div class="items-list">${order.items.map((item) => `<div>${escapeHtml(item.quantity)} × ${escapeHtml(item.name)}</div>`).join('')}</div>`
+                : '<span class="muted">لا توجد أصناف</span>';
+            const pendingActions = order.status === 'pending'
+                ? `
+                    <button type="button" class="action-btn primary quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="accepted">قبول</button>
+                    <button type="button" class="action-btn danger quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="cancelled">رفض</button>
+                  `
+                : '';
+            return `
+                <tr>
+                    <td>
+                        <div class="order-id">#${escapeHtml(order.order_number)}</div>
+                        <div class="customer-name">${escapeHtml(order.customer_name)}</div>
+                    </td>
+                    <td>${itemsHtml}</td>
+                    <td><span style="font-weight:700;">${formatPrice(order.total_price)}</span></td>
+                    <td><span class="badge-status ${statusClass}">${escapeHtml(order.status_label || labels[order.status] || order.status)}</span></td>
+                    <td>
+                        <div>${escapeHtml(order.created_date || '')}</div>
+                        <div class="muted">${escapeHtml(order.created_time || '')}</div>
+                    </td>
+                    <td>
+                        <div class="actions">
+                            ${pendingActions}
+                            <button class="action-btn ghost update-status-btn"
+                                data-order-id="${escapeHtml(order.id)}"
+                                data-current-status="${escapeHtml(order.status)}"
+                                data-url="${escapeHtml(order.status_update_url)}">
+                                تحديث
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        bindOrderActionButtons();
+    }
+
+    function updateSummary(summary) {
+        const totalEl = document.getElementById('summaryTotalOrders');
+        const pendingEl = document.getElementById('summaryPendingOrders');
+        const progressEl = document.getElementById('summaryInProgressOrders');
+        if (totalEl) totalEl.textContent = Number(summary?.total || 0).toLocaleString();
+        if (pendingEl) pendingEl.textContent = Number(summary?.pending || 0).toLocaleString();
+        if (progressEl) progressEl.textContent = Number(summary?.in_progress || 0).toLocaleString();
+    }
+
+    async function fetchOrdersRealtime() {
+        try {
+            const response = await fetch('{{ route('restaurant.orders.realtime') }}', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            });
+            if (!response.ok) return;
+            const payload = await response.json();
+            if (!payload?.success) return;
+            const data = payload.data || {};
+            renderOrdersRows(data.orders || []);
+            updateSummary(data.summary || {});
+        } catch (_) {
+            // Keep page functional if one realtime pull fails.
+        }
+    }
+
+    function bindOrderActionButtons() {
+        document.querySelectorAll('.update-status-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const orderId = this.dataset.orderId;
+                const currentStatus = this.dataset.currentStatus;
+                const url = this.dataset.url;
+
+                statusForm.action = url;
+                modalOrderId.textContent = '#' + orderId;
+                statusSelect.innerHTML = '';
+                const allowed = transitions[currentStatus] || [];
+                if (!allowed.length) {
                     const option = document.createElement('option');
-                    option.value = statusKey;
-                    option.textContent = labels[statusKey] || statusKey;
+                    option.value = currentStatus;
+                    option.textContent = labels[currentStatus] || currentStatus;
                     statusSelect.appendChild(option);
-                });
-            }
+                } else {
+                    allowed.forEach((statusKey) => {
+                        const option = document.createElement('option');
+                        option.value = statusKey;
+                        option.textContent = labels[statusKey] || statusKey;
+                        statusSelect.appendChild(option);
+                    });
+                }
 
-            const modal = new bootstrap.Modal(statusModal);
-            modal.show();
+                const modal = new bootstrap.Modal(statusModal);
+                modal.show();
+            });
         });
+
+        document.querySelectorAll('.quick-status-btn').forEach(function(btn) {
+            btn.addEventListener('click', async function() {
+                this.disabled = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('_token', '{{ csrf_token() }}');
+                    formData.append('_method', 'PUT');
+                    formData.append('status', this.dataset.status);
+                    const res = await fetch(this.dataset.url, { method: 'POST', body: formData });
+                    if (!res.ok) throw new Error('تعذر تحديث حالة الطلب');
+                    await fetchOrdersRealtime();
+                } catch (e) {
+                    alert(e.message || 'حدث خطأ');
+                } finally {
+                    this.disabled = false;
+                }
+            });
+        });
+    }
+
+    bindOrderActionButtons();
+    ordersRealtimeTimer = setInterval(fetchOrdersRealtime, 5000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchOrdersRealtime();
     });
 
-    document.querySelectorAll('.quick-status-btn').forEach(function(btn) {
-        btn.addEventListener('click', async function() {
-            this.disabled = true;
-            try {
-                const formData = new FormData();
-                formData.append('_token', '{{ csrf_token() }}');
-                formData.append('_method', 'PUT');
-                formData.append('status', this.dataset.status);
-                const res = await fetch(this.dataset.url, { method: 'POST', body: formData });
-                if (!res.ok) throw new Error('تعذر تحديث حالة الطلب');
-                window.location.reload();
-            } catch (e) {
-                alert(e.message || 'حدث خطأ');
-                this.disabled = false;
-            }
-        });
+    statusForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const submitButton = this.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        try {
+            const formData = new FormData(statusForm);
+            const response = await fetch(statusForm.action, {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) throw new Error('تعذر تحديث حالة الطلب');
+            const modal = bootstrap.Modal.getInstance(statusModal);
+            if (modal) modal.hide();
+            await fetchOrdersRealtime();
+        } catch (error) {
+            alert(error.message || 'حدث خطأ');
+        } finally {
+            submitButton.disabled = false;
+        }
     });
 });
 </script>

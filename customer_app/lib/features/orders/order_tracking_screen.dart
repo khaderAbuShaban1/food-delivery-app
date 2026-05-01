@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../core/api/api_client.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -48,50 +48,37 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   };
 
   late Map<String, dynamic> _order;
-  Timer? _refreshTimer;
-  bool _isRefreshing = false;
+  StreamSubscription<Map<String, dynamic>?>? _orderSub;
 
   @override
   void initState() {
     super.initState();
     _order = Map<String, dynamic>.from(widget.order);
-    _startAutoRefresh();
+    _syncInitialOrder();
+    _startRealtimeListener();
   }
 
-  void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _refreshStatus();
+  Future<void> _syncInitialOrder() async {
+    final userId = RealtimeSyncService.currentUserId();
+    if (userId == null) return;
+    await RealtimeSyncService.upsertOrder(userId, _order);
+  }
+
+  void _startRealtimeListener() {
+    final orderId = _order['id']?.toString();
+    if (orderId == null || orderId.isEmpty) return;
+    _orderSub?.cancel();
+    _orderSub = RealtimeSyncService.watchOrderById(orderId).listen((order) {
+      if (!mounted || order == null) return;
+      setState(() {
+        _order = Map<String, dynamic>.from(order);
+      });
     });
-  }
-
-  Future<void> _refreshStatus() async {
-    if (_isRefreshing) return;
-
-    final orderId = _order['id'];
-    if (orderId == null) return;
-
-    setState(() => _isRefreshing = true);
-
-    try {
-      final response = await ApiClient.get('/orders/$orderId');
-      if (!mounted) return;
-
-      if (response['success'] == true && response['data'] != null) {
-        setState(() {
-          _order = Map<String, dynamic>.from(response['data']);
-          _isRefreshing = false;
-        });
-      } else {
-        setState(() => _isRefreshing = false);
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isRefreshing = false);
-    }
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _orderSub?.cancel();
     super.dispose();
   }
 
@@ -136,18 +123,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         title: Text('طلب #$orderId'),
         backgroundColor: AppColors.background,
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _refreshStatus,
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),

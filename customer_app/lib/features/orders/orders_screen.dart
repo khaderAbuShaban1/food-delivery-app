@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../core/api/api_client.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'order_tracking_screen.dart';
@@ -17,6 +20,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
   List<Map<String, dynamic>> _orders = [];
   bool _isLoading = true;
   String? _errorMessage;
+  StreamSubscription<List<Map<String, dynamic>>>? _ordersSub;
+  StreamSubscription<Map<String, dynamic>?>? _userSub;
+  bool _hasLoadedOrdersFromApi = false;
+  bool _isBindingRealtime = false;
+  String? _boundUserId;
+  Timer? _ordersBackfillTimer;
 
   static const List<String> _statusFlow = [
     'pending',
@@ -48,30 +57,107 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void initState() {
     super.initState();
     _loadOrders();
+    _watchUserChanges();
+    _initializeRealtime();
+    _startOrdersBackfillLoop();
   }
 
-  Future<void> _loadOrders() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+  void _startOrdersBackfillLoop() {
+    _ordersBackfillTimer?.cancel();
+    _ordersBackfillTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _loadOrders(showLoading: false);
     });
+  }
+
+  Future<void> _initializeRealtime() async {
+    await AuthService.fetchCurrentUser();
+    _bindRealtimeListener();
+  }
+
+  void _watchUserChanges() {
+    _userSub?.cancel();
+    _userSub = AuthService.watchCurrentUser().listen((_) {
+      _bindRealtimeListener();
+    });
+  }
+
+  void _bindRealtimeListener() {
+    if (_isBindingRealtime) return;
+    _isBindingRealtime = true;
+    final userId = RealtimeSyncService.currentUserId();
+    if (userId == null) {
+      _isBindingRealtime = false;
+      return;
+    }
+    if (_boundUserId == userId && _ordersSub != null) {
+      _isBindingRealtime = false;
+      return;
+    }
+
+    _ordersSub?.cancel();
+    _boundUserId = userId;
+    _ordersSub = RealtimeSyncService.watchOrders(userId).listen((orders) {
+      if (!mounted) return;
+      // Prevent transient empty snapshots from clearing already-loaded UI.
+      if (orders.isEmpty && _hasLoadedOrdersFromApi && _orders.isNotEmpty) return;
+      setState(() {
+        _orders = orders;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    }, onError: (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'تعذر مزامنة الطلبات مباشرة';
+        _isLoading = false;
+      });
+    });
+    _isBindingRealtime = false;
+  }
+
+  Future<void> _loadOrders({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     final response = await ApiClient.get('/orders');
     if (!mounted) return;
 
     if (response['success'] == true && response['data'] is List) {
       final List data = response['data'] as List;
+      final orders = data.map((e) => Map<String, dynamic>.from(e)).toList();
+      _hasLoadedOrdersFromApi = true;
+      final userId = RealtimeSyncService.currentUserId();
+      if (userId != null) {
+        try {
+          await RealtimeSyncService.syncOrders(userId, orders);
+        } catch (_) {
+          // Firestore sync must not block showing API orders.
+        }
+      }
       setState(() {
-        _orders = data.map((e) => Map<String, dynamic>.from(e)).toList();
-        _isLoading = false;
+        _orders = orders;
+        if (showLoading) _isLoading = false;
+        if (!showLoading && _errorMessage != null) _errorMessage = null;
       });
       return;
     }
 
     setState(() {
       _errorMessage = response['message']?.toString() ?? 'تعذر تحميل الطلبات';
-      _isLoading = false;
+      if (showLoading) _isLoading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _ordersSub?.cancel();
+    _userSub?.cancel();
+    _ordersBackfillTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -83,28 +169,24 @@ class _OrdersScreenState extends State<OrdersScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadOrders,
-        color: AppColors.primary,
-        child: _isLoading
-            ? const LoadingShimmer(itemCount: 4)
-            : _errorMessage != null
-                ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
-                : _orders.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.receipt_long_outlined,
-                        title: 'لا توجد طلبات بعد',
-                        subtitle: 'عند إتمام أي طلب سيظهر هنا',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        itemCount: _orders.length,
-                        itemBuilder: (context, index) {
-                          final order = _orders[index];
-                          return _buildOrderCard(order);
-                        },
-                      ),
-      ),
+      body: _isLoading
+          ? const LoadingShimmer(itemCount: 4)
+          : _errorMessage != null
+              ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
+              : _orders.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'لا توجد طلبات بعد',
+                      subtitle: 'عند إتمام أي طلب سيظهر هنا',
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      itemCount: _orders.length,
+                      itemBuilder: (context, index) {
+                        final order = _orders[index];
+                        return _buildOrderCard(order);
+                      },
+                    ),
     );
   }
 

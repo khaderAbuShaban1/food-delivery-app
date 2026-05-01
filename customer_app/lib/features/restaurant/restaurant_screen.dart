@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/restaurant.dart';
@@ -6,6 +7,7 @@ import '../../core/models/menu_item.dart';
 import '../../core/api/api_client.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/cart_provider.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/widgets/widgets.dart';
 import '../home/main_screen.dart';
 
@@ -25,12 +27,31 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   String? _errorMessage;
   String _selectedCategory = 'الكل';
   bool _isSubmittingRating = false;
+  StreamSubscription<Restaurant?>? _restaurantSub;
 
   @override
   void initState() {
     super.initState();
     _restaurant = widget.restaurant;
     _loadMenuItems();
+    _refreshRestaurantDetails();
+    _startRealtimeListener();
+  }
+
+  void _startRealtimeListener() {
+    _restaurantSub?.cancel();
+    _restaurantSub = RealtimeSyncService.watchRestaurant(
+      _restaurant.id.toString(),
+    ).listen((restaurant) {
+      if (!mounted || restaurant == null) return;
+      setState(() {
+        _restaurant = _restaurant.copyWith(
+          rating: restaurant.rating,
+          ratingsCount: restaurant.ratingsCount,
+          myRating: restaurant.myRating,
+        );
+      });
+    });
   }
 
   Future<void> _loadMenuItems() async {
@@ -89,6 +110,17 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         duration: const Duration(seconds: 1),
       ),
     );
+  }
+
+  Future<void> _refreshRestaurantDetails() async {
+    final response = await ApiClient.get('/restaurants/${_restaurant.id}');
+    if (!mounted) return;
+    if (response['success'] == true && response['data'] is Map<String, dynamic>) {
+      setState(() {
+        _restaurant = Restaurant.fromJson(response['data'] as Map<String, dynamic>);
+      });
+      await RealtimeSyncService.syncRestaurant(_restaurant);
+    }
   }
 
   Future<void> _submitRating() async {
@@ -174,6 +206,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       setState(() {
         _restaurant = Restaurant.fromJson(response['data']);
       });
+      await RealtimeSyncService.syncRestaurant(_restaurant);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تم حفظ التقييم'),
@@ -552,5 +585,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _restaurantSub?.cancel();
+    super.dispose();
   }
 }

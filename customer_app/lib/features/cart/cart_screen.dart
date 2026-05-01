@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/cart_provider.dart';
 import '../../core/widgets/widgets.dart';
@@ -380,6 +382,15 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
 
   Future<void> _placeOrder(CartProvider cart) async {
     if (cart.items.isEmpty) return;
+    if (!AuthService.isLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى تسجيل الدخول أولاً'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     final restaurantIds = cart.items
         .map((item) => item.menuItem.restaurantId)
@@ -395,47 +406,78 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     }
 
     setState(() => _isPlacingOrder = true);
-    final payload = {
-      'restaurant_id': restaurantIds.first,
-      'items': cart.items
-          .map(
-            (item) => {
-              'menu_item_id': item.menuItem.id,
-              'quantity': item.quantity,
-            },
-          )
-          .toList(),
-    };
+    try {
+      final payload = {
+        'restaurant_id': restaurantIds.first,
+        'items': cart.items
+            .map(
+              (item) => {
+                'menu_item_id': item.menuItem.id,
+                'quantity': item.quantity,
+              },
+            )
+            .toList(),
+      };
 
-    final response = await ApiClient.post('/orders', payload);
-    if (!mounted) return;
-    setState(() => _isPlacingOrder = false);
+      final response = await ApiClient.post('/orders', payload);
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
 
-    if (response['success'] == true && response['data'] != null) {
-      final orderId = response['data']['id'] as int?;
-      cart.clearCart();
+      if (response['success'] == true && response['data'] != null) {
+        final userId = RealtimeSyncService.currentUserId();
+        if (userId != null) {
+          await RealtimeSyncService.upsertOrder(
+            userId,
+            Map<String, dynamic>.from(response['data']),
+          );
+        }
+        final dynamic rawOrderId = response['data']['id'];
+        final int? orderId = rawOrderId is int
+            ? rawOrderId
+            : int.tryParse(rawOrderId?.toString() ?? '');
+        cart.clearCart();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إرسال الطلب بنجاح'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                MainScreen(initialIndex: 2, highlightedOrderId: orderId),
+          ),
+          (route) => false,
+        );
+        return;
+      }
+
+      String message = response['message']?.toString() ?? 'تعذر إتمام الطلب';
+      final errors = response['errors'];
+      if (errors is Map && errors.isNotEmpty) {
+        final firstKey = errors.keys.first;
+        final firstError = errors[firstKey];
+        if (firstError is List && firstError.isNotEmpty) {
+          message = firstError.first.toString();
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم إرسال الطلب بنجاح'),
-          backgroundColor: AppColors.success,
+          content: Text('حدث خطأ غير متوقع أثناء إتمام الطلب'),
+          backgroundColor: AppColors.error,
         ),
       );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              MainScreen(initialIndex: 2, highlightedOrderId: orderId),
-        ),
-        (route) => false,
-      );
-      return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(response['message']?.toString() ?? 'تعذر إتمام الطلب'),
-        backgroundColor: AppColors.error,
-      ),
-    );
   }
 }

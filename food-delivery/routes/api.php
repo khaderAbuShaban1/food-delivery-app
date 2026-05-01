@@ -18,6 +18,7 @@ Route::post('/user/login', [AuthController::class, 'login']);
 
 // Public restaurant routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
+Route::get('/restaurants/{id}', [RestaurantController::class, 'show']);
 
 // Test route  
 Route::get('/test', function () {

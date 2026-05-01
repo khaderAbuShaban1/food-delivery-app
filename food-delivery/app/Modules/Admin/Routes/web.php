@@ -12,6 +12,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/realtime', [DashboardController::class, 'realtime'])->name('dashboard.realtime');
         Route::get('/users', [DashboardController::class, 'users'])->name('users');
         Route::get('/users/{id}', [DashboardController::class, 'getUser'])->name('users.show');
         Route::post('/users/{id}/ban', [DashboardController::class, 'toggleUserStatusApi'])->name('users.ban');

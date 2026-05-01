@@ -19,6 +19,19 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    private function statusLabel(string $status): string
+    {
+        return match ($status) {
+            'pending' => 'قيد الانتظار',
+            'accepted' => 'مقبول',
+            'preparing' => 'قيد التجهيز',
+            'delivering' => 'في الطريق',
+            'completed' => 'مكتمل',
+            'cancelled' => 'ملغي',
+            default => $status,
+        };
+    }
+
     public function index(): View
     {
         if (!Auth::guard('admin')->check()) {
@@ -42,8 +55,8 @@ class DashboardController extends Controller
             'activeRestaurants' => (int) Restaurant::where('is_active', true)->count(),
             'openRestaurants' => (int) Restaurant::where('is_open', true)->count(),
             'totalRestaurants' => (int) Restaurant::count(),
-            'totalCustomers' => (int) User::where('role', 'customer')->count(),
-            'activeCustomers' => (int) User::where('role', 'customer')->where('is_active', true)->count(),
+            'totalCustomers' => (int) User::count(),
+            'activeCustomers' => (int) User::where('is_active', true)->count(),
             'totalDrivers' => (int) Driver::count(),
             'activeDrivers' => (int) Driver::where('is_available', true)->count(),
             'totalAdmins' => (int) Admin::count(),
@@ -76,6 +89,73 @@ class DashboardController extends Controller
         return view('admin::dashboard', compact('stats', 'orderStats', 'orderProgress', 'recentOrders'));
     }
 
+    public function realtime(Request $request)
+    {
+        if (!Auth::guard('admin')->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح',
+            ], 401);
+        }
+
+        $today = now()->startOfDay();
+
+        $orderStatusCounts = Order::query()
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $todayOrdersBase = Order::query()->where('created_at', '>=', $today);
+
+        $stats = [
+            'totalOrders' => (int) Order::count(),
+            'todayOrders' => (int) (clone $todayOrdersBase)->count(),
+            'todayRevenue' => (float) (clone $todayOrdersBase)->where('status', 'completed')->sum('total_price'),
+            'totalRevenue' => (float) Order::where('status', 'completed')->sum('total_price'),
+            'activeRestaurants' => (int) Restaurant::where('is_active', true)->count(),
+            'openRestaurants' => (int) Restaurant::where('is_open', true)->count(),
+            'totalRestaurants' => (int) Restaurant::count(),
+            'totalCustomers' => (int) User::count(),
+            'activeCustomers' => (int) User::where('is_active', true)->count(),
+            'totalDrivers' => (int) Driver::count(),
+            'activeDrivers' => (int) Driver::where('is_available', true)->count(),
+            'totalAdmins' => (int) Admin::count(),
+        ];
+
+        $orderStats = [
+            'pending' => (int) ($orderStatusCounts['pending'] ?? 0),
+            'accepted' => (int) ($orderStatusCounts['accepted'] ?? 0),
+            'preparing' => (int) ($orderStatusCounts['preparing'] ?? 0),
+            'delivering' => (int) ($orderStatusCounts['delivering'] ?? 0),
+            'completed' => (int) ($orderStatusCounts['completed'] ?? 0),
+            'cancelled' => (int) ($orderStatusCounts['cancelled'] ?? 0),
+        ];
+
+        $recentOrders = Order::query()
+            ->with('restaurant:id,name')
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->map(fn ($order) => [
+                'id' => $order->id,
+                'order_number' => $order->order_number ?: $order->id,
+                'restaurant_name' => $order->restaurant?->name ?? '-',
+                'status' => $order->status,
+                'status_label' => $this->statusLabel($order->status),
+                'total_price' => (float) $order->total_price,
+                'created_at' => optional($order->created_at)->format('Y-m-d H:i'),
+            ])->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'stats' => $stats,
+                'orderStats' => $orderStats,
+                'recentOrders' => $recentOrders,
+            ],
+        ]);
+    }
+
     public function users(Request $request): View
     {
         $customerQuery = DB::table('users')
@@ -84,7 +164,7 @@ class DashboardController extends Controller
                 name,
                 email,
                 phone,
-                avatar,
+                profile_image as avatar,
                 created_at,
                 COALESCE(is_active, 1) as is_active,
                 'customer' as account_type,
@@ -100,7 +180,7 @@ class DashboardController extends Controller
                     and orders.status = 'completed'
                 ) as total_spent
             ")
-            ->where('role', 'customer');
+            ->whereNotNull('id');
 
         $driverQuery = DB::table('drivers')
             ->selectRaw("
@@ -597,7 +677,7 @@ class DashboardController extends Controller
     private function resolveAccountByType(int $id, string $type)
     {
         return match ($type) {
-            'customer' => User::where('role', 'customer')->findOrFail($id),
+            'customer' => User::findOrFail($id),
             'driver' => Driver::findOrFail($id),
             'restaurant' => Restaurant::findOrFail($id),
             'admin' => Admin::findOrFail($id),
@@ -650,6 +730,10 @@ class DashboardController extends Controller
     {
         if ($type === 'restaurant' && !empty($account->image)) {
             return '/storage/' . $account->image;
+        }
+
+        if (!empty($account->profile_image)) {
+            return '/storage/' . $account->profile_image;
         }
 
         if (!empty($account->avatar)) {
