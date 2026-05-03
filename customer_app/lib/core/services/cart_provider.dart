@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/restaurant.dart';
 import '../models/menu_item.dart';
 
 class CartItem {
@@ -13,6 +12,10 @@ class CartItem {
 
 class CartProvider extends ChangeNotifier {
   List<CartItem> _items = [];
+  int? _deliveryAddressId;
+
+  /// Saved-address row to send as `address_id` when placing an order (MySQL).
+  int? get deliveryAddressId => _deliveryAddressId;
 
   List<CartItem> get items => _items;
   
@@ -51,8 +54,15 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setDeliveryAddressId(int? id) {
+    if (_deliveryAddressId == id) return;
+    _deliveryAddressId = id;
+    notifyListeners();
+  }
+
   void clearCart() {
     _items.clear();
+    _deliveryAddressId = null;
     notifyListeners();
   }
 

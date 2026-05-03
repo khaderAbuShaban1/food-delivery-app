@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import '../../core/services/realtime_sync_service.dart';
+
+import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -34,7 +36,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     'pending': AppColors.textSecondary,
     'accepted': Color(0xFF3498DB),
     'preparing': AppColors.primary,
-    'delivering': Color(0xFF9B59B6),
+    'delivering': AppColors.primaryDark,
     'completed': AppColors.success,
     'cancelled': AppColors.error,
   };
@@ -48,37 +50,55 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   };
 
   late Map<String, dynamic> _order;
-  StreamSubscription<Map<String, dynamic>?>? _orderSub;
+  Timer? _pollTimer;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     _order = Map<String, dynamic>.from(widget.order);
-    _syncInitialOrder();
-    _startRealtimeListener();
+    _refreshFromApi();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _refreshFromApi());
   }
 
-  Future<void> _syncInitialOrder() async {
-    final userId = RealtimeSyncService.currentUserId();
-    if (userId == null) return;
-    await RealtimeSyncService.upsertOrder(userId, _order);
-  }
+  Future<void> _refreshFromApi() async {
+    final rawId = _order['id'];
+    final id =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (id == null || id <= 0) return;
 
-  void _startRealtimeListener() {
-    final orderId = _order['id']?.toString();
-    if (orderId == null || orderId.isEmpty) return;
-    _orderSub?.cancel();
-    _orderSub = RealtimeSyncService.watchOrderById(orderId).listen((order) {
-      if (!mounted || order == null) return;
-      setState(() {
-        _order = Map<String, dynamic>.from(order);
-      });
-    });
+    final status = (_order['status'] ?? '').toString();
+    if (status == 'completed' || status == 'cancelled') {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+
+    try {
+      final response = await ApiClient.get('/orders/$id');
+      if (!mounted) return;
+      if (response['success'] == true && response['data'] is Map) {
+        setState(() {
+          _order = Map<String, dynamic>.from(response['data'] as Map);
+        });
+      }
+    } finally {
+      _isRefreshing = false;
+    }
+    if (!mounted) return;
+    final s = (_order['status'] ?? '').toString();
+    if (s == 'completed' || s == 'cancelled') {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
   }
 
   @override
   void dispose() {
-    _orderSub?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 

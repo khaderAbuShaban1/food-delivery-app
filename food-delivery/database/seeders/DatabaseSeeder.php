@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        $this->call(DriverSeeder::class);
+
         $restaurant = Restaurant::create([
             'name' => 'Test Restaurant',
             'category' => 'Fast Food',

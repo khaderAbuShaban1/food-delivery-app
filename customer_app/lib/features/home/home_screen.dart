@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/models/address.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/services/address_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/cart_provider.dart';
 import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
@@ -30,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _priceFilter = 'all';
   Timer? _searchDebounce;
   StreamSubscription<Map<String, dynamic>?>? _userSub;
-  StreamSubscription<List<Address>>? _addressesSub;
   StreamSubscription<List<Restaurant>>? _restaurantsSub;
   final _searchController = TextEditingController();
   Timer? _realtimeBackfillTimer;
@@ -77,18 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _startRealtimeListeners() async {
     await AuthService.fetchCurrentUser();
-    final userId = RealtimeSyncService.currentUserId();
-    if (userId != null) {
-      _addressesSub?.cancel();
-      _addressesSub = RealtimeSyncService.watchAddresses(userId).listen((items) {
-        if (!mounted) return;
-        setState(() {
-          _addresses = items;
-          _selectedAddress = _resolveSelectedAddress(items);
-          _isAddressLoading = false;
-        });
-      });
-    }
 
     _restaurantsSub?.cancel();
     _restaurantsSub = RealtimeSyncService.watchRestaurants().listen((items) {
@@ -130,16 +119,16 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final addresses = await AddressService.getAddresses();
       if (!mounted) return;
+      final resolved = _resolveSelectedAddress(addresses);
       setState(() {
         _addresses = addresses;
-        _selectedAddress = _resolveSelectedAddress(addresses);
+        _selectedAddress = resolved;
         if (showLoading) _isAddressLoading = false;
       });
+      context.read<CartProvider>().setDeliveryAddressId(resolved?.id);
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _addresses = [];
-        _selectedAddress = null;
         if (showLoading) _isAddressLoading = false;
       });
     }
@@ -284,6 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Reflect selection immediately in the header.
     setState(() => _selectedAddress = selected);
+    context.read<CartProvider>().setDeliveryAddressId(selected.id);
 
     if (!selected.isDefault) {
       try {
@@ -311,6 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
               .toList();
           _selectedAddress = _resolveSelectedAddress(_addresses);
         });
+        context
+            .read<CartProvider>()
+            .setDeliveryAddressId(_selectedAddress?.id);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -329,7 +322,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchDebounce?.cancel();
     _realtimeBackfillTimer?.cancel();
     _userSub?.cancel();
-    _addressesSub?.cancel();
     _restaurantsSub?.cancel();
     _searchController.dispose();
     super.dispose();

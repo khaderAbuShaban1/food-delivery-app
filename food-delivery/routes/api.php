@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DriverAuthController;
+use App\Http\Controllers\Api\DriverOrderController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
@@ -15,6 +17,14 @@ Route::get('/user', function (Request $request) {
 // User auth routes (public) - for Flutter app
 Route::post('/user/register', [AuthController::class, 'register']);
 Route::post('/user/login', [AuthController::class, 'login']);
+Route::post('/driver/login', [DriverAuthController::class, 'login']);
+
+Route::middleware('auth:sanctum')->prefix('driver')->group(function () {
+    Route::get('/orders/available-pool', [DriverOrderController::class, 'availablePool']);
+    Route::get('/orders/active', [DriverOrderController::class, 'activeOrder']);
+    Route::post('/orders/{id}/accept', [DriverOrderController::class, 'accept']);
+    Route::put('/orders/{id}/status', [DriverOrderController::class, 'updateStatus']);
+});
 
 // Public restaurant routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);

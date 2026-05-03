@@ -1,6 +1,5 @@
 import '../api/api_client.dart';
 import '../models/address.dart';
-import 'realtime_sync_service.dart';
 
 class AddressService {
   static bool _isSuccess(Map<String, dynamic> response) {
@@ -15,15 +14,10 @@ class AddressService {
 
     final data = response['data'];
     if (data is List) {
-      final addresses = data
+      return data
           .whereType<Map<String, dynamic>>()
           .map(Address.fromJson)
           .toList();
-      final userId = RealtimeSyncService.currentUserId();
-      if (userId != null) {
-        await RealtimeSyncService.syncAddresses(userId, addresses);
-      }
-      return addresses;
     }
 
     return [];
@@ -49,10 +43,6 @@ class AddressService {
     }
 
     final address = Address.fromJson(response['data'] as Map<String, dynamic>);
-    final userId = RealtimeSyncService.currentUserId();
-    if (userId != null) {
-      await RealtimeSyncService.upsertAddress(userId, address);
-    }
     return address;
   }
 
@@ -77,10 +67,6 @@ class AddressService {
     }
 
     final address = Address.fromJson(response['data'] as Map<String, dynamic>);
-    final userId = RealtimeSyncService.currentUserId();
-    if (userId != null) {
-      await RealtimeSyncService.upsertAddress(userId, address);
-    }
     return address;
   }
 
@@ -89,6 +75,5 @@ class AddressService {
     if (!_isSuccess(response)) {
       throw Exception(response['message']?.toString() ?? 'تعذر حذف العنوان');
     }
-    await RealtimeSyncService.removeAddress(id);
   }
 }

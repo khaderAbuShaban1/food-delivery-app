@@ -170,6 +170,7 @@ class ApiClient {
     return {
       'success': false,
       'message': backendMessage ?? 'فشل الطلب: ${response.statusCode}',
+      'http_status': response.statusCode,
       if (body['errors'] != null) 'errors': body['errors'],
       if (body['status'] != null) 'status': body['status'],
     };

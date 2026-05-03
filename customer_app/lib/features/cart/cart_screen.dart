@@ -1,8 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
+import '../../core/services/address_service.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/cart_provider.dart';
 import '../../core/widgets/widgets.dart';
@@ -407,11 +408,63 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
 
     setState(() => _isPlacingOrder = true);
     try {
-      final payload = {
-        'restaurant_id': restaurantIds.first,
+      final dynamic rawRid = restaurantIds.first;
+      final int restaurantId = rawRid is int ? rawRid : int.tryParse('$rawRid') ?? -1;
+
+      if (restaurantId <= 0 ||
+          cart.items.any((e) => e.menuItem.id <= 0 || e.quantity < 1)) {
+        if (!mounted) return;
+        setState(() => _isPlacingOrder = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('بيانات الطلب غير صالحة'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      int? addrId = cart.deliveryAddressId;
+      if (addrId == null || addrId <= 0) {
+        try {
+          final list = await AddressService.getAddresses();
+          if (list.isEmpty) {
+            if (!mounted) return;
+            setState(() => _isPlacingOrder = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('أضف عنوان توصيلاً من «عناويني» قبل تأكيد الطلب'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+            return;
+          }
+          final chosen = list.firstWhere(
+                (a) => a.isDefault,
+                orElse: () => list.first,
+              );
+          addrId = chosen.id;
+          cart.setDeliveryAddressId(addrId);
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _isPlacingOrder = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceFirst('Exception: ', '')),
+              backgroundColor: AppColors.error,
+            ),
+          );
+          return;
+        }
+      }
+
+      final payload = <String, dynamic>{
+        'restaurant_id': restaurantId,
+        'address_id': addrId,
         'items': cart.items
             .map(
-              (item) => {
+              (item) => <String, dynamic>{
                 'menu_item_id': item.menuItem.id,
                 'quantity': item.quantity,
               },
@@ -423,14 +476,15 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
       if (!mounted) return;
       setState(() => _isPlacingOrder = false);
 
+      if (kDebugMode) {
+        debugPrint(
+          '[Orders] POST /orders success=${response['success']} '
+          'http=${response['http_status']} message=${response['message']} '
+          'errors=${response['errors']}',
+        );
+      }
+
       if (response['success'] == true && response['data'] != null) {
-        final userId = RealtimeSyncService.currentUserId();
-        if (userId != null) {
-          await RealtimeSyncService.upsertOrder(
-            userId,
-            Map<String, dynamic>.from(response['data']),
-          );
-        }
         final dynamic rawOrderId = response['data']['id'];
         final int? orderId = rawOrderId is int
             ? rawOrderId
@@ -469,7 +523,10 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
           backgroundColor: AppColors.error,
         ),
       );
-    } catch (_) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[Orders] POST /orders exception: $e\n$st');
+      }
       if (!mounted) return;
       setState(() => _isPlacingOrder = false);
       ScaffoldMessenger.of(context).showSnackBar(

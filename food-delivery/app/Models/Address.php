@@ -30,4 +30,18 @@ class Address extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /** Single line for order snapshot / driver display (matches app “full address”). */
+    public function formattedDeliveryLine(): string
+    {
+        $city = trim((string) $this->city);
+        $street = trim((string) $this->street);
+        $details = $this->details !== null ? trim((string) $this->details) : '';
+
+        if ($details !== '') {
+            return "{$city} - {$street} - {$details}";
+        }
+
+        return "{$city} - {$street}";
+    }
 }

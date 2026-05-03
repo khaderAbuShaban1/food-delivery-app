@@ -5,6 +5,9 @@ import '../models/address.dart';
 import '../models/restaurant.dart';
 import 'auth_service.dart';
 
+/// Mirrors **addresses** and **restaurants** to Firestore for local listeners (live UI polish).
+///
+/// Order data **must never** live in Firestore; use [ApiClient] + Laravel `/orders` endpoints only.
 class RealtimeSyncService {
   static bool get _isReady => Firebase.apps.isNotEmpty;
 
@@ -15,17 +18,6 @@ class RealtimeSyncService {
     if (id == null) return null;
     final value = id.toString();
     return value.isEmpty ? null : value;
-  }
-
-  static bool _matchesUserId(dynamic rawValue, String userId) {
-    if (rawValue == null) return false;
-    final normalized = rawValue.toString().trim();
-    if (normalized.isEmpty) return false;
-    if (normalized == userId) return true;
-
-    final parsedUserId = int.tryParse(userId);
-    final parsedRawId = int.tryParse(normalized);
-    return parsedUserId != null && parsedRawId != null && parsedUserId == parsedRawId;
   }
 
   static int _toEpochMillis(dynamic value) {
@@ -107,82 +99,6 @@ class RealtimeSyncService {
   static Future<void> removeAddress(int addressId) async {
     if (!_isReady) return;
     await _db.collection('addresses').doc(addressId.toString()).delete();
-  }
-
-  static Stream<List<Map<String, dynamic>>> watchOrders(String userId) {
-    if (!_isReady) return Stream.value(const <Map<String, dynamic>>[]);
-    return _db
-        .collection('orders')
-        .snapshots()
-        .map((snapshot) {
-          final orders = <Map<String, dynamic>>[];
-          final docs = [...snapshot.docs];
-          docs.sort((a, b) {
-            final aData = a.data();
-            final bData = b.data();
-            final aMillis =
-                _toEpochMillis(aData['updated_at']) > 0
-                    ? _toEpochMillis(aData['updated_at'])
-                    : _toEpochMillis(aData['created_at']);
-            final bMillis =
-                _toEpochMillis(bData['updated_at']) > 0
-                    ? _toEpochMillis(bData['updated_at'])
-                    : _toEpochMillis(bData['created_at']);
-            return bMillis.compareTo(aMillis);
-          });
-
-          for (final doc in docs) {
-            final data = Map<String, dynamic>.from(doc.data());
-            final ownerId = data['user_id'] ?? data['customer_id'];
-            if (!_matchesUserId(ownerId, userId)) continue;
-
-            // Keep a stable id value for UI even if upstream payload omits it.
-            data['id'] ??= int.tryParse(doc.id) ?? doc.id;
-            orders.add(data);
-          }
-          return orders;
-        });
-  }
-
-  static Stream<Map<String, dynamic>?> watchOrderById(String orderId) {
-    if (!_isReady) return Stream.value(null);
-    return _db.collection('orders').doc(orderId).snapshots().map((doc) {
-      if (!doc.exists || doc.data() == null) return null;
-      return doc.data();
-    });
-  }
-
-  static Future<void> upsertOrder(
-    String userId,
-    Map<String, dynamic> order,
-  ) async {
-    if (!_isReady) return;
-    final id = order['id']?.toString();
-    if (id == null || id.isEmpty) return;
-    await _db.collection('orders').doc(id).set({
-      ...order,
-      'user_id': userId,
-      'updated_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  static Future<void> syncOrders(
-    String userId,
-    List<Map<String, dynamic>> orders,
-  ) async {
-    if (!_isReady) return;
-    final batch = _db.batch();
-    for (final order in orders) {
-      final id = order['id']?.toString();
-      if (id == null || id.isEmpty) continue;
-      final ref = _db.collection('orders').doc(id);
-      batch.set(ref, {
-        ...order,
-        'user_id': userId,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-    await batch.commit();
   }
 
   static Stream<Restaurant?> watchRestaurant(String restaurantId) {

@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Address;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Restaurant;
+use App\Models\User;
 use App\Services\SystemSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Throwable;
 
 class OrderController extends Controller
 {
@@ -60,6 +66,62 @@ class OrderController extends Controller
         }
 
         return 'user_id';
+    }
+
+    /**
+     * Resolve delivery text for a new order: explicit address row, then default saved address, then legacy users.address.
+     */
+    private function resolveDeliverySnapshotForCustomer(User $customer, ?int $addressId): ?string
+    {
+        if ($addressId !== null) {
+            $row = Address::query()
+                ->where('user_id', $customer->id)
+                ->where('id', $addressId)
+                ->first();
+
+            return $row ? $row->formattedDeliveryLine() : null;
+        }
+
+        $default = Address::query()
+            ->where('user_id', $customer->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->first();
+
+        if ($default) {
+            return $default->formattedDeliveryLine();
+        }
+
+        $legacy = trim((string) ($customer->address ?? ''));
+
+        return $legacy !== '' ? $legacy : null;
+    }
+
+    /** Display line for API (stored snapshot + fallbacks for older rows). */
+    private function deliveryAddressLineForResponse(Order $order): ?string
+    {
+        $stored = trim((string) ($order->delivery_address ?? ''));
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        $buyer = $order->relationLoaded('customer') ? $order->customer : $order->customer()->first();
+        if (! $buyer instanceof User) {
+            return null;
+        }
+
+        $legacy = trim((string) ($buyer->address ?? ''));
+        if ($legacy !== '') {
+            return $legacy;
+        }
+
+        $fallback = Address::query()
+            ->where('user_id', $buyer->id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
+            ->first();
+
+        return $fallback ? $fallback->formattedDeliveryLine() : null;
     }
 
     public function getStatusLabel(string $status): string
@@ -125,54 +187,143 @@ class OrderController extends Controller
             ], 503);
         }
 
+        $customer = $request->user();
+        if (! $customer instanceof User) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يجب تسجيل الدخول كعميل لإنشاء طلب',
+            ], 403);
+        }
+
         $validated = $request->validate([
-            'restaurant_id' => 'required|exists:restaurants,id',
+            'restaurant_id' => 'required|integer|exists:restaurants,id',
             'items' => 'required|array|min:1',
-            'items.*.menu_item_id' => 'required|exists:menu_items,id',
+            'items.*.menu_item_id' => 'required|integer|exists:menu_items,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'address_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('addresses', 'id')->where(fn ($q) => $q->where('user_id', $customer->id)),
+            ],
         ]);
 
-        $restaurant = \App\Models\Restaurant::find($validated['restaurant_id']);
-        if (!$restaurant->is_open) {
+        $restaurant = Restaurant::find($validated['restaurant_id']);
+        if (! $restaurant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'المطعم غير موجود',
+            ], 404);
+        }
+
+        if (! $restaurant->is_open) {
             return response()->json([
                 'success' => false,
                 'message' => 'المطعم مغلق حالياً',
             ], 400);
         }
 
-        $totalPrice = 0;
-        $orderItems = [];
+        $itemIds = array_map(static fn (array $row) => (int) $row['menu_item_id'], $validated['items']);
+        $uniqueIds = array_values(array_unique($itemIds));
 
-        foreach ($validated['items'] as $item) {
-            $menuItem = MenuItem::find($item['menu_item_id']);
-            $totalPrice += $menuItem->price * $item['quantity'];
-            $orderItems[] = [
-                'menu_item_id' => $item['menu_item_id'],
-                'quantity' => $item['quantity'],
-                'price' => $menuItem->price,
-            ];
+        $menuItems = MenuItem::query()
+            ->where('restaurant_id', (int) $validated['restaurant_id'])
+            ->whereIn('id', $uniqueIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($menuItems->count() !== count($uniqueIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'أحد الأصناف غير صالح أو لا يتبع هذا المطعم',
+                'errors' => [
+                    'items' => ['تأكد أن جميع الأصناف من قائمة المطعم الحالي'],
+                ],
+            ], 422);
         }
 
-        $order = Order::create([
-            $this->customerColumn() => $request->user()->id,
-            'restaurant_id' => $validated['restaurant_id'],
-            'total_price' => $totalPrice,
-            'status' => self::STATUS_PENDING,
-        ]);
+        $requestedAddrId = $validated['address_id'] ?? null;
+        $addressId = $requestedAddrId !== null ? (int) $requestedAddrId : null;
 
-        foreach ($orderItems as $orderItem) {
-            OrderItem::create([
-                'order_id' => $order->id,
-                'menu_item_id' => $orderItem['menu_item_id'],
-                'quantity' => $orderItem['quantity'],
-                'price' => $orderItem['price'],
-            ]);
+        $deliverySnapshot = $this->resolveDeliverySnapshotForCustomer($customer, $addressId);
+        if ($deliverySnapshot === null || trim($deliverySnapshot) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'أضف عنوان توصيلاً قبل تأكيد الطلب',
+                'errors' => [
+                    'address_id' => ['يرجى اختيار أو إضافة عنوان توصيل من الملف الشخصي'],
+                ],
+            ], 422);
+        }
+
+        try {
+            $order = DB::transaction(function () use ($validated, $menuItems, $customer, $deliverySnapshot) {
+                $totalPrice = 0.0;
+                $orderItems = [];
+
+                foreach ($validated['items'] as $item) {
+                    $menuItemId = (int) $item['menu_item_id'];
+                    $menuItem = $menuItems->get($menuItemId);
+                    if (! $menuItem) {
+                        throw new \RuntimeException('Menu item missing after validation');
+                    }
+                    $qty = (int) $item['quantity'];
+                    $lineTotal = (float) $menuItem->price * $qty;
+                    $totalPrice += $lineTotal;
+                    $orderItems[] = [
+                        'menu_item_id' => $menuItemId,
+                        'quantity' => $qty,
+                        'price' => $menuItem->price,
+                    ];
+                }
+
+                $orderNumber = Order::generateOrderNumber();
+                if (Schema::hasColumn('orders', 'order_number')) {
+                    while (Order::query()->where('order_number', $orderNumber)->exists()) {
+                        $orderNumber = Order::generateOrderNumber();
+                    }
+                }
+
+                $createData = [
+                    $this->customerColumn() => $customer->id,
+                    'restaurant_id' => (int) $validated['restaurant_id'],
+                    'total_price' => $totalPrice,
+                    'status' => self::STATUS_PENDING,
+                ];
+                if (Schema::hasColumn('orders', 'order_number')) {
+                    $createData['order_number'] = $orderNumber;
+                }
+                if (Schema::hasColumn('orders', 'delivery_address')) {
+                    $createData['delivery_address'] = $deliverySnapshot;
+                }
+
+                $order = Order::create($createData);
+
+                foreach ($orderItems as $orderItem) {
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'menu_item_id' => $orderItem['menu_item_id'],
+                        'quantity' => $orderItem['quantity'],
+                        'price' => $orderItem['price'],
+                    ]);
+                }
+
+                return $order->load(['orderItems.menuItem', 'restaurant', 'customer']);
+            });
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug')
+                    ? 'Order save failed: '.$e->getMessage()
+                    : 'تعذر حفظ الطلب في الخادم. حاول لاحقاً.',
+            ], 500);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'تم إنشاء الطلب بنجاح',
-            'data' => $this->formatOrder($order->load(['orderItems.menuItem', 'restaurant'])),
+            'data' => $this->formatOrder($order),
         ], 201);
     }
 
@@ -336,20 +487,27 @@ class OrderController extends Controller
         ]);
     }
 
-    private function formatOrder($order): array
+    public function formatOrder($order): array
     {
+        $buyer = $order->customer;
+        $deliveryLine = $this->deliveryAddressLineForResponse($order);
+
         return [
             'id' => $order->id,
+            'order_number' => $order->order_number,
             'restaurant_id' => $order->restaurant_id,
+            'delivery_address' => $deliveryLine,
             'restaurant' => $order->restaurant ? [
                 'id' => $order->restaurant->id,
                 'name' => $order->restaurant->name,
                 'image' => $order->restaurant->image,
+                'phone' => $order->restaurant->phone ?? null,
             ] : null,
-            'customer' => $order->customer ? [
-                'id' => $order->customer->id,
-                'name' => $order->customer->name,
-                'phone' => $order->customer->phone ?? $order->customer->email,
+            'customer' => $buyer ? [
+                'id' => $buyer->id,
+                'name' => $buyer->name,
+                'phone' => $buyer->phone ?? $buyer->email,
+                'address' => $deliveryLine,
             ] : null,
             'driver' => $order->driver ? [
                 'id' => $order->driver->id,

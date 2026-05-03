@@ -17,12 +17,19 @@ class MenuItem {
     this.category,
   });
 
+  static int _asInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString().trim()) ?? 0;
+  }
+
   factory MenuItem.fromJson(Map<String, dynamic> json) {
     return MenuItem(
-      id: json['id'],
-      restaurantId: json['restaurant_id'],
-      name: json['name'],
-      price: double.parse(json['price'].toString()),
+      id: _asInt(json['id']),
+      restaurantId: _asInt(json['restaurant_id']),
+      name: (json['name'] ?? '').toString(),
+      price: double.tryParse(json['price'].toString()) ?? 0.0,
       description: json['description'],
       image: json['image'],
       category: json['category'],

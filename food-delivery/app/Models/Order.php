@@ -13,9 +13,11 @@ class Order extends \Illuminate\Database\Eloquent\Model
     protected $fillable = [
         'order_number',
         'customer_id',
+        'user_id',
         'restaurant_id',
         'driver_id',
         'total_price',
+        'delivery_address',
         'status',
     ];
 

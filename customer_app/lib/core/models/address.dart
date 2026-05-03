@@ -24,8 +24,14 @@ class Address {
   }
 
   factory Address.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final id = rawId is int
+        ? rawId
+        : rawId is num
+            ? rawId.toInt()
+            : int.tryParse(rawId?.toString() ?? '') ?? 0;
     return Address(
-      id: json['id'] as int,
+      id: id,
       title: (json['title'] ?? '').toString(),
       city: (json['city'] ?? '').toString(),
       street: (json['street'] ?? '').toString(),

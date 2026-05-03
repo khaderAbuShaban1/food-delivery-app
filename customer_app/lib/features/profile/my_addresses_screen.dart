@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import '../../core/models/address.dart';
 import '../../core/services/address_service.dart';
-import '../../core/services/auth_service.dart';
-import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'address_form_screen.dart';
@@ -18,27 +15,11 @@ class MyAddressesScreen extends StatefulWidget {
 class _MyAddressesScreenState extends State<MyAddressesScreen> {
   bool _isLoading = true;
   List<Address> _addresses = [];
-  StreamSubscription<List<Address>>? _addressesSub;
 
   @override
   void initState() {
     super.initState();
     _loadAddresses();
-    _startRealtimeListener();
-  }
-
-  Future<void> _startRealtimeListener() async {
-    await AuthService.fetchCurrentUser();
-    final userId = RealtimeSyncService.currentUserId();
-    if (userId == null) return;
-    _addressesSub?.cancel();
-    _addressesSub = RealtimeSyncService.watchAddresses(userId).listen((items) {
-      if (!mounted) return;
-      setState(() {
-        _addresses = items;
-        _isLoading = false;
-      });
-    });
   }
 
   Future<void> _loadAddresses({bool showLoading = true}) async {
@@ -65,12 +46,14 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
   }
 
   Future<void> _openForm({Address? address}) async {
-    await Navigator.push<bool>(
+    final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => AddressFormScreen(address: address),
       ),
     );
+    if (!mounted || changed != true) return;
+    await _loadAddresses(showLoading: false);
   }
 
   Future<void> _deleteAddress(Address address) async {
@@ -122,6 +105,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
         isDefault: true,
       );
       if (!mounted) return;
+      await _loadAddresses(showLoading: false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -325,38 +309,51 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
       appBar: AppBar(
         title: const Text('عناويني'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _addresses.isEmpty
-              ? ListView(
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.7,
-                      child: EmptyState(
-                        icon: Icons.location_off_outlined,
-                        title: 'لا توجد عناوين محفوظة',
-                        subtitle: 'أضف عنوانك الأول لتسريع عملية الطلب',
-                        action: AppButton(
-                          text: 'إضافة عنوان جديد',
-                          isFullWidth: false,
-                          icon: Icons.add,
-                          onPressed: () => _openForm(),
+      body: RefreshIndicator(
+        onRefresh: () => _loadAddresses(showLoading: false),
+        child: _isLoading
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.75,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              )
+            : _addresses.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.7,
+                        child: EmptyState(
+                          icon: Icons.location_off_outlined,
+                          title: 'لا توجد عناوين محفوظة',
+                          subtitle: 'أضف عنوانك الأول لتسريع عملية الطلب',
+                          action: AppButton(
+                            text: 'إضافة عنوان جديد',
+                            isFullWidth: false,
+                            icon: Icons.add,
+                            onPressed: () => _openForm(),
+                          ),
                         ),
                       ),
+                    ],
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.huge,
                     ),
-                  ],
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    AppSpacing.huge,
+                    itemCount: _addresses.length,
+                    itemBuilder: (context, index) =>
+                        _buildAddressCard(_addresses[index]),
                   ),
-                  itemCount: _addresses.length,
-                  itemBuilder: (context, index) =>
-                      _buildAddressCard(_addresses[index]),
-                ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         backgroundColor: AppColors.primary,
@@ -368,9 +365,4 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _addressesSub?.cancel();
-    super.dispose();
-  }
 }
