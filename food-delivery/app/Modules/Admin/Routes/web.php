@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Controllers\AuthController;
 use App\Modules\Admin\Controllers\DashboardController;
+use App\Modules\Admin\Controllers\PaymentMethodController;
 use App\Modules\Admin\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/orders/{id}/accept', [DashboardController::class, 'acceptOrder'])->name('orders.accept');
         Route::patch('/orders/{id}/cancel', [DashboardController::class, 'cancelOrder'])->name('orders.cancel');
         Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
+
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
+        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
+        Route::put('/payment-methods/{payment_method}', [PaymentMethodController::class, 'update'])->name('payment-methods.update');
+        Route::delete('/payment-methods/{payment_method}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
+        Route::patch('/payment-methods/{payment_method}/toggle', [PaymentMethodController::class, 'toggle'])->name('payment-methods.toggle');
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
         Route::put('/settings/general', [SettingsController::class, 'updateGeneral'])->name('settings.general');

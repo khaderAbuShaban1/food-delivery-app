@@ -266,6 +266,10 @@
                     <i class="fas fa-users"></i>
                     <span>إدارة العملاء</span>
                 </a>
+                <a href="{{ route('admin.payment-methods.index') }}" class="nav-item {{ request()->routeIs('admin.payment-methods.*') ? 'active' : '' }}">
+                    <i class="fas fa-credit-card"></i>
+                    <span>طرق تحويل المدفوعات</span>
+                </a>
                 <a href="{{ route('admin.settings') }}" class="nav-item {{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
                     <i class="fas fa-cogs"></i>
                     <span>الإعدادات المتقدمة</span>
