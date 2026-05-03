@@ -520,7 +520,7 @@ class DashboardController extends Controller
 
     public function getOrderData(int $id)
     {
-        $order = Order::with(['restaurant', 'orderItems.menuItem'])->findOrFail($id);
+        $order = Order::with(['restaurant', 'orderItems.menuItem', 'customerUser'])->findOrFail($id);
         return response()->json($order);
     }
 

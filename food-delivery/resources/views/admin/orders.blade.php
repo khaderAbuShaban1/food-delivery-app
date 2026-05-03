@@ -591,6 +591,102 @@
         padding: 1rem;
     }
 }
+
+.orders-list-pagination {
+    padding: 0.5rem 0.75rem 0.85rem;
+}
+
+.admin-pagination-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--white);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+}
+
+.admin-pagination-info {
+    font-size: 0.83rem;
+    color: var(--text-muted);
+    margin: 0;
+    font-family: 'Cairo', sans-serif;
+}
+
+.admin-pagination-info strong {
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+.admin-pagination-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+a.admin-page-pill {
+    cursor: pointer;
+}
+
+.admin-page-pill {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-dark);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Cairo', sans-serif;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    box-sizing: border-box;
+}
+
+a.admin-page-pill:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-muted);
+}
+
+.admin-page-pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.admin-page-pill.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.admin-page-pill.dots {
+    border: none;
+    background: transparent;
+    min-width: auto;
+    padding: 0 0.25rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+@media (max-width: 480px) {
+    .admin-pagination-inner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-pagination-links {
+        justify-content: center;
+    }
+}
 </style>
 @endsection
 
@@ -670,8 +766,8 @@
             @endforelse
         </div>
         @if($orders->hasPages())
-        <div class="p-2">
-            {!! $orders->links() !!}
+        <div class="orders-list-pagination">
+            {!! $orders->withQueryString()->links('vendor.pagination.admin-rtl') !!}
         </div>
         @endif
     </div>
@@ -725,6 +821,12 @@ function renderOrderDetails(order) {
         `;
     }).join('');
 
+    const customerRecord = order.customer_user || order.customerUser;
+    const customerName = (customerRecord && customerRecord.name) ? String(customerRecord.name).trim() : '';
+    const customerLine = customerName
+        ? `عميل #${order.customer_id || 'غير معروف'} — ${customerName}`
+        : `عميل #${order.customer_id || 'غير معروف'}`;
+
     let itemsHTML = order.order_items && order.order_items.length > 0
         ? order.order_items.map(item => {
             let image = item.image || '';
@@ -765,7 +867,7 @@ function renderOrderDetails(order) {
             <div class="info-grid">
                 <div class="info-card">
                     <h6><i class="fas fa-user me-1"></i> معلومات العميل</h6>
-                    <p>عميل #${order.customer_id || 'غير معروف'}</p>
+                    <p>${customerLine}</p>
                 </div>
                 <div class="info-card">
                     <h6><i class="fas fa-store me-1"></i> المطعم</h6>
