@@ -24,28 +24,37 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Timer? _ordersPollTimer;
 
   static const List<String> _statusFlow = [
-    'pending',
-    'accepted',
+    'pending_payment_verification',
+    'payment_verified',
+    'accepted_by_restaurant',
     'preparing',
-    'delivering',
-    'completed',
+    'on_the_way',
+    'delivered',
   ];
 
   static const Map<String, String> _statusLabels = {
+    'pending_payment_verification': 'بانتظار تحقق الدفع',
+    'payment_verified': 'تم التحقق من الدفع',
+    'payment_rejected': 'رفض الدفع',
+    'accepted_by_restaurant': 'مقبول من المطعم',
+    'preparing': 'قيد التحضير',
+    'on_the_way': 'في الطريق',
+    'delivered': 'تم التسليم',
     'pending': 'بانتظار التأكيد',
     'accepted': 'تم التأكيد',
-    'preparing': 'قيد التحضير',
-    'delivering': 'في الطريق',
-    'completed': 'تم التسليم',
     'cancelled': 'ملغى',
   };
 
   static const Map<String, Color> _statusColors = {
+    'pending_payment_verification': AppColors.textSecondary,
+    'payment_verified': Color(0xFF3498DB),
+    'payment_rejected': AppColors.error,
+    'accepted_by_restaurant': Color(0xFF0891B2),
+    'preparing': AppColors.primary,
+    'on_the_way': AppColors.primaryDark,
+    'delivered': AppColors.success,
     'pending': AppColors.textSecondary,
     'accepted': Color(0xFF3498DB),
-    'preparing': AppColors.primary,
-    'delivering': AppColors.primaryDark,
-    'completed': AppColors.success,
     'cancelled': AppColors.error,
   };
 
@@ -233,7 +242,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 child: Image.network(
                                   restaurant['image']!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(
+                                  errorBuilder: (_, _, _) => const Icon(
                                     Icons.restaurant_outlined,
                                     color: AppColors.textHint,
                                   ),
@@ -289,68 +298,108 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Widget _buildStatusTimeline(String currentStatus) {
+    if (currentStatus == 'payment_rejected') {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.08),
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(AppRadius.xl),
+          ),
+        ),
+        child: const Text(
+          'تم رفض الدفع لهذا الطلب',
+          style: TextStyle(fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
+
     final currentIndex = _statusFlow.indexOf(currentStatus);
-    final adjustedIndex = currentStatus == 'cancelled' ? -1 : currentIndex;
+    final adjustedIndex = currentStatus == 'cancelled'
+        ? -1
+        : (currentIndex >= 0 ? currentIndex : 0);
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.secondary.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(AppRadius.xl),
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          for (int i = 0; i < _statusFlow.length; i++) ...[
-            if (i > 0)
-              Expanded(
-                child: Container(
-                  height: 3,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.xl),
-                  decoration: BoxDecoration(
-                    color: i <= adjustedIndex
-                        ? _statusColors[_statusFlow[i]] ?? AppColors.primary
-                        : AppColors.divider,
-                    borderRadius: BorderRadius.circular(2),
+          Row(
+            children: [
+              for (int i = 0; i < _statusFlow.length; i++) ...[
+                Expanded(
+                  child: Center(
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: i <= adjustedIndex
+                            ? _statusColors[_statusFlow[i]] ?? AppColors.primary
+                            : AppColors.divider,
+                        shape: BoxShape.circle,
+                      ),
+                      child: i <= adjustedIndex
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 13,
+                            )
+                          : null,
+                    ),
                   ),
                 ),
-              ),
-            Column(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: i <= adjustedIndex
-                        ? _statusColors[_statusFlow[i]] ?? AppColors.primary
-                        : AppColors.divider,
-                    shape: BoxShape.circle,
+                if (i < _statusFlow.length - 1)
+                  Expanded(
+                    child: Container(
+                      height: 3,
+                      margin: const EdgeInsets.only(bottom: 1),
+                      decoration: BoxDecoration(
+                        color: (i + 1) <= adjustedIndex
+                            ? _statusColors[_statusFlow[i + 1]] ?? AppColors.primary
+                            : AppColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  child: i <= adjustedIndex
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 14,
-                        )
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _statusLabels[_statusFlow[i]] ?? '',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight:
-                        i == adjustedIndex ? FontWeight.bold : FontWeight.normal,
-                    color: i <= adjustedIndex
-                        ? AppColors.textPrimary
-                        : AppColors.textHint,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
               ],
-            ),
-          ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < _statusFlow.length; i++) ...[
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(
+                      _statusLabels[_statusFlow[i]] ?? '',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: i == adjustedIndex ? FontWeight.bold : FontWeight.normal,
+                        color: i <= adjustedIndex ? AppColors.textPrimary : AppColors.textHint,
+                        height: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                if (i < _statusFlow.length - 1) const Expanded(child: SizedBox()),
+              ],
+            ],
+          ),
         ],
       ),
     );

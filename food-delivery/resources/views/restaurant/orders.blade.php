@@ -26,6 +26,10 @@
 .badge-status.delivering { background:#F3E8FF; color:#7E22CE; }
 .badge-status.completed { background:#DCFCE7; color:#166534; }
 .badge-status.cancelled { background:#FEE2E2; color:#991B1B; }
+.badge-status.payment_verified { background:#DBEAFE; color:#1D4ED8; }
+.badge-status.accepted_by_restaurant { background:#E0F2FE; color:#0369A1; }
+.badge-status.on_the_way { background:#F3E8FF; color:#7E22CE; }
+.badge-status.delivered { background:#DCFCE7; color:#166534; }
 
 .actions { display:flex; flex-wrap:wrap; gap:.35rem; }
 .action-btn { border:none; border-radius:10px; padding:.42rem .66rem; font-size:.75rem; font-weight:700; cursor:pointer; }
@@ -47,8 +51,8 @@
 
 <div class="orders-toolbar">
     <div class="toolbar-card"><div class="toolbar-label">إجمالي الطلبات</div><div id="summaryTotalOrders" class="toolbar-value">{{ count($myOrders ?? []) }}</div></div>
-    <div class="toolbar-card"><div class="toolbar-label">قيد الانتظار</div><div id="summaryPendingOrders" class="toolbar-value">{{ collect($myOrders ?? [])->where('status','pending')->count() }}</div></div>
-    <div class="toolbar-card"><div class="toolbar-label">قيد التنفيذ</div><div id="summaryInProgressOrders" class="toolbar-value">{{ collect($myOrders ?? [])->whereIn('status',['accepted','preparing','delivering'])->count() }}</div></div>
+    <div class="toolbar-card"><div class="toolbar-label">في انتظار قبولكم</div><div id="summaryPendingOrders" class="toolbar-value">{{ collect($myOrders ?? [])->where('status','payment_verified')->count() }}</div></div>
+    <div class="toolbar-card"><div class="toolbar-label">قيد التنفيذ</div><div id="summaryInProgressOrders" class="toolbar-value">{{ collect($myOrders ?? [])->whereIn('status',['accepted_by_restaurant','preparing','on_the_way'])->count() }}</div></div>
 </div>
 
 <div class="orders-card">
@@ -93,24 +97,16 @@
 
                     <td>
                         @php
-                            $statusClass = match($order->status) {
-                                'pending' => 'pending',
-                                'accepted' => 'accepted',
-                                'preparing' => 'preparing',
-                                'delivering' => 'delivering',
-                                'completed' => 'completed',
-                                'cancelled' => 'cancelled',
-                                default => 'pending'
-                            };
-                            $statusText = match($order->status) {
-                                'pending' => 'قيد الانتظار',
-                                'accepted' => 'مقبول',
-                                'preparing' => 'جاري التحضير',
-                                'delivering' => 'قيد التوصيل',
-                                'completed' => 'مكتمل',
-                                'cancelled' => 'ملغي',
-                                default => $order->status
-                            };
+                            $wf = [
+                                'payment_verified' => ['payment_verified', 'تم التحقق — قبولكم'],
+                                'accepted_by_restaurant' => ['accepted_by_restaurant', 'مقبول منكم'],
+                                'preparing' => ['preparing', 'جاري التحضير'],
+                                'on_the_way' => ['on_the_way', 'في الطريق'],
+                                'delivered' => ['delivered', 'تم التسليم'],
+                            ];
+                            $statusRow = $wf[$order->status] ?? [$order->status, $order->status];
+                            $statusClass = $statusRow[0];
+                            $statusText = $statusRow[1];
                         @endphp
                         <span class="badge-status {{ $statusClass }}">{{ $statusText }}</span>
                     </td>
@@ -122,9 +118,10 @@
 
                     <td>
                         <div class="actions">
-                        @if($order->status === 'pending')
-                            <button type="button" class="action-btn primary quick-status-btn" data-url="{{ route('restaurant.orders.status', $order->id) }}" data-status="accepted">قبول</button>
-                            <button type="button" class="action-btn danger quick-status-btn" data-url="{{ route('restaurant.orders.status', $order->id) }}" data-status="cancelled">رفض</button>
+                        @if($order->status === 'payment_verified')
+                            <button type="button" class="action-btn primary quick-status-btn" data-url="{{ route('restaurant.orders.status', $order->id) }}" data-status="accepted_by_restaurant">قبول الطلب</button>
+                        @elseif($order->status === 'accepted_by_restaurant')
+                            <button type="button" class="action-btn primary quick-status-btn" data-url="{{ route('restaurant.orders.status', $order->id) }}" data-status="preparing">بدء التحضير</button>
                         @endif
                         <button class="action-btn ghost update-status-btn"
                             data-order-id="{{ $order->id }}"
@@ -160,12 +157,9 @@
                     <div class="mb-3">
                         <label class="form-label">الحالة الجديدة</label>
                         <select name="status" id="statusSelect" class="form-select" required>
-                            <option value="pending">قيد الانتظار</option>
-                            <option value="accepted">مقبول</option>
+                            <option value="payment_verified">تم التحقق من الدفع</option>
+                            <option value="accepted_by_restaurant">مقبول من المطعم</option>
                             <option value="preparing">جاري التحضير</option>
-                            <option value="delivering">قيد التوصيل</option>
-                            <option value="completed">مكتمل</option>
-                            <option value="cancelled">ملغي</option>
                         </select>
                     </div>
                 </div>
@@ -187,21 +181,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusSelect = document.getElementById('statusSelect');
     const modalOrderId = document.getElementById('modalOrderId');
     const transitions = {
-        pending: ['accepted', 'cancelled'],
-        accepted: ['preparing', 'cancelled'],
-        preparing: ['delivering', 'cancelled'],
-        delivering: ['completed', 'cancelled'],
-        completed: [],
-        cancelled: [],
+        payment_verified: ['accepted_by_restaurant'],
+        accepted_by_restaurant: ['preparing'],
+        preparing: [],
+        on_the_way: [],
+        delivered: [],
     };
 
     const labels = {
-        pending: 'قيد الانتظار',
-        accepted: 'مقبول',
+        payment_verified: 'تم التحقق من الدفع',
+        accepted_by_restaurant: 'مقبول من المطعم',
         preparing: 'جاري التحضير',
-        delivering: 'قيد التوصيل',
-        completed: 'مكتمل',
-        cancelled: 'ملغي',
+        on_the_way: 'في الطريق',
+        delivered: 'تم التسليم',
     };
 
     let ordersRealtimeTimer = null;
@@ -220,8 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function normalizeStatusClass(status) {
-        const supported = ['pending', 'accepted', 'preparing', 'delivering', 'completed', 'cancelled'];
-        return supported.includes(status) ? status : 'pending';
+        return String(status || '').trim() || 'payment_verified';
     }
 
     function renderOrdersRows(orders) {
@@ -236,11 +227,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const itemsHtml = (order.items || []).length
                 ? `<div class="items-list">${order.items.map((item) => `<div>${escapeHtml(item.quantity)} × ${escapeHtml(item.name)}</div>`).join('')}</div>`
                 : '<span class="muted">لا توجد أصناف</span>';
-            const pendingActions = order.status === 'pending'
-                ? `
-                    <button type="button" class="action-btn primary quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="accepted">قبول</button>
-                    <button type="button" class="action-btn danger quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="cancelled">رفض</button>
-                  `
+            const pendingActions = order.status === 'payment_verified'
+                ? `<button type="button" class="action-btn primary quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="accepted_by_restaurant">قبول الطلب</button>`
+                : order.status === 'accepted_by_restaurant'
+                ? `<button type="button" class="action-btn primary quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="preparing">بدء التحضير</button>`
                 : '';
             return `
                 <tr>
@@ -277,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pendingEl = document.getElementById('summaryPendingOrders');
         const progressEl = document.getElementById('summaryInProgressOrders');
         if (totalEl) totalEl.textContent = Number(summary?.total || 0).toLocaleString();
-        if (pendingEl) pendingEl.textContent = Number(summary?.pending || 0).toLocaleString();
+        if (pendingEl) pendingEl.textContent = Number(summary?.awaiting_accept || 0).toLocaleString();
         if (progressEl) progressEl.textContent = Number(summary?.in_progress || 0).toLocaleString();
     }
 

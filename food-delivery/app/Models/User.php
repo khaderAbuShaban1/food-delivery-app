@@ -52,6 +52,6 @@ class User extends Authenticatable
 
     public function getTotalSpentAttribute(): float
     {
-        return $this->orders()->where('status', 'completed')->sum('total_price') ?? 0;
+        return $this->orders()->where('status', 'delivered')->sum('total_price') ?? 0;
     }
 }

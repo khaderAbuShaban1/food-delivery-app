@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DriverOrderController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\RestaurantController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,7 @@ Route::middleware('auth:sanctum')->prefix('driver')->group(function () {
     Route::get('/orders/active', [DriverOrderController::class, 'activeOrder']);
     Route::post('/orders/{id}/accept', [DriverOrderController::class, 'accept']);
     Route::put('/orders/{id}/status', [DriverOrderController::class, 'updateStatus']);
+    Route::patch('/orders/{id}/status', [DriverOrderController::class, 'updateStatus']);
 });
 
 // Public restaurant routes
@@ -52,12 +54,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/addresses', [AddressController::class, 'store']);
     Route::put('/addresses/{id}', [AddressController::class, 'update']);
     Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
+
+    Route::get('/payment-methods/active', [PaymentMethodController::class, 'active']);
     
     // User orders
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
-    Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
     
     // Restaurant order management
     Route::get('/restaurant/orders', [OrderController::class, 'restaurantOrders']);

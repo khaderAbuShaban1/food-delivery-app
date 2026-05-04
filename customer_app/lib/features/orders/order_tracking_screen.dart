@@ -16,37 +16,48 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   static const List<String> _statusFlow = [
-    'pending',
-    'accepted',
+    'pending_payment_verification',
+    'payment_verified',
+    'accepted_by_restaurant',
     'preparing',
-    'delivering',
-    'completed',
+    'on_the_way',
+    'delivered',
   ];
 
   static const Map<String, String> _statusLabels = {
+    'pending_payment_verification': 'بانتظار تحقق الدفع',
+    'payment_verified': 'تم التحقق من الدفع',
+    'payment_rejected': 'رفض الدفع',
+    'accepted_by_restaurant': 'مقبول من المطعم',
+    'preparing': 'قيد التحضير',
+    'on_the_way': 'في الطريق',
+    'delivered': 'تم التسليم',
     'pending': 'بانتظار التأكيد',
     'accepted': 'تم التأكيد',
-    'preparing': 'قيد التحضير',
-    'delivering': 'في الطريق',
-    'completed': 'تم التسليم',
     'cancelled': 'ملغى',
   };
 
   static const Map<String, Color> _statusColors = {
+    'pending_payment_verification': AppColors.textSecondary,
+    'payment_verified': Color(0xFF3498DB),
+    'payment_rejected': AppColors.error,
+    'accepted_by_restaurant': Color(0xFF0891B2),
+    'preparing': AppColors.primary,
+    'on_the_way': AppColors.primaryDark,
+    'delivered': AppColors.success,
     'pending': AppColors.textSecondary,
     'accepted': Color(0xFF3498DB),
-    'preparing': AppColors.primary,
-    'delivering': AppColors.primaryDark,
-    'completed': AppColors.success,
     'cancelled': AppColors.error,
   };
 
   static const Map<String, IconData> _statusIcons = {
-    'pending': Icons.receipt_outlined,
-    'accepted': Icons.check_circle_outline,
+    'pending_payment_verification': Icons.receipt_outlined,
+    'payment_verified': Icons.verified_outlined,
+    'payment_rejected': Icons.cancel_outlined,
+    'accepted_by_restaurant': Icons.check_circle_outline,
     'preparing': Icons.restaurant_outlined,
-    'delivering': Icons.delivery_dining,
-    'completed': Icons.done_all,
+    'on_the_way': Icons.delivery_dining,
+    'delivered': Icons.done_all,
   };
 
   late Map<String, dynamic> _order;
@@ -68,7 +79,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (id == null || id <= 0) return;
 
     final status = (_order['status'] ?? '').toString();
-    if (status == 'completed' || status == 'cancelled') {
+    if (status == 'delivered' || status == 'payment_rejected') {
       _pollTimer?.cancel();
       _pollTimer = null;
       return;
@@ -90,7 +101,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
     if (!mounted) return;
     final s = (_order['status'] ?? '').toString();
-    if (s == 'completed' || s == 'cancelled') {
+    if (s == 'delivered' || s == 'payment_rejected') {
       _pollTimer?.cancel();
       _pollTimer = null;
     }
@@ -264,7 +275,31 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   Widget _buildTimelineSection(String currentStatus) {
     final currentIndex = _statusFlow.indexOf(currentStatus);
-    final adjustedIndex = currentStatus == 'cancelled' ? -1 : currentIndex;
+    final adjustedIndex =
+        currentStatus == 'payment_rejected' || currentStatus == 'cancelled' ? -1 : currentIndex;
+
+    if (currentStatus == 'payment_rejected') {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 28),
+            const SizedBox(width: AppSpacing.md),
+            const Expanded(
+              child: Text(
+                'لم يتم اعتماد الدفع لهذا الطلب. تواصل مع الدعم إذا لزم الأمر.',
+                style: TextStyle(fontSize: 15, height: 1.35),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),

@@ -134,7 +134,7 @@
         <div class="kpi-meta">طلبات اليوم: <span id="kpiOrdersToday">{{ number_format($stats['orders_today']) }}</span></div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-head"><span class="kpi-title">قيد الانتظار</span><span class="kpi-icon warning"><i class="bi bi-hourglass-split"></i></span></div>
+        <div class="kpi-head"><span class="kpi-title">بحاجة لقبولكم</span><span class="kpi-icon warning"><i class="bi bi-hourglass-split"></i></span></div>
         <div class="kpi-value" id="kpiPendingOrders">{{ number_format($stats['pending_orders']) }}</div>
         <div class="kpi-meta">متابعة الطلبات الجديدة</div>
     </div>
@@ -154,14 +154,15 @@
             <h3><i class="bi bi-graph-up me-2"></i>توزيع حالات الطلب</h3>
             <span class="panel-subtitle">آخر حالة تشغيلية للطلبات</span>
         </div>
-        @php $totalOrders = max($stats['orders_total'], 1); @endphp
+        @php
+            $totalOrders = max($stats['orders_total'], 1);
+            $vis = \App\Services\OrderWorkflow::restaurantVisibleStatuses();
+            $lbl = \App\Services\OrderWorkflow::arabicLabels();
+        @endphp
         <div class="status-list">
-            <div class="status-row"><span class="status-label">قيد الانتظار</span><div class="status-track"><div id="statusFillPending" class="status-fill pending" style="width: {{ ($orderStats['pending'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountPending" class="status-count">{{ $orderStats['pending'] }}</span></div>
-            <div class="status-row"><span class="status-label">مقبول</span><div class="status-track"><div id="statusFillAccepted" class="status-fill accepted" style="width: {{ ($orderStats['accepted'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountAccepted" class="status-count">{{ $orderStats['accepted'] }}</span></div>
-            <div class="status-row"><span class="status-label">قيد التجهيز</span><div class="status-track"><div id="statusFillPreparing" class="status-fill preparing" style="width: {{ ($orderStats['preparing'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountPreparing" class="status-count">{{ $orderStats['preparing'] }}</span></div>
-            <div class="status-row"><span class="status-label">في الطريق</span><div class="status-track"><div id="statusFillDelivering" class="status-fill delivering" style="width: {{ ($orderStats['delivering'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountDelivering" class="status-count">{{ $orderStats['delivering'] }}</span></div>
-            <div class="status-row"><span class="status-label">مكتمل</span><div class="status-track"><div id="statusFillCompleted" class="status-fill completed" style="width: {{ ($orderStats['completed'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountCompleted" class="status-count">{{ $orderStats['completed'] }}</span></div>
-            <div class="status-row"><span class="status-label">ملغي</span><div class="status-track"><div id="statusFillCancelled" class="status-fill cancelled" style="width: {{ ($orderStats['cancelled'] / $totalOrders) * 100 }}%"></div></div><span id="statusCountCancelled" class="status-count">{{ $orderStats['cancelled'] }}</span></div>
+            @foreach($vis as $code)
+            <div class="status-row"><span class="status-label">{{ $lbl[$code] ?? $code }}</span><div class="status-track"><div id="statusFill-{{ $code }}" class="status-fill preparing" style="width: {{ (($orderStats[$code] ?? 0) / $totalOrders) * 100 }}%"></div></div><span id="statusCount-{{ $code }}" class="status-count">{{ $orderStats[$code] ?? 0 }}</span></div>
+            @endforeach
         </div>
     </section>
 
@@ -174,7 +175,7 @@
             <div class="summary-card"><div class="summary-label">عدد الأصناف</div><div id="summaryMenuItemsTotal" class="summary-value">{{ $stats['menu_items_total'] }}</div></div>
             <div class="summary-card"><div class="summary-label">المتاح</div><div id="summaryMenuItemsAvailable" class="summary-value">{{ $stats['menu_items_available'] }}</div></div>
             <div class="summary-card"><div class="summary-label">طلبات اليوم</div><div id="summaryOrdersToday" class="summary-value">{{ $stats['orders_today'] }}</div></div>
-            <div class="summary-card"><div class="summary-label">قيد الانتظار</div><div id="summaryPendingOrders" class="summary-value">{{ $stats['pending_orders'] }}</div></div>
+            <div class="summary-card"><div class="summary-label">بحاجة لقبولكم</div><div id="summaryPendingOrders" class="summary-value">{{ $stats['pending_orders'] }}</div></div>
         </div>
     </section>
 
@@ -207,20 +208,10 @@
                 </thead>
                 <tbody id="recentOrdersBody">
                     @forelse($recentOrders as $order)
-                        @php
-                            $statusLabel = match($order->status) {
-                                'pending' => 'قيد الانتظار',
-                                'accepted' => 'مقبول',
-                                'preparing' => 'قيد التجهيز',
-                                'delivering' => 'في الطريق',
-                                'completed' => 'مكتمل',
-                                'cancelled' => 'ملغي',
-                                default => $order->status,
-                            };
-                        @endphp
+                        @php $statusLabel = \App\Services\OrderWorkflow::label($order->status); @endphp
                         <tr>
                             <td>#{{ $order->order_number ?: $order->id }}</td>
-                            <td><span class="badge badge-{{ $order->status }}">{{ $statusLabel }}</span></td>
+                            <td><span class="badge">{{ $statusLabel }}</span></td>
                             <td>@price($order->total_price)</td>
                             <td>{{ $order->created_at?->format('Y-m-d H:i') }}</td>
                         </tr>
@@ -275,11 +266,11 @@ function escapeHtml(value) {
 
 function updateStatusBars(orderStats, ordersTotal) {
     const total = Math.max(Number(ordersTotal || 0), 1);
-    const statuses = ['pending', 'accepted', 'preparing', 'delivering', 'completed', 'cancelled'];
+    const statuses = @json(\App\Services\OrderWorkflow::restaurantVisibleStatuses());
     statuses.forEach((status) => {
         const count = Number(orderStats?.[status] || 0);
-        const fillEl = document.getElementById(`statusFill${status.charAt(0).toUpperCase()}${status.slice(1)}`);
-        const countEl = document.getElementById(`statusCount${status.charAt(0).toUpperCase()}${status.slice(1)}`);
+        const fillEl = document.getElementById(`statusFill-${status}`);
+        const countEl = document.getElementById(`statusCount-${status}`);
         if (fillEl) fillEl.style.width = `${(count / total) * 100}%`;
         if (countEl) countEl.textContent = count;
     });
@@ -295,7 +286,7 @@ function renderRecentOrders(orders) {
     body.innerHTML = orders.map((order) => `
         <tr>
             <td>#${escapeHtml(order.order_number)}</td>
-            <td><span class="badge badge-${escapeHtml(order.status)}">${escapeHtml(order.status_label)}</span></td>
+            <td><span class="badge">${escapeHtml(order.status_label)}</span></td>
             <td>${formatPrice(order.total_price)}</td>
             <td>${escapeHtml(order.created_at)}</td>
         </tr>

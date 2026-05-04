@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Driver;
 use App\Models\Order;
+use App\Services\OrderWorkflow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,11 +21,6 @@ class DriverOrderController extends Controller
         return $user instanceof Driver ? $user : null;
     }
 
-    private function activeStatuses(): array
-    {
-        return ['accepted', 'preparing', 'delivering'];
-    }
-
     /**
      * Available pool: preparing + unassigned (MySQL).
      */
@@ -38,7 +34,7 @@ class DriverOrderController extends Controller
         }
 
         $orders = Order::query()
-            ->where('status', OrderController::STATUS_PREPARING)
+            ->whereIn('status', OrderWorkflow::preparingPoolStatuses())
             ->whereNull('driver_id')
             ->with(['restaurant', 'orderItems.menuItem', 'customer'])
             ->orderByDesc('updated_at')
@@ -53,7 +49,8 @@ class DriverOrderController extends Controller
     }
 
     /**
-     * Current active assignment for this driver (MySQL).
+     * Current active assignment for this driver (MySQL):
+     * assigned waiting pickup, on the way, or post-pickup until delivered.
      */
     public function activeOrder(Request $request): JsonResponse
     {
@@ -67,7 +64,10 @@ class DriverOrderController extends Controller
 
         $order = Order::query()
             ->where('driver_id', $driver->id)
-            ->whereIn('status', $this->activeStatuses())
+            ->whereNotIn('status', [
+                OrderWorkflow::DELIVERED,
+                OrderWorkflow::PAYMENT_REJECTED,
+            ])
             ->with(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])
             ->orderByDesc('updated_at')
             ->first();
@@ -92,7 +92,10 @@ class DriverOrderController extends Controller
 
         $hasActive = Order::query()
             ->where('driver_id', $driver->id)
-            ->whereIn('status', $this->activeStatuses())
+            ->whereNotIn('status', [
+                OrderWorkflow::DELIVERED,
+                OrderWorkflow::PAYMENT_REJECTED,
+            ])
             ->where('id', '!=', $id)
             ->exists();
 
@@ -111,7 +114,7 @@ class DriverOrderController extends Controller
             ], 404);
         }
 
-        if ($order->status !== OrderController::STATUS_PREPARING) {
+        if (! in_array($order->status, OrderWorkflow::preparingPoolStatuses(), true)) {
             return response()->json([
                 'success' => false,
                 'message' => 'لا يمكن قبول هذا الطلب (الحالة ليست قيد التحضير).',
@@ -127,11 +130,12 @@ class DriverOrderController extends Controller
 
         $order->update([
             'driver_id' => $driver->id,
+            'assigned_at' => now(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'تم قبول الطلب',
+            'message' => 'تم تعيين الطلب لك.',
             'data' => app(OrderController::class)->formatOrder($order->fresh(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])),
         ]);
     }
@@ -147,7 +151,7 @@ class DriverOrderController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:delivering,completed',
+            'status' => 'required|in:picked_up,on_the_way,delivered',
         ]);
 
         $order = Order::find($id);
@@ -165,10 +169,19 @@ class DriverOrderController extends Controller
             ], 403);
         }
 
-        $newStatus = $validated['status'];
-        $orderController = app(OrderController::class);
+        $requestedStatus = (string) $validated['status'];
+        $newStatus = $requestedStatus === 'picked_up'
+            ? OrderWorkflow::ON_THE_WAY
+            : $requestedStatus;
 
-        if (!$orderController->canTransition($order->status, $newStatus)) {
+        if ($newStatus === OrderWorkflow::ON_THE_WAY && $order->status !== OrderWorkflow::PREPARING) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكن بدء التوصيل إلا عندما تكون حالة الطلب «قيد التحضير».',
+            ], 400);
+        }
+
+        if (! OrderWorkflow::canRoleTransition(OrderWorkflow::ROLE_DRIVER, $order->status, $newStatus)) {
             return response()->json([
                 'success' => false,
                 'message' => 'لا يمكن تغيير الحالة من «'.$order->status.'» إلى «'.$newStatus.'».',

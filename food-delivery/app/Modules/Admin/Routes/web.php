@@ -33,8 +33,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/orders', [DashboardController::class, 'orders'])->name('orders');
         Route::get('/orders/list', [DashboardController::class, 'getOrders'])->name('orders.list');
         Route::get('/orders/{id}/data', [DashboardController::class, 'getOrderData'])->name('orders.data');
-        Route::patch('/orders/{id}/accept', [DashboardController::class, 'acceptOrder'])->name('orders.accept');
-        Route::patch('/orders/{id}/cancel', [DashboardController::class, 'cancelOrder'])->name('orders.cancel');
+        Route::patch('/orders/{id}/verify-payment', [DashboardController::class, 'verifyOrderPayment'])->name('orders.verify-payment');
+        Route::patch('/orders/{id}/reject-payment', [DashboardController::class, 'rejectOrderPayment'])->name('orders.reject-payment');
         Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
 
         Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');

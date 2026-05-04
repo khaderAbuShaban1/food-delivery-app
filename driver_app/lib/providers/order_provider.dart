@@ -177,6 +177,11 @@ class OrderProvider extends ChangeNotifier {
     );
     if (res['success'] != true) {
       error = res['message']?.toString() ?? 'تعذّر تحديث الحالة';
+    } else {
+      final data = res['data'];
+      if (data is Map) {
+        activeOrder = OrderModel.fromLaravelApi(Map<String, dynamic>.from(data));
+      }
     }
 
     isBusy = false;

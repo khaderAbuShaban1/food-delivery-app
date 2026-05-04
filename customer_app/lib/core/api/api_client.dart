@@ -121,6 +121,42 @@ class ApiClient {
     }
   }
 
+  /// Order creation with `items[]` fields and optional `payment_proof` file — do not send JSON Content-Type.
+  static Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    required Map<String, String> fields,
+    List<http.MultipartFile> files = const [],
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll({
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+      request.fields.addAll(fields);
+      request.files.addAll(files);
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> uploadFile(String endpoint, String filePath, String fieldName) async {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
@@ -174,6 +210,20 @@ class ApiClient {
       if (body['errors'] != null) 'errors': body['errors'],
       if (body['status'] != null) 'status': body['status'],
     };
+  }
+
+  /// Origin without `/api` (for Laravel `asset()` URLs returned by the API).
+  static String get publicOrigin {
+    var u = baseUrl.trim();
+    if (u.endsWith('/api')) {
+      u = u.substring(0, u.length - 4);
+    } else if (u.endsWith('/api/')) {
+      u = u.substring(0, u.length - 5);
+    }
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
   }
 
   // Call this once at app start to set correct IP

@@ -85,11 +85,9 @@
     <section class="panel panel-half">
         <h3>حالة الطلبات</h3>
         <div class="progress-stack">
-            <div class="progress-row"><span class="progress-label">قيد الانتظار</span><div class="progress-track"><div id="progressFillPending" class="progress-fill pending" style="width: {{ $orderProgress['pending'] }}%"></div></div><span id="progressValuePending" class="progress-value">{{ $orderStats['pending'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">قيد التجهيز</span><div class="progress-track"><div id="progressFillPreparing" class="progress-fill preparing" style="width: {{ $orderProgress['preparing'] }}%"></div></div><span id="progressValuePreparing" class="progress-value">{{ $orderStats['preparing'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">في الطريق</span><div class="progress-track"><div id="progressFillDelivering" class="progress-fill delivering" style="width: {{ $orderProgress['delivering'] }}%"></div></div><span id="progressValueDelivering" class="progress-value">{{ $orderStats['delivering'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">مكتمل</span><div class="progress-track"><div id="progressFillCompleted" class="progress-fill completed" style="width: {{ $orderProgress['completed'] }}%"></div></div><span id="progressValueCompleted" class="progress-value">{{ $orderStats['completed'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">ملغي</span><div class="progress-track"><div id="progressFillCancelled" class="progress-fill cancelled" style="width: {{ $orderProgress['cancelled'] }}%"></div></div><span id="progressValueCancelled" class="progress-value">{{ $orderStats['cancelled'] }}</span></div>
+            @foreach(\App\Services\OrderWorkflow::arabicLabels() as $code => $label)
+            <div class="progress-row"><span class="progress-label">{{ $label }}</span><div class="progress-track"><div id="progressFill-{{ $code }}" class="progress-fill preparing" style="width: {{ $orderProgress[$code] ?? 0 }}%"></div></div><span id="progressValue-{{ $code }}" class="progress-value">{{ $orderStats[$code] ?? 0 }}</span></div>
+            @endforeach
         </div>
     </section>
 
@@ -98,7 +96,7 @@
         <div class="summary-list">
             <div class="summary-item"><div class="label">السائقون</div><div id="summaryDrivers" class="value">{{ $stats['activeDrivers'] }} / {{ $stats['totalDrivers'] }}</div></div>
             <div class="summary-item"><div class="label">المدراء</div><div id="summaryAdmins" class="value">{{ $stats['totalAdmins'] }}</div></div>
-            <div class="summary-item"><div class="label">طلبات مقبولة</div><div id="summaryAcceptedOrders" class="value">{{ $orderStats['accepted'] }}</div></div>
+            <div class="summary-item"><div class="label">قيد تنفيذ المطعم</div><div id="summaryAcceptedOrders" class="value">{{ $summaryAcceptedOrders }}</div></div>
             <div class="summary-item"><div class="label">طلبات اليوم</div><div id="summaryTodayOrders" class="value">{{ $stats['todayOrders'] }}</div></div>
         </div>
     </section>
@@ -124,21 +122,11 @@
                 </thead>
                 <tbody id="recentOrdersBody">
                     @forelse($recentOrders as $order)
-                        @php
-                            $statusLabel = match($order->status) {
-                                'pending' => 'قيد الانتظار',
-                                'accepted' => 'مقبول',
-                                'preparing' => 'قيد التجهيز',
-                                'delivering' => 'في الطريق',
-                                'completed' => 'مكتمل',
-                                'cancelled' => 'ملغي',
-                                default => $order->status,
-                            };
-                        @endphp
+                        @php $statusLabel = \App\Services\OrderWorkflow::label($order->status); @endphp
                         <tr>
                             <td>#{{ $order->order_number ?: $order->id }}</td>
                             <td>{{ $order->restaurant?->name ?? '-' }}</td>
-                            <td><span class="badge-soft {{ $order->status }}">{{ $statusLabel }}</span></td>
+                            <td><span class="badge-soft">{{ $statusLabel }}</span></td>
                             <td>@price($order->total_price)</td>
                             <td>{{ $order->created_at?->format('Y-m-d H:i') }}</td>
                         </tr>
@@ -171,11 +159,11 @@ function formatPrice(value) {
 
 function updateOrderProgress(orderStats, totalOrders) {
     const total = Math.max(Number(totalOrders || 0), 1);
-    const statuses = ['pending', 'preparing', 'delivering', 'completed', 'cancelled'];
+    const statuses = @json(array_keys(\App\Services\OrderWorkflow::arabicLabels()));
     statuses.forEach((status) => {
         const count = Number(orderStats?.[status] || 0);
-        const fillEl = document.getElementById(`progressFill${status.charAt(0).toUpperCase()}${status.slice(1)}`);
-        const valueEl = document.getElementById(`progressValue${status.charAt(0).toUpperCase()}${status.slice(1)}`);
+        const fillEl = document.getElementById(`progressFill-${status}`);
+        const valueEl = document.getElementById(`progressValue-${status}`);
         if (fillEl) fillEl.style.width = `${(count / total) * 100}%`;
         if (valueEl) valueEl.textContent = count.toLocaleString();
     });
@@ -228,7 +216,10 @@ async function fetchAdminDashboardRealtime() {
         setText('kpiOpenRestaurants', Number(stats.openRestaurants || 0).toLocaleString());
         setText('summaryDrivers', `${Number(stats.activeDrivers || 0).toLocaleString()} / ${Number(stats.totalDrivers || 0).toLocaleString()}`);
         setText('summaryAdmins', Number(stats.totalAdmins || 0).toLocaleString());
-        setText('summaryAcceptedOrders', Number(orderStats.accepted || 0).toLocaleString());
+        const pipelineCount = data.summaryAcceptedOrders != null
+            ? Number(data.summaryAcceptedOrders)
+            : (Number(orderStats?.payment_verified || 0) + Number(orderStats?.accepted_by_restaurant || 0) + Number(orderStats?.preparing || 0));
+        setText('summaryAcceptedOrders', pipelineCount.toLocaleString());
         setText('summaryTodayOrders', Number(stats.todayOrders || 0).toLocaleString());
 
         updateOrderProgress(orderStats, stats.totalOrders);

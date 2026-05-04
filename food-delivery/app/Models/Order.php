@@ -19,12 +19,20 @@ class Order extends \Illuminate\Database\Eloquent\Model
         'total_price',
         'delivery_address',
         'status',
+        'payment_proof',
+        'payment_reference',
+        'payment_verified_at',
+        'verified_by_admin_id',
+        'payment_method_id',
+        'assigned_at',
     ];
 
     protected function casts(): array
     {
         return [
             'total_price' => 'decimal:2',
+            'payment_verified_at' => 'datetime',
+            'assigned_at' => 'datetime',
         ];
     }
 
@@ -51,6 +59,16 @@ class Order extends \Illuminate\Database\Eloquent\Model
     public function driver(): BelongsTo
     {
         return $this->belongsTo(Driver::class);
+    }
+
+    public function verifiedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'verified_by_admin_id');
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 
     public function orderItems(): HasMany

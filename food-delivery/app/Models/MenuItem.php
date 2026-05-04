@@ -42,7 +42,7 @@ class MenuItem extends \Illuminate\Database\Eloquent\Model
     public function hasActiveOrders(): bool
     {
         return $this->orderItems()
-            ->whereHas('order', fn($q) => $q->whereNotIn('status', ['completed', 'cancelled']))
+            ->whereHas('order', fn($q) => $q->whereNotIn('status', ['delivered', 'payment_rejected']))
             ->exists();
     }
 

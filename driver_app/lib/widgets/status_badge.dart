@@ -13,7 +13,15 @@ class StatusBadge extends StatelessWidget {
   static String normalize(String raw) {
     final s = raw.trim().toLowerCase();
     if (s.isEmpty) return 'pending';
-    return s.replaceAll(' ', '_');
+    final normalized = s.replaceAll(' ', '_');
+    switch (normalized) {
+      case 'preparing':
+        return 'accepted';
+      case 'on_the_way':
+        return 'picked_up';
+      default:
+        return normalized;
+    }
   }
 
   static String labelAr(String normalized) {
@@ -27,8 +35,10 @@ class StatusBadge extends StatelessWidget {
       case 'picked_up':
         return 'تم الاستلام';
       case 'delivering':
+      case 'on_the_way':
         return 'قيد التوصيل';
       case 'completed':
+      case 'delivered':
         return 'مكتمل';
       default:
         return normalized;

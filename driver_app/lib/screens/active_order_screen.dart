@@ -65,7 +65,7 @@ class ActiveOrderScreen extends StatelessWidget {
       );
     }
 
-    final normalized = StatusBadge.normalize(order.status);
+    final normalized = order.driverStageStatus;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -215,7 +215,7 @@ class _HeroOrderHeader extends StatelessWidget {
   }
 }
 
-/// Compact horizontal milestones for accepted → delivering → completed.
+/// Driver milestones after assignment: accepted -> picked_up -> delivered.
 class _HorizontalDeliveryTimeline extends StatelessWidget {
   final String statusNormalized;
 
@@ -223,24 +223,20 @@ class _HorizontalDeliveryTimeline extends StatelessWidget {
 
   int get _step {
     switch (statusNormalized) {
-      case 'accepted':
-        return 0;
-      case 'preparing':
-        return 1;
-      case 'delivering':
+      case 'delivered':
         return 2;
-      case 'completed':
-        return 3;
+      case 'on_the_way':
+        return 1;
       default:
         return 0;
     }
   }
 
-  bool get _allDone => statusNormalized == 'completed';
+  bool get _allDone => statusNormalized == 'delivered';
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['مقبول', 'تحضير', 'بالطريق', 'تم'];
+    const labels = ['تم القبول', 'تم الاستلام', 'تم التسليم'];
     final step = _step;
 
     return DecoratedBox(
@@ -640,32 +636,24 @@ class _ActiveActionDock extends StatelessWidget {
     final normalized = StatusBadge.normalize(order.status);
 
     if (normalized == 'accepted') {
-      return _infoSheet(
-        context,
-        'بانتظار المطبخ',
-        'عندما يصبح الطلب «قيد التحضير» يمكنك البدء من تبويب المتاحة أو متابعة الحالة هنا حتى يصبح جاهزاً للاستلام.',
-      );
-    }
-
-    if (normalized == 'preparing') {
       return _primaryAction(
         context: context,
-        label: 'بدء التوصيل',
-        subtitle: 'اضغط عند استلام الطلب من المطعم',
-        icon: Icons.delivery_dining_rounded,
-        color: AppColors.accent,
-        onPressed: busy ? null : () => onAction('delivering'),
+        label: 'تم الاستلام',
+        subtitle: 'بدء التوصيل (In Transit)',
+        icon: Icons.inventory_2_outlined,
+        color: AppColors.pickedUp,
+        onPressed: busy ? null : () => onAction('picked_up'),
       );
     }
 
-    if (normalized == 'delivering') {
+    if (normalized == 'picked_up') {
       return _primaryAction(
         context: context,
         label: 'تأكيد التسليم',
         subtitle: 'بعد تسليم الطلب للعميل',
         icon: Icons.task_alt_rounded,
         color: AppColors.accentDark,
-        onPressed: busy ? null : () => onAction('completed'),
+        onPressed: busy ? null : () => onAction('delivered'),
       );
     }
 

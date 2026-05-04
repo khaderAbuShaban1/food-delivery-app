@@ -36,7 +36,8 @@ class DatabaseSeeder extends Seeder
             'restaurant_id' => $restaurant->id,
             'driver_id' => null,
             'total_price' => 14.98,
-            'status' => 'pending',
+            'status' => 'pending_payment_verification',
+            'payment_reference' => 'SEED-TEST-REF',
         ]);
 
         OrderItem::create(['order_id' => $order->id, 'menu_item_id' => $burger->id, 'quantity' => 2, 'price' => 5.99]);

@@ -40,8 +40,10 @@ class AppColors {
       case 'picked_up':
         return const Color(0xFFE0F7FA);
       case 'delivering':
+      case 'on_the_way':
         return const Color(0xFFFFF3E0);
       case 'completed':
+      case 'delivered':
         return const Color(0xFFE8F5E9);
       default:
         return const Color(0xFFF1F3F5);
@@ -59,8 +61,10 @@ class AppColors {
       case 'picked_up':
         return pickedUp;
       case 'delivering':
+      case 'on_the_way':
         return delivering;
       case 'completed':
+      case 'delivered':
         return completed;
       default:
         return textSecondary;

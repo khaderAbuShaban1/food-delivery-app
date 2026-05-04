@@ -4,6 +4,7 @@ namespace App\Modules\Restaurant\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\OrderWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,15 +14,7 @@ class OrderController extends Controller
 {
     private function statusLabel(string $status): string
     {
-        return match ($status) {
-            'pending' => 'قيد الانتظار',
-            'accepted' => 'مقبول',
-            'preparing' => 'جاري التحضير',
-            'delivering' => 'قيد التوصيل',
-            'completed' => 'مكتمل',
-            'cancelled' => 'ملغي',
-            default => $status,
-        };
+        return OrderWorkflow::label($status);
     }
 
     public function index(): View|RedirectResponse
@@ -33,6 +26,7 @@ class OrderController extends Controller
         }
 
         $myOrders = Order::where('restaurant_id', $restaurant->id)
+            ->whereIn('status', OrderWorkflow::restaurantVisibleStatuses())
             ->with(['orderItems.menuItem:id,name', 'customerUser:id,name', 'legacyUser:id,name'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -51,6 +45,7 @@ class OrderController extends Controller
         }
 
         $orders = Order::where('restaurant_id', $restaurant->id)
+            ->whereIn('status', OrderWorkflow::restaurantVisibleStatuses())
             ->with(['orderItems.menuItem:id,name', 'customerUser:id,name', 'legacyUser:id,name'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -81,8 +76,12 @@ class OrderController extends Controller
                 'orders' => $serialized,
                 'summary' => [
                     'total' => $orders->count(),
-                    'pending' => $orders->where('status', 'pending')->count(),
-                    'in_progress' => $orders->whereIn('status', ['accepted', 'preparing', 'delivering'])->count(),
+                    'awaiting_accept' => $orders->where('status', OrderWorkflow::PAYMENT_VERIFIED)->count(),
+                    'in_progress' => $orders->whereIn('status', [
+                        OrderWorkflow::ACCEPTED_BY_RESTAURANT,
+                        OrderWorkflow::PREPARING,
+                        OrderWorkflow::ON_THE_WAY,
+                    ])->count(),
                 ],
             ],
         ]);
@@ -96,7 +95,10 @@ class OrderController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:pending,accepted,preparing,delivering,completed,cancelled',
+            'status' => [
+                'required',
+                'in:'.OrderWorkflow::ACCEPTED_BY_RESTAURANT.','.OrderWorkflow::PREPARING,
+            ],
         ]);
 
         $order = Order::where('id', $orderId)
@@ -107,19 +109,14 @@ class OrderController extends Controller
             return back()->with('error', 'الطلب غير موجود');
         }
 
-        $transitions = [
-            'pending' => ['accepted', 'cancelled'],
-            'accepted' => ['preparing', 'cancelled'],
-            'preparing' => ['delivering', 'cancelled'],
-            'delivering' => ['completed', 'cancelled'],
-            'completed' => [],
-            'cancelled' => [],
-        ];
+        if (! in_array($order->status, OrderWorkflow::restaurantVisibleStatuses(), true)) {
+            return back()->with('error', 'الطلب غير متاح');
+        }
 
         $nextStatus = $request->status;
-        $allowed = $transitions[$order->status] ?? [];
-        if (!in_array($nextStatus, $allowed, true) && $nextStatus !== $order->status) {
-            return back()->with('error', 'لا يمكن تحديث الحالة بهذا الشكل');
+
+        if (! OrderWorkflow::canRoleTransition(OrderWorkflow::ROLE_RESTAURANT, $order->status, $nextStatus)) {
+            return back()->with('error', 'لا يمكن تحديث الحالة إلا بالترتيب: قبول الطلب ثم بدء التحضير.');
         }
 
         $order->update([

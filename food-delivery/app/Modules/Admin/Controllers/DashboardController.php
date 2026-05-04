@@ -9,11 +9,14 @@ use App\Models\Restaurant;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\MenuItem;
+use App\Services\OrderWorkflow;
 use App\Services\SystemSettingsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Illuminate\View\View;
 
@@ -21,15 +24,7 @@ class DashboardController extends Controller
 {
     private function statusLabel(string $status): string
     {
-        return match ($status) {
-            'pending' => 'قيد الانتظار',
-            'accepted' => 'مقبول',
-            'preparing' => 'قيد التجهيز',
-            'delivering' => 'في الطريق',
-            'completed' => 'مكتمل',
-            'cancelled' => 'ملغي',
-            default => $status,
-        };
+        return OrderWorkflow::label($status);
     }
 
     public function index(): View
@@ -50,8 +45,8 @@ class DashboardController extends Controller
         $stats = [
             'totalOrders' => (int) Order::count(),
             'todayOrders' => (int) (clone $todayOrdersBase)->count(),
-            'todayRevenue' => (float) (clone $todayOrdersBase)->where('status', 'completed')->sum('total_price'),
-            'totalRevenue' => (float) Order::where('status', 'completed')->sum('total_price'),
+            'todayRevenue' => (float) (clone $todayOrdersBase)->where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
+            'totalRevenue' => (float) Order::where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
             'activeRestaurants' => (int) Restaurant::where('is_active', true)->count(),
             'openRestaurants' => (int) Restaurant::where('is_open', true)->count(),
             'totalRestaurants' => (int) Restaurant::count(),
@@ -62,23 +57,18 @@ class DashboardController extends Controller
             'totalAdmins' => (int) Admin::count(),
         ];
 
-        $orderStats = [
-            'pending' => (int) ($orderStatusCounts['pending'] ?? 0),
-            'accepted' => (int) ($orderStatusCounts['accepted'] ?? 0),
-            'preparing' => (int) ($orderStatusCounts['preparing'] ?? 0),
-            'delivering' => (int) ($orderStatusCounts['delivering'] ?? 0),
-            'completed' => (int) ($orderStatusCounts['completed'] ?? 0),
-            'cancelled' => (int) ($orderStatusCounts['cancelled'] ?? 0),
-        ];
+        $orderStats = collect(OrderWorkflow::allStatuses())
+            ->mapWithKeys(fn (string $s) => [$s => (int) ($orderStatusCounts[$s] ?? 0)])
+            ->all();
 
         $totalOrders = max($stats['totalOrders'], 1);
-        $orderProgress = [
-            'pending' => ($orderStats['pending'] / $totalOrders) * 100,
-            'preparing' => ($orderStats['preparing'] / $totalOrders) * 100,
-            'delivering' => ($orderStats['delivering'] / $totalOrders) * 100,
-            'completed' => ($orderStats['completed'] / $totalOrders) * 100,
-            'cancelled' => ($orderStats['cancelled'] / $totalOrders) * 100,
-        ];
+        $orderProgress = collect($orderStats)
+            ->map(fn (int $c) => ($c / $totalOrders) * 100.0)
+            ->all();
+
+        $summaryAcceptedOrders = ($orderStats[OrderWorkflow::PAYMENT_VERIFIED] ?? 0)
+            + ($orderStats[OrderWorkflow::ACCEPTED_BY_RESTAURANT] ?? 0)
+            + ($orderStats[OrderWorkflow::PREPARING] ?? 0);
 
         $recentOrders = Order::query()
             ->with('restaurant:id,name')
@@ -86,7 +76,7 @@ class DashboardController extends Controller
             ->limit(6)
             ->get();
 
-        return view('admin::dashboard', compact('stats', 'orderStats', 'orderProgress', 'recentOrders'));
+        return view('admin::dashboard', compact('stats', 'orderStats', 'orderProgress', 'recentOrders', 'summaryAcceptedOrders'));
     }
 
     public function realtime(Request $request)
@@ -110,8 +100,8 @@ class DashboardController extends Controller
         $stats = [
             'totalOrders' => (int) Order::count(),
             'todayOrders' => (int) (clone $todayOrdersBase)->count(),
-            'todayRevenue' => (float) (clone $todayOrdersBase)->where('status', 'completed')->sum('total_price'),
-            'totalRevenue' => (float) Order::where('status', 'completed')->sum('total_price'),
+            'todayRevenue' => (float) (clone $todayOrdersBase)->where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
+            'totalRevenue' => (float) Order::where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
             'activeRestaurants' => (int) Restaurant::where('is_active', true)->count(),
             'openRestaurants' => (int) Restaurant::where('is_open', true)->count(),
             'totalRestaurants' => (int) Restaurant::count(),
@@ -122,14 +112,13 @@ class DashboardController extends Controller
             'totalAdmins' => (int) Admin::count(),
         ];
 
-        $orderStats = [
-            'pending' => (int) ($orderStatusCounts['pending'] ?? 0),
-            'accepted' => (int) ($orderStatusCounts['accepted'] ?? 0),
-            'preparing' => (int) ($orderStatusCounts['preparing'] ?? 0),
-            'delivering' => (int) ($orderStatusCounts['delivering'] ?? 0),
-            'completed' => (int) ($orderStatusCounts['completed'] ?? 0),
-            'cancelled' => (int) ($orderStatusCounts['cancelled'] ?? 0),
-        ];
+        $orderStats = collect(OrderWorkflow::allStatuses())
+            ->mapWithKeys(fn (string $s) => [$s => (int) ($orderStatusCounts[$s] ?? 0)])
+            ->all();
+
+        $summaryAcceptedOrders = ($orderStats[OrderWorkflow::PAYMENT_VERIFIED] ?? 0)
+            + ($orderStats[OrderWorkflow::ACCEPTED_BY_RESTAURANT] ?? 0)
+            + ($orderStats[OrderWorkflow::PREPARING] ?? 0);
 
         $recentOrders = Order::query()
             ->with('restaurant:id,name')
@@ -151,6 +140,7 @@ class DashboardController extends Controller
             'data' => [
                 'stats' => $stats,
                 'orderStats' => $orderStats,
+                'summaryAcceptedOrders' => $summaryAcceptedOrders,
                 'recentOrders' => $recentOrders,
             ],
         ]);
@@ -177,7 +167,7 @@ class DashboardController extends Controller
                     select COALESCE(sum(total_price), 0)
                     from orders
                     where orders.customer_id = users.id
-                    and orders.status = 'completed'
+                    and orders.status = 'delivered'
                 ) as total_spent
             ")
             ->whereNotNull('id');
@@ -479,7 +469,7 @@ class DashboardController extends Controller
         }
 
         $orders = $query->latest()->paginate(20);
-        $statuses = ['pending' => 'قيد الانتظار', 'accepted' => 'مقبول', 'preparing' => 'قيد التجهيز', 'delivering' => 'في الطريق', 'completed' => 'مكتمل', 'cancelled' => 'ملغى'];
+        $statuses = OrderWorkflow::arabicLabels();
 
         return view('admin::orders', compact('orders', 'statuses'));
     }
@@ -520,36 +510,63 @@ class DashboardController extends Controller
 
     public function getOrderData(int $id)
     {
-        $order = Order::with(['restaurant', 'orderItems.menuItem'])->findOrFail($id);
-        return response()->json($order);
+        $order = Order::with(['restaurant', 'customer', 'verifiedByAdmin', 'orderItems.menuItem'])->findOrFail($id);
+
+        $payload = $order->toArray();
+        $payload['payment_proof_url'] = $order->payment_proof
+            ? Storage::disk('public')->url($order->payment_proof)
+            : null;
+
+        return response()->json($payload);
     }
 
-    public function acceptOrder(int $id): RedirectResponse
+    public function verifyOrderPayment(int $id): JsonResponse
     {
         /** @var SystemSettingsService $settings */
         $settings = app(SystemSettingsService::class);
         if (!(bool) $settings->get('platform', 'platform_open', true) || !(bool) $settings->get('platform', 'orders_enabled', true)) {
-            return back()->with('error', 'نظام الطلبات متوقف حالياً من إعدادات المنصة');
+            return response()->json(['success' => false, 'message' => 'نظام الطلبات متوقف حالياً من إعدادات المنصة'], 503);
+        }
+
+        $admin = Auth::guard('admin')->user();
+        if (!$admin instanceof Admin) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح'], 401);
         }
 
         $order = Order::findOrFail($id);
-        $order->update(['status' => 'accepted']);
-        
-        return back()->with('success', 'تم قبول الطلب بنجاح');
+
+        if (! OrderWorkflow::canRoleTransition(OrderWorkflow::ROLE_ADMIN, $order->status, OrderWorkflow::PAYMENT_VERIFIED)) {
+            return response()->json(['success' => false, 'message' => 'لا يمكن التحقق من الدفع في هذه الحالة'], 400);
+        }
+
+        $order->update([
+            'status' => OrderWorkflow::PAYMENT_VERIFIED,
+            'payment_verified_at' => now(),
+            'verified_by_admin_id' => $admin->id,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'تم التحقق من الدفع']);
     }
 
-    public function cancelOrder(int $id): RedirectResponse
+    public function rejectOrderPayment(int $id): JsonResponse
     {
         /** @var SystemSettingsService $settings */
         $settings = app(SystemSettingsService::class);
         if (!(bool) $settings->get('platform', 'platform_open', true) || !(bool) $settings->get('platform', 'orders_enabled', true)) {
-            return back()->with('error', 'نظام الطلبات متوقف حالياً من إعدادات المنصة');
+            return response()->json(['success' => false, 'message' => 'نظام الطلبات متوقف حالياً من إعدادات المنصة'], 503);
         }
 
         $order = Order::findOrFail($id);
-        $order->update(['status' => 'cancelled']);
-        
-        return back()->with('success', 'تم إلغاء الطلب بنجاح');
+
+        if (! OrderWorkflow::canRoleTransition(OrderWorkflow::ROLE_ADMIN, $order->status, OrderWorkflow::PAYMENT_REJECTED)) {
+            return response()->json(['success' => false, 'message' => 'لا يمكن الرفض في هذه الحالة'], 400);
+        }
+
+        $order->update([
+            'status' => OrderWorkflow::PAYMENT_REJECTED,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'تم رفض الدفع']);
     }
 
     public function offers(): View
