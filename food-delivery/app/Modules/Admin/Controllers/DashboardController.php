@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\MenuItem;
 use App\Services\OrderWorkflow;
 use App\Services\SystemSettingsService;
+use App\Support\PaymentMethods\PaymentMethodAssets;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -510,12 +511,42 @@ class DashboardController extends Controller
 
     public function getOrderData(int $id)
     {
-        $order = Order::with(['restaurant', 'customer', 'verifiedByAdmin', 'orderItems.menuItem'])->findOrFail($id);
+        $order = Order::with(['restaurant', 'customer', 'verifiedByAdmin', 'paymentMethod', 'orderItems.menuItem'])->findOrFail($id);
 
         $payload = $order->toArray();
         $payload['payment_proof_url'] = $order->payment_proof
             ? Storage::disk('public')->url($order->payment_proof)
             : null;
+        $payload['payment_method_details'] = null;
+
+        if ($order->paymentMethod) {
+            $method = $order->paymentMethod;
+            $logo = $method->static_image;
+            if (!$logo) {
+                $logo = PaymentMethodAssets::relativePath(
+                    $method->type->value,
+                    $method->bank_name,
+                    $method->wallet_provider,
+                );
+            }
+
+            if ($logo && !str_starts_with($logo, 'http://') && !str_starts_with($logo, 'https://')) {
+                // Static payment logos are stored under public/images/payment-methods.
+                $logo = asset(ltrim($logo, '/'));
+            }
+
+            $payload['payment_method_details'] = [
+                'id' => $method->id,
+                'type' => (string) $method->type->value,
+                'bank_or_wallet_name' => $method->type->value === 'bank'
+                    ? $method->bank_name
+                    : $method->wallet_provider,
+                'account_name' => $method->account_holder_name,
+                'phone_number' => $method->phone_number,
+                'account_number' => $method->account_number,
+                'image' => $logo,
+            ];
+        }
 
         return response()->json($payload);
     }

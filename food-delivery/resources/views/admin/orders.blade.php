@@ -133,6 +133,80 @@
     margin-bottom: 1.5rem;
 }
 
+.payment-proof-empty {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.payment-method-card {
+    display: flex;
+    gap: 1rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+    align-items: flex-start;
+}
+
+.payment-method-logo {
+    width: 68px;
+    height: 68px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: #f3f4f6;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.payment-method-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.payment-method-row {
+    font-size: 0.88rem;
+    color: var(--text-dark);
+}
+
+.payment-method-row strong {
+    color: var(--text-muted);
+    margin-left: 0.35rem;
+}
+
+.customer-name-highlight {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.customer-name-label {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.customer-info-stack {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.customer-id-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: fit-content;
+    background: var(--primary-muted);
+    color: var(--primary);
+    border: 1px solid rgba(255, 107, 44, 0.25);
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
 .pricing-row {
     display: flex;
     justify-content: space-between;
@@ -286,6 +360,43 @@
 .orders-list {
     max-height: calc(100vh - 280px);
     overflow-y: auto;
+}
+
+.orders-list-card .pagination-nav {
+    display: flex;
+    justify-content: center;
+}
+
+.orders-list-card .pagination {
+    --bs-pagination-color: var(--primary);
+    --bs-pagination-hover-color: var(--primary);
+    --bs-pagination-focus-color: var(--primary);
+    --bs-pagination-bg: #fff;
+    --bs-pagination-hover-bg: var(--primary-muted);
+    --bs-pagination-focus-bg: var(--primary-muted);
+    --bs-pagination-border-color: var(--border);
+    --bs-pagination-hover-border-color: var(--primary);
+    --bs-pagination-focus-box-shadow: 0 0 0 3px var(--primary-muted);
+    --bs-pagination-active-color: #fff;
+    --bs-pagination-active-bg: var(--primary);
+    --bs-pagination-active-border-color: var(--primary);
+    --bs-pagination-disabled-color: var(--text-muted);
+    --bs-pagination-disabled-bg: #f9fafb;
+    --bs-pagination-disabled-border-color: var(--border);
+    gap: 0.35rem;
+    margin-bottom: 0;
+}
+
+.orders-list-card .page-link {
+    border-radius: 10px !important;
+    min-width: 2.3rem;
+    text-align: center;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.orders-list-card .page-item.active .page-link {
+    box-shadow: 0 6px 16px rgba(255, 107, 44, 0.25);
 }
 
 .order-list-item {
@@ -673,7 +784,7 @@
         </div>
         @if($orders->hasPages())
         <div class="p-2">
-            {!! $orders->links() !!}
+            {!! $orders->links('vendor.pagination.bootstrap-5') !!}
         </div>
         @endif
     </div>
@@ -754,12 +865,51 @@ function renderOrderDetails(order) {
         }).join('')
         : '<tr><td colspan="5" class="text-center text-muted">لا توجد أصناف</td></tr>';
 
+    const paymentMethod = order.payment_method_details;
+    const paymentMethodName = (paymentMethod && paymentMethod.bank_or_wallet_name) ? paymentMethod.bank_or_wallet_name : 'غير محدد';
+    const paymentAccountName = (paymentMethod && paymentMethod.account_name) ? paymentMethod.account_name : 'غير محدد';
+    const paymentTypeIsWallet = paymentMethod && paymentMethod.type === 'wallet';
+    const paymentNumberLabel = paymentTypeIsWallet ? 'الهاتف' : 'رقم الحساب';
+    const paymentNumberValue = paymentTypeIsWallet
+        ? ((paymentMethod && paymentMethod.phone_number) || 'غير محدد')
+        : ((paymentMethod && paymentMethod.account_number) || (paymentMethod && paymentMethod.phone_number) || 'غير محدد');
+
+    const paymentMethodCard = paymentMethod ? `
+        <div class="payment-method-card">
+            <img
+                src="${paymentMethod.image || 'https://placehold.co/80x80/FFE8DC/FF6B2C?text=Pay'}"
+                class="payment-method-logo"
+                alt="${paymentMethodName}"
+                onerror="this.onerror=null;this.src='https://placehold.co/80x80/FFE8DC/FF6B2C?text=Pay'">
+            <div class="payment-method-details">
+                <div class="payment-method-row"><strong>${paymentTypeIsWallet ? 'المحفظة' : 'البنك'}:</strong>${paymentMethodName}</div>
+                <div class="payment-method-row"><strong>اسم الحساب:</strong>${paymentAccountName}</div>
+                <div class="payment-method-row"><strong>${paymentNumberLabel}:</strong>${paymentNumberValue}</div>
+            </div>
+        </div>
+    ` : `
+        <div class="payment-method-card">
+            <img
+                src="https://placehold.co/80x80/F3F4F6/9CA3AF?text=?"
+                class="payment-method-logo"
+                alt="غير محدد">
+            <div class="payment-method-details">
+                <div class="payment-method-row"><strong>طريقة الدفع:</strong>غير محدد</div>
+                <div class="payment-method-row"><strong>اسم الحساب:</strong>غير محدد</div>
+                <div class="payment-method-row"><strong>الهاتف / رقم الحساب:</strong>غير محدد</div>
+            </div>
+        </div>
+    `;
+
     const proofBlock = `
         <h4 class="section-title"><i class="fas fa-receipt me-2"></i> إثبات الدفع</h4>
         <div class="pricing-summary mb-4">
-            ${order.payment_proof_url ? `<p class="mb-2"><a href="${order.payment_proof_url}" target="_blank" rel="noopener">عرض الصورة الكاملة</a></p>
-                <a href="${order.payment_proof_url}" target="_blank" rel="noopener"><img src="${order.payment_proof_url}" alt="" style="max-height:220px;border-radius:12px;border:1px solid var(--border);"></a>` : ''}
-            ${order.payment_reference ? `<p class="mt-2 mb-0"><strong>رقم المرجع:</strong> ${order.payment_reference}</p>` : '<p class="text-muted mb-0">لم يتم رفع صورة (مرجع نصّي أو صورة خارج النظام)</p>'}
+            ${order.payment_proof_url
+                ? `<p class="mb-2"><a href="${order.payment_proof_url}" target="_blank" rel="noopener">عرض الصورة الكاملة</a></p>
+                   <a href="${order.payment_proof_url}" target="_blank" rel="noopener"><img src="${order.payment_proof_url}" alt="" style="max-height:220px;border-radius:12px;border:1px solid var(--border);"></a>`
+                : '<p class="payment-proof-empty">لا يوجد إثبات دفع</p>'}
+            ${order.payment_reference ? `<p class="mt-2 mb-0"><strong>رقم المرجع:</strong> ${order.payment_reference}</p>` : ''}
+            ${paymentMethodCard}
         </div>
     `;
 
@@ -778,7 +928,10 @@ function renderOrderDetails(order) {
             <div class="info-grid">
                 <div class="info-card">
                     <h6><i class="fas fa-user me-1"></i> معلومات العميل</h6>
-                    <p>عميل #${order.customer_id || 'غير معروف'}</p>
+                    <div class="customer-info-stack">
+                        <span class="customer-id-chip"><i class="fas fa-id-badge"></i> ID: ${(order.customer && order.customer.id) ? order.customer.id : (order.customer_id || 'غير محدد')}</span>
+                        <p class="mb-0"><span class="customer-name-label">اسم الزبون:</span> <span class="customer-name-highlight">${(order.customer && order.customer.name) ? order.customer.name : 'غير محدد'}</span></p>
+                    </div>
                 </div>
                 <div class="info-card">
                     <h6><i class="fas fa-store me-1"></i> المطعم</h6>
