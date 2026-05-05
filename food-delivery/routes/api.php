@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->prefix('driver')->group(function () {
     Route::post('/orders/{id}/accept', [DriverOrderController::class, 'accept']);
     Route::put('/orders/{id}/status', [DriverOrderController::class, 'updateStatus']);
     Route::patch('/orders/{id}/status', [DriverOrderController::class, 'updateStatus']);
+    Route::get('/stats/today', [DriverOrderController::class, 'todayStats']);
 });
 
 // Public restaurant routes

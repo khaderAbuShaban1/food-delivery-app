@@ -18,7 +18,9 @@ class StatusBadge extends StatelessWidget {
       case 'preparing':
         return 'accepted';
       case 'on_the_way':
-        return 'picked_up';
+        return 'delivering';
+      case 'delivered':
+        return 'completed';
       default:
         return normalized;
     }

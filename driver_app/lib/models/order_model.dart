@@ -62,15 +62,15 @@ class OrderModel {
   bool get isPreparing => _normStatus(status) == 'preparing';
 
   /// Driver-facing stage alias from backend workflow:
-  /// preparing -> accepted, on_the_way -> picked_up.
+  /// preparing -> accepted, on_the_way -> delivering, delivered -> completed.
   String get driverStageStatus {
     switch (_normStatus(status)) {
       case 'preparing':
         return 'accepted';
       case 'on_the_way':
-        return 'picked_up';
+        return 'delivering';
       case 'delivered':
-        return 'delivered';
+        return 'completed';
       default:
         return _normStatus(status);
     }
@@ -79,7 +79,7 @@ class OrderModel {
   bool get isActive {
     switch (driverStageStatus) {
       case 'accepted':
-      case 'picked_up':
+      case 'delivering':
         return true;
       default:
         return false;

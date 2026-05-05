@@ -216,20 +216,22 @@ class _HorizontalDeliveryTimeline extends StatelessWidget {
 
   int get _step {
     switch (statusNormalized) {
-      case 'delivered':
+      case 'completed':
         return 2;
+      case 'delivering':
       case 'on_the_way':
+      case 'picked_up':
         return 1;
       default:
         return 0;
     }
   }
 
-  bool get _allDone => statusNormalized == 'delivered';
+  bool get _allDone => statusNormalized == 'completed' || statusNormalized == 'delivered';
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['تم القبول', 'تم الاستلام', 'تم التسليم'];
+    const labels = ['تم القبول', 'تم الاستلام', 'مكتمل'];
     final step = _step;
 
     return DecoratedBox(
@@ -639,7 +641,7 @@ class _ActiveActionDock extends StatelessWidget {
       );
     }
 
-    if (normalized == 'picked_up') {
+    if (normalized == 'delivering') {
       return _primaryAction(
         context: context,
         label: 'تأكيد التسليم',

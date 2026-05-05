@@ -196,4 +196,34 @@ class DriverOrderController extends Controller
             'data' => app(OrderController::class)->formatOrder($order->fresh(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])),
         ]);
     }
+
+    /**
+     * Driver "today" stats computed from MySQL (no local app state).
+     * Counts orders delivered today based on server date (updated_at).
+     */
+    public function todayStats(Request $request): JsonResponse
+    {
+        $driver = $this->ensureDriver($request);
+        if (!$driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح',
+            ], 403);
+        }
+
+        $todayStart = now()->startOfDay();
+
+        $deliveredToday = (int) Order::query()
+            ->where('driver_id', $driver->id)
+            ->whereIn('status', [OrderWorkflow::DELIVERED, 'completed'])
+            ->where('updated_at', '>=', $todayStart)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'delivered_today' => $deliveredToday,
+            ],
+        ]);
+    }
 }

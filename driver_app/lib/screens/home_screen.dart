@@ -42,6 +42,7 @@ class HomeScreen extends StatelessWidget {
     final provider = context.watch<OrderProvider>();
     final auth = context.watch<AuthProvider>();
     final occupied = provider.hasActiveOrder;
+    final orders = provider.availableOrders;
 
     final appBar = AppBar(
       elevation: 0,
@@ -74,24 +75,33 @@ class HomeScreen extends StatelessWidget {
       ],
     );
 
-    if (!provider.hasSyncedAvailableOrders) {
-      return Scaffold(backgroundColor: AppColors.background, appBar: appBar, body: const OrderListSkeleton());
-    }
-
-    if (occupied) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: appBar,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Expanded(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: appBar,
+      body: RefreshIndicator.adaptive(
+        color: AppColors.accent,
+        edgeOffset: 8,
+        onRefresh: () => context.read<OrderProvider>().refreshFromServer(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // DAILY SUMMARY: must always be visible (top)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              sliver: SliverToBoxAdapter(
+                child: _TodaySummaryStrip(
+                  readyCount: orders.length,
+                  deliveredTodayCount: provider.deliveredTodayCount,
+                ),
+              ),
+            ),
+            if (occupied)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
+                sliver: SliverToBoxAdapter(
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 400),
+                      constraints: const BoxConstraints(maxWidth: 420),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: AppColors.surface,
@@ -106,7 +116,7 @@ class HomeScreen extends StatelessWidget {
                           ],
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -116,9 +126,10 @@ class HomeScreen extends StatelessWidget {
                                   color: AppColors.accent.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.delivery_dining_rounded, size: 52, color: AppColors.accentDark),
+                                child:
+                                    const Icon(Icons.delivery_dining_rounded, size: 52, color: AppColors.accentDark),
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 22),
                               Text(
                                 'تركيز على الطلب النشط',
                                 textAlign: TextAlign.center,
@@ -131,7 +142,7 @@ class HomeScreen extends StatelessWidget {
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                               if (onGoToActiveTab != null) ...[
-                                const SizedBox(height: 28),
+                                const SizedBox(height: 26),
                                 SizedBox(
                                   width: double.infinity,
                                   height: 54,
@@ -154,43 +165,20 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final orders = provider.availableOrders;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: appBar,
-      body: RefreshIndicator.adaptive(
-        color: AppColors.accent,
-        edgeOffset: 8,
-        onRefresh: () => context.read<OrderProvider>().refreshFromServer(),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              sliver: SliverToBoxAdapter(
-                child: _TodaySummaryStrip(
-                  readyCount: orders.length,
-                  deliveredTodayCount: provider.deliveredTodayCount,
-                ),
-              ),
-            ),
-            if (orders.isEmpty)
+              )
+            else if (!provider.hasSyncedAvailableOrders)
+              const SliverFillRemaining(
+                hasScrollBody: true,
+                child: OrderListSkeleton(),
+              )
+            else if (orders.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
                   child: const OrderEmptyState(
-                    title: 'لا توجد طلبات جاهزة الآن',
-                    subtitle:
-                        'يُحدَّث القائمة تلقائياً كل بضع ثوانٍ عند توفر طلبات جديدة.',
+                    title: 'لا توجد طلبات متاحة حالياً',
+                    subtitle: 'يُحدَّث القائمة تلقائياً كل بضع ثوانٍ عند توفر طلبات جديدة.',
                     icon: Icons.takeout_dining_rounded,
                   ),
                 ),

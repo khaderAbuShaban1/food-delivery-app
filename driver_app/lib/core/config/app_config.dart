@@ -22,6 +22,7 @@ class DriverApiPaths {
 
   static const String driverOrdersAvailablePool = '/driver/orders/available-pool';
   static const String driverOrdersActive = '/driver/orders/active';
+  static const String driverTodayStats = '/driver/stats/today';
 
   static String driverAcceptOrder(int id) => '/driver/orders/$id/accept';
   static String driverOrderStatus(int id) => '/driver/orders/$id/status';
