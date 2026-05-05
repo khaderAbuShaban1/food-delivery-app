@@ -8,6 +8,7 @@ use App\Services\OrderWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 
 class OrderController extends Controller
@@ -17,7 +18,7 @@ class OrderController extends Controller
         return OrderWorkflow::label($status);
     }
 
-    public function index(): View|RedirectResponse
+    public function index(Request $request): View|RedirectResponse
     {
         $restaurant = Auth::guard('restaurant')->user();
 
@@ -25,13 +26,17 @@ class OrderController extends Controller
             return redirect()->route('restaurant.login');
         }
 
-        $myOrders = Order::where('restaurant_id', $restaurant->id)
-            ->whereIn('status', OrderWorkflow::restaurantVisibleStatuses())
+        $myOrders = $this->buildOrdersQuery((int) $restaurant->id, $request)
             ->with(['orderItems.menuItem:id,name', 'customerUser:id,name', 'legacyUser:id,name'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('restaurant::orders', compact('restaurant', 'myOrders'));
+        $filters = [
+            'status' => (string) $request->query('status', ''),
+            'search' => trim((string) $request->query('search', '')),
+        ];
+
+        return view('restaurant::orders', compact('restaurant', 'myOrders', 'filters'));
     }
 
     public function realtime(Request $request)
@@ -44,8 +49,7 @@ class OrderController extends Controller
             ], 401);
         }
 
-        $orders = Order::where('restaurant_id', $restaurant->id)
-            ->whereIn('status', OrderWorkflow::restaurantVisibleStatuses())
+        $orders = $this->buildOrdersQuery((int) $restaurant->id, $request)
             ->with(['orderItems.menuItem:id,name', 'customerUser:id,name', 'legacyUser:id,name'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -124,5 +128,32 @@ class OrderController extends Controller
         ]);
 
         return back()->with('success', 'تم تحديث حالة الطلب!');
+    }
+
+    private function buildOrdersQuery(int $restaurantId, Request $request): Builder
+    {
+        $query = Order::query()
+            ->where('restaurant_id', $restaurantId)
+            ->whereIn('status', OrderWorkflow::restaurantVisibleStatuses());
+
+        $status = trim((string) $request->query('status', ''));
+        if ($status !== '' && in_array($status, OrderWorkflow::restaurantVisibleStatuses(), true)) {
+            $query->where('status', $status);
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function (Builder $q) use ($search): void {
+                $q->where('order_number', 'like', '%' . $search . '%')
+                    ->orWhereHas('customerUser', function (Builder $cq) use ($search): void {
+                        $cq->where('name', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('legacyUser', function (Builder $lq) use ($search): void {
+                        $lq->where('name', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        return $query;
     }
 }

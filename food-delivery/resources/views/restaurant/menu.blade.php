@@ -6,6 +6,72 @@
 .toolbar-card { background:#fff; border:1px solid var(--border-subtle); border-radius:14px; padding:.75rem .9rem; box-shadow:var(--shadow-sm); }
 .toolbar-label { font-size:.75rem; color:var(--text-secondary); }
 .toolbar-value { margin-top:.15rem; font-size:1.1rem; font-weight:700; color:var(--text-primary); }
+.menu-filter-bar {
+    background: #F7F8FA;
+    border: 1px solid #E6E8EC;
+    border-radius: 16px;
+    padding: .75rem;
+    margin-bottom: 1rem;
+}
+.menu-filter-grid {
+    display:grid;
+    grid-template-columns: minmax(260px, 1fr) 210px minmax(240px, 280px) 150px;
+    gap:.55rem;
+    align-items:center;
+}
+.filter-control {
+    min-height: 46px;
+    border-radius: 12px;
+    border: 1px solid #E4E7EC;
+    background: #fff;
+    color: #374151;
+    font-size: .9rem;
+    transition: all .2s ease;
+}
+.menu-filter-grid .form-control {
+    padding: .65rem .875rem;
+    line-height: 1.55;
+}
+.menu-filter-grid .form-select {
+    min-height: 46px;
+    /* RTL: text from the right, chevron on the left */
+    padding: .6rem .875rem .6rem 2.35rem;
+    line-height: 1.55;
+    overflow: visible;
+    background-position: left .75rem center;
+}
+.filter-control:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, .12);
+}
+.search-wrap { position: relative; }
+.search-wrap i {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: .85rem;
+}
+.search-wrap input { padding-right: 2.1rem; }
+.menu-filter-actions { display:flex; justify-content:flex-end; }
+.menu-filter-actions .btn {
+    height: 44px;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid #E4E7EC;
+    background: #fff;
+    color: #4B5563;
+    font-weight: 600;
+    font-size: .88rem;
+}
+.menu-filter-actions .btn:hover {
+    border-color: #D1D5DB;
+    background: #F9FAFB;
+}
+.filter-active-indicator { font-size:.78rem; font-weight:700; color:var(--accent-primary); display:none; }
+.filter-active-indicator.show { display:inline-flex; align-items:center; gap:.3rem; }
+.results-count { font-size:.82rem; color:var(--text-secondary); }
 .menu-item-status { position:absolute; top:10px; right:10px; }
 .status-chip { border:none; border-radius:999px; padding:.3rem .65rem; font-size:.72rem; font-weight:700; cursor:pointer; }
 .status-chip.available { background:rgba(34,197,94,.14); color:#15803D; }
@@ -22,8 +88,28 @@
 .confirm-btn { border:none; border-radius:10px; padding:.5rem .9rem; font-size:.84rem; font-weight:700; cursor:pointer; }
 .confirm-btn.cancel { background:#F3F4F6; color:#4B5563; }
 .confirm-btn.danger { background:#DC2626; color:#fff; }
+.options-builder { border:1px solid var(--border-subtle); border-radius:12px; padding:.85rem; background:#FAFAFA; }
+.options-header { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.65rem; }
+.options-title { font-size:.88rem; font-weight:700; color:var(--text-primary); }
+.options-hint { font-size:.75rem; color:var(--text-secondary); }
+.option-group-card { border:1px solid var(--border-subtle); border-radius:10px; background:#fff; padding:.75rem; margin-bottom:.65rem; }
+.option-group-head { display:grid; grid-template-columns:1fr 160px auto; gap:.5rem; align-items:center; margin-bottom:.55rem; }
+.option-values-list { display:flex; flex-direction:column; gap:.45rem; }
+.option-value-row { display:grid; grid-template-columns:1fr 130px auto; gap:.45rem; align-items:center; }
+.btn-option-add { border:1px dashed var(--accent-primary); background:rgba(249,115,22,.08); color:var(--accent-primary); border-radius:8px; padding:.35rem .6rem; font-size:.78rem; font-weight:700; cursor:pointer; }
+.btn-option-remove { border:1px solid #FCA5A5; background:#FEF2F2; color:#B91C1C; border-radius:8px; padding:.32rem .55rem; font-size:.76rem; font-weight:700; cursor:pointer; }
+.option-suggestions { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.55rem; }
+.option-suggestion-chip { border:1px solid var(--border-subtle); background:#fff; color:var(--text-secondary); border-radius:999px; padding:.3rem .65rem; font-size:.75rem; cursor:pointer; }
+.option-suggestion-chip:hover { border-color:var(--accent-primary); color:var(--accent-primary); }
 
-@media (max-width: 992px) { .menu-toolbar { grid-template-columns:1fr; } }
+@media (max-width: 992px) {
+    .menu-toolbar { grid-template-columns:1fr; }
+    .menu-filter-grid {
+        grid-template-columns: minmax(240px, 1fr) 200px minmax(200px, 280px) 140px;
+        overflow-x: auto;
+        padding-bottom: .2rem;
+    }
+}
 </style>
 @endsection
 
@@ -44,82 +130,36 @@
     <div class="toolbar-card"><div class="toolbar-label">الأصناف غير المتاحة</div><div class="toolbar-value">{{ collect($menuItems ?? [])->where('is_available', false)->count() }}</div></div>
 </div>
 
-@if(count($menuItems ?? []) > 0)
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
-    @foreach($menuItems as $item)
-    <div class="col animate-fade-in" style="animation-delay: {{ $loop->index * 0.1 }}s;">
-        <div class="menu-card glass-card h-100">
-            <div style="height: 160px; overflow: hidden; position: relative; background: var(--bg-card);">
-                @php
-                    $image = $item->image ?? '';
-                    $isHttp = strlen($image) > 4 && substr($image, 0, 4) === 'http';
-                    $imageSrc = $isHttp ? $image : ($image ? asset('storage/' . $image) : null);
-                @endphp
-                @if($imageSrc)
-                    <img src="{{ $imageSrc }}" alt="{{ $item->name }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null;this.src='https://placehold.co/600x400/EEF2F7/94A3B8?text=No+Image'">
-                @else
-                    <div class="d-flex align-items-center justify-content-center h-100">
-                        <i class="bi bi-image" style="font-size: 2.5rem; color: var(--text-muted);"></i>
-                    </div>
-                @endif
-                <div class="menu-item-status">
-                    <button type="button"
-                            class="status-chip {{ $item->is_available ? 'available' : 'unavailable' }} js-toggle-availability"
-                            data-id="{{ $item->id }}"
-                            data-open-text="متاح"
-                            data-close-text="غير متاح">
-                        {{ $item->is_available ? 'متاح' : 'غير متاح' }}
-                    </button>
-                </div>
-                <span class="menu-price position-absolute" style="bottom: 10px; left: 10px; background: #FFFFFF; padding: 0.375rem 0.75rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                    @price($item->price)
-                </span>
-            </div>
-            
-            <div class="p-3">
-                <span class="badge mb-2" style="background: rgba(249, 115, 22, 0.15); color: var(--accent-primary); font-size: 0.7rem;">
-                    {{ $categories[$item->category] ?? $item->category ?? 'أخرى' }}
-                </span>
-                <h5 class="fw-semibold mb-1" style="color: var(--text-primary); font-size: 1rem;">{{ $item->name }}</h5>
-                <p class="mb-3" style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.4; min-height: 2.8em; overflow: hidden;">
-                    {{ $item->description ?? 'لا يوجد وصف' }}
-                </p>
-                
-                <div class="d-flex gap-2 item-actions">
-                    <button class="btn btn-sm btn-outline flex-grow-1 edit-btn"
-                        data-id="{{ $item->id }}"
-                        data-name="{{ $item->name }}"
-                        data-price="{{ $item->price }}"
-                        data-description="{{ $item->description ?? '' }}"
-                        data-category="{{ $item->category ?? '' }}"
-                        data-is-available="{{ $item->is_available ? '1' : '0' }}"
-                        data-image="{{ $item->image ?? '' }}"
-                        data-url="{{ $restaurant ? route('restaurant.menu.update', [$restaurant->id, $item->id]) : '#' }}">
-                        <i class="bi bi-pencil me-1"></i>تعديل
-                    </button>
-                    <form action="{{ $restaurant ? route('restaurant.menu.destroy', [$restaurant->id, $item->id]) : '#' }}" method="POST" class="d-inline flex-grow-1 js-delete-form">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline w-100 text-danger">
-                            <i class="bi bi-trash me-1"></i>حذف
-                        </button>
-                    </form>
-                </div>
-            </div>
+<div class="menu-filter-bar">
+    <div class="menu-filter-grid">
+        <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" id="filterSearch" class="form-control filter-control" placeholder="ابحث باسم الصنف..." value="{{ $filters['search'] ?? '' }}">
+        </div>
+        <select id="filterCategory" class="form-select filter-control">
+            <option value="">كل الفئات</option>
+            @foreach($categories as $key => $label)
+                <option value="{{ $key }}" @selected(($filters['category'] ?? '') === $key)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <select id="filterStatus" class="form-select filter-control">
+            <option value="all" @selected(($filters['status'] ?? 'all') === 'all')>الكل</option>
+            <option value="available" @selected(($filters['status'] ?? '') === 'available')>متاح</option>
+            <option value="unavailable" @selected(($filters['status'] ?? '') === 'unavailable')>غير متاح</option>
+        </select>
+        <div class="menu-filter-actions">
+            <button type="button" class="btn btn-outline" id="resetFiltersBtn">إعادة تعيين</button>
         </div>
     </div>
-    @endforeach
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <span class="filter-active-indicator" id="activeFilterIndicator"><i class="bi bi-funnel-fill"></i> فلاتر مفعلة</span>
+        <span class="results-count">عدد النتائج: <strong id="resultsCount">{{ count($menuItems ?? []) }}</strong></span>
+    </div>
 </div>
-@else
-<div class="glass-card p-5 text-center">
-    <i class="bi bi-bookmark-plus" style="font-size: 4rem; color: var(--text-muted);"></i>
-    <h3 class="mt-4 mb-2" style="color: var(--text-primary);">قائمتك فارغة</h3>
-    <p class="mb-4" style="color: var(--text-secondary);">أضف أول صنف إلى قائمتك ليبدأ المطعم بالعمل</p>
-    <button class="btn btn-orange" data-bs-toggle="modal" data-bs-target="#addMenuModal">
-        <i class="bi bi-plus-circle me-2"></i>إضافة صنف جديد
-    </button>
+
+<div id="menuListContainer">
+    @include('restaurant::partials.menu-items-grid', ['menuItems' => $menuItems, 'restaurant' => $restaurant, 'categories' => $categories])
 </div>
-@endif
 
 <!-- Single Reusable Edit Modal -->
 <div class="modal fade" id="editMenuModal" tabindex="-1" aria-hidden="true">
@@ -174,6 +214,23 @@
                             <option value="0">غير متاح</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <div class="options-builder">
+                            <div class="options-header">
+                                <div>
+                                    <div class="options-title">الخيارات (اختياري)</div>
+                                    <div class="options-hint">مثال: الحجم، الصوص. يمكنك إضافة مجموعات وقيم مع أسعار إضافية.</div>
+                                </div>
+                                <button type="button" class="btn-option-add" id="editAddOptionGroupBtn">+ إضافة مجموعة</button>
+                            </div>
+                            <div class="option-groups-container" id="editOptionGroupsContainer"></div>
+                            <div class="option-suggestions">
+                                <button type="button" class="option-suggestion-chip" data-target="edit" data-suggest-group="الحجم">اقتراح: الحجم</button>
+                                <button type="button" class="option-suggestion-chip" data-target="edit" data-suggest-group="الصوص">اقتراح: الصوص</button>
+                                <button type="button" class="option-suggestion-chip" data-target="edit" data-suggest-group="الإضافات">اقتراح: الإضافات</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -221,6 +278,23 @@
                     <div class="mb-3">
                         <label class="form-label">الوصف</label>
                         <textarea name="description" class="form-control" rows="2" placeholder="وصف مختصر..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="options-builder">
+                            <div class="options-header">
+                                <div>
+                                    <div class="options-title">الخيارات (اختياري)</div>
+                                    <div class="options-hint">أضف فقط ما تحتاجه. لا يوجد خيارات إجبارية.</div>
+                                </div>
+                                <button type="button" class="btn-option-add" id="addOptionGroupBtn">+ إضافة مجموعة</button>
+                            </div>
+                            <div class="option-groups-container" id="addOptionGroupsContainer"></div>
+                            <div class="option-suggestions">
+                                <button type="button" class="option-suggestion-chip" data-target="add" data-suggest-group="الحجم">اقتراح: الحجم</button>
+                                <button type="button" class="option-suggestion-chip" data-target="add" data-suggest-group="الصوص">اقتراح: الصوص</button>
+                                <button type="button" class="option-suggestion-chip" data-target="add" data-suggest-group="الإضافات">اقتراح: الإضافات</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -315,6 +389,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let menuOptionsMap = @json($menuOptionsMap);
+    const menuEndpoint = @json(route('restaurant.menu'));
     const editModal = document.getElementById('editMenuModal');
     const editForm = document.getElementById('editForm');
     const editName = document.getElementById('editName');
@@ -324,62 +400,289 @@ document.addEventListener('DOMContentLoaded', function() {
     const editDescription = document.getElementById('editDescription');
     const editCurrentImage = document.getElementById('editCurrentImage');
     const noImagePlaceholder = document.getElementById('noImagePlaceholder');
+    const addForm = document.querySelector('#addMenuModal form');
+    const addGroupsContainer = document.getElementById('addOptionGroupsContainer');
+    const editGroupsContainer = document.getElementById('editOptionGroupsContainer');
+    const menuListContainer = document.getElementById('menuListContainer');
+    const filterSearch = document.getElementById('filterSearch');
+    const filterCategory = document.getElementById('filterCategory');
+    const filterStatus = document.getElementById('filterStatus');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+    const resultsCount = document.getElementById('resultsCount');
+    const activeFilterIndicator = document.getElementById('activeFilterIndicator');
 
-    document.querySelectorAll('.edit-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const name = this.dataset.name;
-            const price = this.dataset.price;
-            const category = this.dataset.category;
-            const description = this.dataset.description;
-            const image = this.dataset.image;
-            const url = this.dataset.url;
+    function esc(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
-            editForm.action = url;
-            editName.value = name;
-            editPrice.value = price;
-            editCategory.value = category || '';
-            editIsAvailable.value = this.dataset.isAvailable || '1';
-            editDescription.value = description || '';
+    function emptyGroup() {
+        return { name: '', selection_type: 'single', values: [{ name: '', extra_price: 0 }] };
+    }
 
-            if (image) {
-                editCurrentImage.src = '{{ asset("storage/") }}/' + image;
-                editCurrentImage.style.display = 'block';
-                noImagePlaceholder.style.display = 'none';
-            } else {
-                editCurrentImage.style.display = 'none';
-                noImagePlaceholder.style.display = 'flex';
+    function addValueRowMarkup(mode, groupIndex, valueIndex, value = {}) {
+        return `
+            <div class="option-value-row" data-value-index="${valueIndex}">
+                <input type="text" class="form-control"
+                    name="options[${groupIndex}][values][${valueIndex}][name]"
+                    value="${esc(value.name || '')}"
+                    placeholder="اسم القيمة (مثال: كبير)">
+                <input type="number" class="form-control"
+                    name="options[${groupIndex}][values][${valueIndex}][extra_price]"
+                    value="${Number(value.extra_price || 0)}"
+                    min="0" step="0.01" placeholder="سعر إضافي">
+                <button type="button" class="btn-option-remove js-remove-value" data-mode="${mode}">حذف</button>
+            </div>
+        `;
+    }
+
+    function groupCardMarkup(mode, groupIndex, group) {
+        const values = Array.isArray(group.values) && group.values.length ? group.values : [{ name: '', extra_price: 0 }];
+        return `
+            <div class="option-group-card" data-group-index="${groupIndex}">
+                <div class="option-group-head">
+                    <input type="text" class="form-control"
+                        name="options[${groupIndex}][name]"
+                        value="${esc(group.name || '')}"
+                        placeholder="اسم المجموعة (مثال: الحجم)">
+                    <select class="form-select" name="options[${groupIndex}][selection_type]">
+                        <option value="single" ${group.selection_type === 'multiple' ? '' : 'selected'}>اختيار واحد (radio)</option>
+                        <option value="multiple" ${group.selection_type === 'multiple' ? 'selected' : ''}>اختيارات متعددة (checkbox)</option>
+                    </select>
+                    <button type="button" class="btn-option-remove js-remove-group" data-mode="${mode}">حذف المجموعة</button>
+                </div>
+                <div class="option-values-list">
+                    ${values.map((value, valueIndex) => addValueRowMarkup(mode, groupIndex, valueIndex, value)).join('')}
+                </div>
+                <button type="button" class="btn-option-add js-add-value" data-mode="${mode}">+ إضافة قيمة</button>
+            </div>
+        `;
+    }
+
+    function normalizeOptionGroups(rawGroups) {
+        if (!Array.isArray(rawGroups)) return [];
+        return rawGroups.map(function(group) {
+            const values = Array.isArray(group.values) ? group.values : [];
+            return {
+                name: group.name || '',
+                selection_type: group.selection_type === 'multiple' ? 'multiple' : 'single',
+                values: values.map(function(value) {
+                    return {
+                        name: value.name || '',
+                        extra_price: Number(value.extra_price || 0),
+                    };
+                }),
+            };
+        });
+    }
+
+    function renderOptionBuilder(mode, groups) {
+        const container = mode === 'add' ? addGroupsContainer : editGroupsContainer;
+        container.innerHTML = '';
+        groups.forEach(function(group, groupIndex) {
+            container.insertAdjacentHTML('beforeend', groupCardMarkup(mode, groupIndex, group));
+        });
+    }
+
+    function collectGroupsFromDOM(mode) {
+        const container = mode === 'add' ? addGroupsContainer : editGroupsContainer;
+        return Array.from(container.querySelectorAll('.option-group-card')).map(function(card) {
+            const groupNameInput = card.querySelector('input[name*="[name]"]');
+            const selectionInput = card.querySelector('select[name*="[selection_type]"]');
+            const name = groupNameInput ? groupNameInput.value : '';
+            const selection = selectionInput ? selectionInput.value : 'single';
+            const values = Array.from(card.querySelectorAll('.option-value-row')).map(function(row) {
+                const valueNameInput = row.querySelector('input[name*="[name]"]');
+                const extraPriceInput = row.querySelector('input[name*="[extra_price]"]');
+                const valueName = valueNameInput ? valueNameInput.value : '';
+                const extraPrice = extraPriceInput ? extraPriceInput.value : 0;
+                return { name: valueName, extra_price: Number(extraPrice || 0) };
+            });
+            return { name: name, selection_type: selection, values: values };
+        });
+    }
+
+    function rerender(mode) {
+        renderOptionBuilder(mode, collectGroupsFromDOM(mode));
+    }
+
+    function addGroup(mode, seedName = '') {
+        const groups = collectGroupsFromDOM(mode);
+        const group = emptyGroup();
+        group.name = seedName;
+        groups.push(group);
+        renderOptionBuilder(mode, groups);
+    }
+
+    function bindOptionsEvents(container, mode) {
+        container.addEventListener('click', function(event) {
+            const target = event.target;
+
+            if (target.classList.contains('js-remove-group')) {
+                const groupCard = target.closest('.option-group-card');
+                if (groupCard) {
+                    groupCard.remove();
+                }
+                rerender(mode);
+                return;
             }
 
-            const modal = new bootstrap.Modal(editModal);
-            modal.show();
-        });
-    });
+            if (target.classList.contains('js-add-value')) {
+                const groups = collectGroupsFromDOM(mode);
+                const card = target.closest('.option-group-card');
+                const groupIndex = Number(card?.dataset.groupIndex ?? -1);
+                if (groupIndex >= 0 && groups[groupIndex]) {
+                    groups[groupIndex].values.push({ name: '', extra_price: 0 });
+                    renderOptionBuilder(mode, groups);
+                }
+                return;
+            }
 
-    document.querySelectorAll('.js-toggle-availability').forEach(function(btn) {
-        btn.addEventListener('click', async function() {
-            if (this.disabled) return;
-            this.disabled = true;
-            try {
-                const res = await fetch('/restaurant/menu/' + this.dataset.id + '/toggle-availability', {
-                    method: 'PATCH',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
+            if (target.classList.contains('js-remove-value')) {
+                const groups = collectGroupsFromDOM(mode);
+                const card = target.closest('.option-group-card');
+                const row = target.closest('.option-value-row');
+                const groupIndex = Number(card?.dataset.groupIndex ?? -1);
+                const valueIndex = Number(row?.dataset.valueIndex ?? -1);
+                if (groupIndex >= 0 && valueIndex >= 0 && groups[groupIndex]) {
+                    groups[groupIndex].values.splice(valueIndex, 1);
+                    if (groups[groupIndex].values.length === 0) {
+                        groups[groupIndex].values.push({ name: '', extra_price: 0 });
                     }
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok || data.success === false) throw new Error(data.message || 'تعذر تحديث الحالة');
-                this.classList.toggle('available', !!data.is_available);
-                this.classList.toggle('unavailable', !data.is_available);
-                this.textContent = data.is_available ? this.dataset.openText : this.dataset.closeText;
-            } catch (error) {
-                alert(error.message || 'حدث خطأ');
-            } finally {
-                this.disabled = false;
+                    renderOptionBuilder(mode, groups);
+                }
             }
         });
+    }
+
+    bindOptionsEvents(addGroupsContainer, 'add');
+    bindOptionsEvents(editGroupsContainer, 'edit');
+
+    document.getElementById('addOptionGroupBtn').addEventListener('click', function() {
+        addGroup('add');
     });
+
+    document.getElementById('editAddOptionGroupBtn').addEventListener('click', function() {
+        addGroup('edit');
+    });
+
+    document.querySelectorAll('.option-suggestion-chip').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            addGroup(this.dataset.target, this.dataset.suggestGroup || '');
+        });
+    });
+
+    function openEditModal(btn) {
+        const itemId = Number(btn.dataset.id);
+        const name = btn.dataset.name;
+        const price = btn.dataset.price;
+        const category = btn.dataset.category;
+        const description = btn.dataset.description;
+        const image = btn.dataset.image;
+        const url = btn.dataset.url;
+
+        editForm.action = url;
+        editName.value = name;
+        editPrice.value = price;
+        editCategory.value = category || '';
+        editIsAvailable.value = btn.dataset.isAvailable || '1';
+        editDescription.value = description || '';
+
+        if (image) {
+            editCurrentImage.src = '{{ asset("storage/") }}/' + image;
+            editCurrentImage.style.display = 'block';
+            noImagePlaceholder.style.display = 'none';
+        } else {
+            editCurrentImage.style.display = 'none';
+            noImagePlaceholder.style.display = 'flex';
+        }
+
+        const existingGroups = normalizeOptionGroups(menuOptionsMap[itemId] || []);
+        renderOptionBuilder('edit', existingGroups);
+
+        const modal = new bootstrap.Modal(editModal);
+        modal.show();
+    }
+
+    addForm.addEventListener('reset', function() {
+        setTimeout(function() {
+            renderOptionBuilder('add', []);
+        }, 0);
+    });
+    renderOptionBuilder('add', []);
+
+    async function toggleAvailability(btn) {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+            const res = await fetch('/restaurant/menu/' + btn.dataset.id + '/toggle-availability', {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                }
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.success === false) throw new Error(data.message || 'تعذر تحديث الحالة');
+            btn.classList.toggle('available', !!data.is_available);
+            btn.classList.toggle('unavailable', !data.is_available);
+            btn.textContent = data.is_available ? btn.dataset.openText : btn.dataset.closeText;
+        } catch (error) {
+            alert(error.message || 'حدث خطأ');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function updateActiveFilterIndicator() {
+        const active = Boolean(filterSearch.value.trim()) || Boolean(filterCategory.value) || filterStatus.value !== 'all';
+        activeFilterIndicator.classList.toggle('show', active);
+    }
+
+    async function loadFilteredMenu() {
+        const params = new URLSearchParams();
+        if (filterCategory.value) params.set('category', filterCategory.value);
+        if (filterStatus.value) params.set('status', filterStatus.value);
+        if (filterSearch.value.trim()) params.set('search', filterSearch.value.trim());
+
+        try {
+            const url = params.toString() ? (menuEndpoint + '?' + params.toString()) : menuEndpoint;
+            const res = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'تعذر تحميل البيانات');
+            menuListContainer.innerHTML = data.html || '';
+            menuOptionsMap = data.menu_options_map || {};
+            resultsCount.textContent = String(data.count || 0);
+            updateActiveFilterIndicator();
+        } catch (error) {
+            alert(error.message || 'حدث خطأ أثناء جلب الأصناف');
+        }
+    }
+
+    let searchTimer = null;
+    filterSearch.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(loadFilteredMenu, 280);
+    });
+    filterCategory.addEventListener('change', loadFilteredMenu);
+    filterStatus.addEventListener('change', loadFilteredMenu);
+    resetFiltersBtn.addEventListener('click', function() {
+        filterSearch.value = '';
+        filterCategory.value = '';
+        filterStatus.value = 'all';
+        loadFilteredMenu();
+    });
+    updateActiveFilterIndicator();
 
     let pendingDeleteForm = null;
     const deleteModal = document.getElementById('deleteConfirmModal');
@@ -395,12 +698,31 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pendingDeleteForm) pendingDeleteForm.submit();
     });
 
-    document.querySelectorAll('.js-delete-form').forEach(function(form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            pendingDeleteForm = form;
-            deleteModal.classList.add('show');
-        });
+    document.addEventListener('click', function(e) {
+        const editBtn = e.target.closest('.edit-btn');
+        if (editBtn) {
+            openEditModal(editBtn);
+            return;
+        }
+
+        const toggleBtn = e.target.closest('.js-toggle-availability');
+        if (toggleBtn) {
+            toggleAvailability(toggleBtn);
+            return;
+        }
+
+        const resetFromEmpty = e.target.closest('.js-reset-filters-trigger');
+        if (resetFromEmpty) {
+            resetFiltersBtn.click();
+        }
+    });
+
+    document.addEventListener('submit', function(e) {
+        const deleteForm = e.target.closest('.js-delete-form');
+        if (!deleteForm) return;
+        e.preventDefault();
+        pendingDeleteForm = deleteForm;
+        deleteModal.classList.add('show');
     });
 });
 </script>

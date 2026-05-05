@@ -6,6 +6,35 @@
 .toolbar-card { background:#fff; border:1px solid var(--border-subtle); border-radius:14px; padding:.75rem .9rem; box-shadow:var(--shadow-sm); }
 .toolbar-label { font-size:.75rem; color:var(--text-secondary); }
 .toolbar-value { margin-top:.15rem; font-size:1.1rem; font-weight:700; color:var(--text-primary); }
+.orders-filter-bar { background:#F7F8FA; border:1px solid #E6E8EC; border-radius:16px; padding:.75rem; margin-bottom:1rem; }
+.orders-filter-grid { display:grid; grid-template-columns:minmax(240px,1fr) minmax(240px,280px) auto; gap:.55rem; align-items:stretch; }
+.orders-filter-grid .form-control,
+.orders-filter-grid .form-select {
+    border-radius:12px;
+    border:1px solid #E4E7EC;
+    background:#fff;
+    font-size:.9rem;
+    line-height:1.55;
+}
+.orders-filter-grid .form-control {
+    min-height:46px;
+    padding:.65rem .875rem;
+}
+.orders-filter-grid .form-select {
+    min-height:46px;
+    /* RTL: text from the right, chevron on the left */
+    padding:.6rem .875rem .6rem 2.35rem;
+    line-height:1.55;
+    overflow: visible;
+}
+.orders-filter-grid .form-control:focus,
+.orders-filter-grid .form-select:focus { border-color:var(--accent-primary); box-shadow:0 0 0 3px rgba(249,115,22,.12); }
+.orders-filter-grid .btn {
+    min-height:46px;
+    padding:.55rem 1rem;
+    align-self:stretch;
+    border-radius:12px;
+}
 
 .orders-card { background:#fff; border:1px solid var(--border-subtle); border-radius:16px; box-shadow:var(--shadow-sm); overflow:hidden; }
 .orders-table { width:100%; border-collapse:collapse; }
@@ -39,7 +68,14 @@
 
 #statusUpdateModal .modal-content { border-radius:16px; border:none; box-shadow:0 20px 50px rgba(0,0,0,.15); }
 
-@media (max-width: 992px) { .orders-toolbar { grid-template-columns:1fr; } }
+@media (max-width: 992px) {
+    .orders-toolbar { grid-template-columns:1fr; }
+    .orders-filter-grid {
+        grid-template-columns:minmax(220px,1fr) minmax(200px,260px) minmax(110px,auto);
+        overflow-x:auto;
+        padding-bottom:.2rem;
+    }
+}
 </style>
 @endsection
 
@@ -53,6 +89,21 @@
     <div class="toolbar-card"><div class="toolbar-label">إجمالي الطلبات</div><div id="summaryTotalOrders" class="toolbar-value">{{ count($myOrders ?? []) }}</div></div>
     <div class="toolbar-card"><div class="toolbar-label">في انتظار قبولكم</div><div id="summaryPendingOrders" class="toolbar-value">{{ collect($myOrders ?? [])->where('status','payment_verified')->count() }}</div></div>
     <div class="toolbar-card"><div class="toolbar-label">قيد التنفيذ</div><div id="summaryInProgressOrders" class="toolbar-value">{{ collect($myOrders ?? [])->whereIn('status',['accepted_by_restaurant','preparing','on_the_way'])->count() }}</div></div>
+</div>
+
+<div class="orders-filter-bar">
+    <div class="orders-filter-grid">
+        <input type="text" id="ordersSearchInput" class="form-control" placeholder="بحث برقم الطلب أو اسم العميل..." value="{{ $filters['search'] ?? '' }}">
+        <select id="ordersStatusFilter" class="form-select">
+            <option value="" @selected(($filters['status'] ?? '') === '')>كل حالات الطلب</option>
+            <option value="payment_verified" @selected(($filters['status'] ?? '') === 'payment_verified')>بانتظار القبول</option>
+            <option value="accepted_by_restaurant" @selected(($filters['status'] ?? '') === 'accepted_by_restaurant')>مقبول من المطعم</option>
+            <option value="preparing" @selected(($filters['status'] ?? '') === 'preparing')>جاري التحضير</option>
+            <option value="on_the_way" @selected(($filters['status'] ?? '') === 'on_the_way')>في الطريق</option>
+            <option value="delivered" @selected(($filters['status'] ?? '') === 'delivered')>تم التسليم</option>
+        </select>
+        <button type="button" class="btn btn-outline" id="ordersResetFiltersBtn">إعادة تعيين</button>
+    </div>
 </div>
 
 <div class="orders-card">
@@ -197,6 +248,9 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     let ordersRealtimeTimer = null;
+    const ordersSearchInput = document.getElementById('ordersSearchInput');
+    const ordersStatusFilter = document.getElementById('ordersStatusFilter');
+    const ordersResetFiltersBtn = document.getElementById('ordersResetFiltersBtn');
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -273,7 +327,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function fetchOrdersRealtime() {
         try {
-            const response = await fetch('{{ route('restaurant.orders.realtime') }}', {
+            const params = new URLSearchParams();
+            if (ordersSearchInput && ordersSearchInput.value.trim()) {
+                params.set('search', ordersSearchInput.value.trim());
+            }
+            if (ordersStatusFilter && ordersStatusFilter.value) {
+                params.set('status', ordersStatusFilter.value);
+            }
+
+            const realtimeUrl = '{{ route('restaurant.orders.realtime') }}' + (params.toString() ? `?${params.toString()}` : '');
+            const response = await fetch(realtimeUrl, {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin',
             });
@@ -339,6 +402,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     bindOrderActionButtons();
+    let searchDebounce = null;
+    if (ordersSearchInput) {
+        ordersSearchInput.addEventListener('input', function() {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(fetchOrdersRealtime, 300);
+        });
+    }
+    if (ordersStatusFilter) {
+        ordersStatusFilter.addEventListener('change', fetchOrdersRealtime);
+    }
+    if (ordersResetFiltersBtn) {
+        ordersResetFiltersBtn.addEventListener('click', function() {
+            if (ordersSearchInput) ordersSearchInput.value = '';
+            if (ordersStatusFilter) ordersStatusFilter.value = '';
+            fetchOrdersRealtime();
+        });
+    }
     ordersRealtimeTimer = setInterval(fetchOrdersRealtime, 5000);
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) fetchOrdersRealtime();
