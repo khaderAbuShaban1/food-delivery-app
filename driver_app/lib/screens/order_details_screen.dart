@@ -61,19 +61,22 @@ class OrderDetailsScreen extends StatelessWidget {
           ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 116),
             children: [
-              Text(order.restaurantName, style: theme.textTheme.titleLarge),
+              Text(
+                order.restaurantName,
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              ),
               const SizedBox(height: 6),
               Text(order.displayOrderRef, style: theme.textTheme.bodySmall),
               const SizedBox(height: 16),
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.borderSubtle),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 16,
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 18,
                       offset: const Offset(0, 8),
                     ),
                   ],
@@ -140,8 +143,9 @@ class OrderDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(14),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.borderSubtle),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(14),
@@ -173,6 +177,7 @@ class OrderDetailsScreen extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: Material(
               elevation: 10,
+              color: AppColors.surface,
               child: SafeArea(
                 top: false,
                 child: Padding(

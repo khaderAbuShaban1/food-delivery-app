@@ -166,69 +166,77 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: appBar,
-      body: orders.isEmpty
-          ? const OrderEmptyState(
-              title: 'لا توجد طلبات جاهزة الآن',
-              subtitle: 'يُحدَّث القائمة تلقائياً كل بضع ثوانٍ عند توفر طلبات جديدة.',
-              icon: Icons.takeout_dining_rounded,
-            )
-          : RefreshIndicator.adaptive(
-              color: AppColors.accent,
-              edgeOffset: 8,
-              onRefresh: () => context.read<OrderProvider>().refreshFromServer(),
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    sliver: SliverToBoxAdapter(
-                      child: _TodaySummaryStrip(
-                        readyCount: orders.length,
-                        hasActive: occupied,
-                      ),
-                    ),
-                  ),
-                  if (orders.isNotEmpty)
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverToBoxAdapter(
-                        child: _SectionHeader(
-                          icon: Icons.fiber_manual_record,
-                          iconColor: AppColors.accent,
-                          title: 'طلبات جديدة للقبول',
-                          badge: '${orders.length}',
-                        ),
-                      ),
-                    ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-                    sliver: SliverList.separated(
-                      itemCount: orders.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 14),
-                      itemBuilder: (_, i) {
-                        final order = orders[i];
-                        return DriverOrderCard(
-                          order: order,
-                          highlightAsNew: i == 0,
-                          onTap: () => _openDetails(context, order),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+      body: RefreshIndicator.adaptive(
+        color: AppColors.accent,
+        edgeOffset: 8,
+        onRefresh: () => context.read<OrderProvider>().refreshFromServer(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              sliver: SliverToBoxAdapter(
+                child: _TodaySummaryStrip(
+                  readyCount: orders.length,
+                  deliveredTodayCount: provider.deliveredTodayCount,
+                ),
               ),
             ),
+            if (orders.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+                  child: const OrderEmptyState(
+                    title: 'لا توجد طلبات جاهزة الآن',
+                    subtitle:
+                        'يُحدَّث القائمة تلقائياً كل بضع ثوانٍ عند توفر طلبات جديدة.',
+                    icon: Icons.takeout_dining_rounded,
+                  ),
+                ),
+              )
+            else ...[
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverToBoxAdapter(
+                  child: _SectionHeader(
+                    icon: Icons.fiber_manual_record,
+                    iconColor: AppColors.accent,
+                    title: 'طلبات جديدة للقبول',
+                    badge: '${orders.length}',
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+                sliver: SliverList.separated(
+                  itemCount: orders.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 18),
+                  itemBuilder: (_, i) {
+                    final order = orders[i];
+                    return DriverOrderCard(
+                      order: order,
+                      highlightAsNew: i == 0,
+                      onTap: () => _openDetails(context, order),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _TodaySummaryStrip extends StatelessWidget {
   final int readyCount;
-  final bool hasActive;
+  final int deliveredTodayCount;
 
   const _TodaySummaryStrip({
     required this.readyCount,
-    required this.hasActive,
+    required this.deliveredTodayCount,
   });
 
   @override
@@ -288,11 +296,11 @@ class _TodaySummaryStrip extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _SummaryTile(
-                    icon: Icons.local_shipping_rounded,
-                    iconBg: AppColors.delivering.withValues(alpha: 0.12),
-                    iconFg: AppColors.delivering,
-                    label: 'طلب نشط',
-                    value: hasActive ? 'نعم' : 'لا',
+                    icon: Icons.task_alt_rounded,
+                    iconBg: AppColors.completed.withValues(alpha: 0.12),
+                    iconFg: AppColors.completed,
+                    label: 'تم تسليم اليوم',
+                    value: '$deliveredTodayCount',
                   ),
                 ),
               ],

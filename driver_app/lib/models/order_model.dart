@@ -24,6 +24,9 @@ class OrderModel {
   final String status;
   final int? driverId;
   final List<String> items;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? assignedAt;
 
   const OrderModel({
     required this.id,
@@ -42,6 +45,9 @@ class OrderModel {
     required this.status,
     required this.driverId,
     required this.items,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.assignedAt,
   });
 
   /// Single line "Name — Phone" for compact cards.
@@ -101,6 +107,15 @@ class OrderModel {
     return s.isEmpty ? null : s;
   }
 
+  static DateTime? _optionalDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value.toLocal();
+    final raw = value.toString().trim();
+    if (raw.isEmpty || raw == 'null') return null;
+    final parsed = DateTime.tryParse(raw);
+    return parsed?.toLocal();
+  }
+
   /// Build from Laravel `OrderController::formatOrder` JSON (driver routes use the same formatter).
   factory OrderModel.fromLaravelApi(Map<String, dynamic> json) {
     final id = json['id']?.toString() ?? '';
@@ -153,6 +168,9 @@ class OrderModel {
     final restaurantPhone = _stringOrEmpty(restaurant['phone']);
 
     final statusLabelRaw = _optionalString(json['status_label']);
+    final createdAt = _optionalDate(json['created_at']);
+    final updatedAt = _optionalDate(json['updated_at']);
+    final assignedAt = _optionalDate(json['assigned_at']);
 
     return OrderModel(
       id: id,
@@ -173,6 +191,9 @@ class OrderModel {
       status: (json['status'] ?? 'pending').toString(),
       driverId: parsedDriverId,
       items: itemsList,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      assignedAt: assignedAt,
     );
   }
 }

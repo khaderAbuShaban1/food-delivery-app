@@ -42,8 +42,8 @@ class _MainNavScreenState extends State<MainNavScreen> {
       body: pages[index],
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          height: 72,
-          indicatorColor: AppColors.accent.withValues(alpha: 0.16),
+          height: 68,
+          indicatorColor: AppColors.accent.withValues(alpha: 0.12),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             final selected = states.contains(WidgetState.selected);
             return TextStyle(
@@ -53,37 +53,50 @@ class _MainNavScreenState extends State<MainNavScreen> {
             );
           }),
         ),
-        child: NavigationBar(
-          backgroundColor: AppColors.surface,
-          surfaceTintColor: Colors.transparent,
-          elevation: 12,
-          shadowColor: Colors.black.withValues(alpha: 0.06),
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          selectedIndex: index,
-          onDestinationSelected: (v) {
-            if (hasActive && v == 0) {
-              return;
-            }
-            setState(() => index = v);
-          },
-          destinations: [
-            NavigationDestination(
-              icon: _NavPoolIcon(showCount: homeBadge, count: poolCount, dimmed: hasActive, selected: false),
-              selectedIcon:
-                  _NavPoolIcon(showCount: homeBadge, count: poolCount, dimmed: hasActive, selected: true),
-              label: hasActive ? 'مؤجّلة' : 'المتاحة',
-            ),
-            NavigationDestination(
-              icon: _NavActiveIcon(showDot: hasActive, selected: false),
-              selectedIcon: _NavActiveIcon(showDot: hasActive, selected: true),
-              label: 'نشط',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded, color: AppColors.accentDark),
-              label: 'حسابي',
-            ),
-          ],
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: const Border(top: BorderSide(color: AppColors.borderSubtle)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, -8),
+              ),
+            ],
+          ),
+          child: NavigationBar(
+            backgroundColor: AppColors.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            selectedIndex: index,
+            onDestinationSelected: (v) {
+              if (hasActive && v == 0) {
+                return;
+              }
+              setState(() => index = v);
+            },
+            destinations: [
+              NavigationDestination(
+                icon: _NavPoolIcon(showCount: homeBadge, count: poolCount, dimmed: hasActive, selected: false),
+                selectedIcon:
+                    _NavPoolIcon(showCount: homeBadge, count: poolCount, dimmed: hasActive, selected: true),
+                label: hasActive ? 'مؤجّلة' : 'المتاحة',
+              ),
+              NavigationDestination(
+                icon: _NavActiveIcon(showDot: hasActive, selected: false),
+                selectedIcon: _NavActiveIcon(showDot: hasActive, selected: true),
+                label: 'نشط',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded, color: AppColors.accentDark),
+                label: 'حسابي',
+              ),
+            ],
+          ),
         ),
       ),
     );

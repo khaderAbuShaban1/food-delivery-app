@@ -32,6 +32,8 @@ class DriverOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final address = shortDeliveryAddress(order.deliveryAddress);
+    final distanceText =
+        order.distanceKm == null ? null : 'تقريباً ${order.distanceKm!.toStringAsFixed(1)} كم';
     final custRaw = order.customerInfoLine.trim();
     final customerTitle = custRaw.isEmpty
         ? 'غير متوفر'
@@ -41,21 +43,21 @@ class DriverOrderCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         splashColor: AppColors.accent.withValues(alpha: 0.08),
         highlightColor: AppColors.accent.withValues(alpha: 0.04),
         child: Ink(
           decoration: BoxDecoration(
             color: highlightAsNew ? AppColors.incomingGlow : AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: highlightAsNew ? AppColors.accent.withValues(alpha: 0.35) : AppColors.borderSubtle,
               width: highlightAsNew ? 1.5 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: highlightAsNew ? 0.08 : 0.05),
-                blurRadius: highlightAsNew ? 24 : 18,
+                color: Colors.black.withValues(alpha: highlightAsNew ? 0.08 : 0.04),
+                blurRadius: highlightAsNew ? 22 : 18,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
@@ -66,7 +68,7 @@ class DriverOrderCard extends StatelessWidget {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             child: IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -84,7 +86,7 @@ class DriverOrderCard extends StatelessWidget {
                     ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -100,7 +102,7 @@ class DriverOrderCard extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: AppColors.accent.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 'جديد',
@@ -116,8 +118,8 @@ class DriverOrderCard extends StatelessWidget {
                           Text(
                             order.restaurantName,
                             style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
+                              fontWeight: FontWeight.w900,
+                              height: 1.15,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -137,15 +139,15 @@ class DriverOrderCard extends StatelessWidget {
                     StatusBadge(status: order.status, labelOverride: order.statusLabel),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.8)),
+                    color: AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.9)),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     child: Column(
                       children: [
                         OrderInfoRow(
@@ -184,31 +186,34 @@ class DriverOrderCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (order.distanceKm != null) ...[
+                if (distanceText != null) ...[
                   const SizedBox(height: 10),
                   Text(
-                    'تقريباً ${order.distanceKm!.toStringAsFixed(1)} كم',
-                    style: theme.textTheme.bodySmall,
+                    distanceText,
+                    style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                   ),
                 ],
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'فتح وتفاصيل القبول',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.accentDark,
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: FilledButton.icon(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 16,
-                      color: AppColors.accentDark.withValues(alpha: 0.7),
-                    ),
-                  ],
+                    icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                    label: const Text('قبول الطلب'),
+                  ),
                 ),
                         ],
                       ),

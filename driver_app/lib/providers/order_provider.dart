@@ -28,6 +28,39 @@ class OrderProvider extends ChangeNotifier {
 
   bool get hasActiveOrder => activeOrder != null;
 
+  int _deliveredTodayCount = 0;
+  DateTime _deliveredTodayKey = _dayKey(DateTime.now());
+  final Set<String> _deliveredTodayOrderIds = <String>{};
+
+  int get deliveredTodayCount => _deliveredTodayCount;
+
+  static DateTime _dayKey(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  void _resetDeliveredTodayIfNeeded() {
+    final today = _dayKey(DateTime.now());
+    if (today == _deliveredTodayKey) return;
+    _deliveredTodayKey = today;
+    _deliveredTodayOrderIds.clear();
+    _deliveredTodayCount = 0;
+  }
+
+  bool _isDeliveredStatus(OrderModel o) {
+    final s = o.driverStageStatus;
+    return s == 'delivered' || s == 'completed';
+  }
+
+  void _maybeCountDelivered(OrderModel? order) {
+    if (order == null) return;
+    if (!_isDeliveredStatus(order)) return;
+    final ts = order.updatedAt ?? order.createdAt;
+    if (ts == null) return;
+    final key = _dayKey(ts);
+    if (key != _deliveredTodayKey) return;
+    if (_deliveredTodayOrderIds.add(order.id)) {
+      _deliveredTodayCount += 1;
+    }
+  }
+
   Future<void> refreshFromServer() async {
     await _refreshAvailableFromApi();
     await _refreshActiveFromApi();
@@ -61,6 +94,8 @@ class OrderProvider extends ChangeNotifier {
     final api = _api;
     if (api?.token == null) return;
 
+    _resetDeliveredTodayIfNeeded();
+    final prev = activeOrder;
     final res = await api!.get(DriverApiPaths.driverOrdersActive);
     if (res['success'] == true) {
       final data = res['data'];
@@ -74,6 +109,9 @@ class OrderProvider extends ChangeNotifier {
     } else if (kDebugMode) {
       debugPrint('[OrderProvider] active API: ${res['message']}');
     }
+    // If the order was delivered then removed from active endpoint, count it once for today.
+    _maybeCountDelivered(prev);
+    _maybeCountDelivered(activeOrder);
     hasSyncedActiveOrder = true;
     notifyListeners();
   }
@@ -86,6 +124,9 @@ class OrderProvider extends ChangeNotifier {
     activeOrder = null;
     hasSyncedAvailableOrders = false;
     hasSyncedActiveOrder = false;
+    _deliveredTodayKey = _dayKey(DateTime.now());
+    _deliveredTodayOrderIds.clear();
+    _deliveredTodayCount = 0;
 
     if (_driver != null) {
       unawaited(_refreshAvailableFromApi());

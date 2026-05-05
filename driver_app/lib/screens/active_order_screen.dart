@@ -139,20 +139,13 @@ class _HeroOrderHeader extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            AppColors.accent.withValues(alpha: 0.14),
-            AppColors.surface,
-          ],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        color: AppColors.surface,
         border: Border.all(color: AppColors.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accent.withValues(alpha: 0.06),
-            blurRadius: 22,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
@@ -187,8 +180,8 @@ class _HeroOrderHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.borderSubtle),
                 ),
                 child: Column(
@@ -242,7 +235,7 @@ class _HorizontalDeliveryTimeline extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderSubtle),
       ),
       child: Padding(
@@ -387,11 +380,11 @@ class _DetailCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -498,7 +491,7 @@ class _NotesCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.pending.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.pending.withValues(alpha: 0.22)),
       ),
       child: Padding(
@@ -579,7 +572,7 @@ class _ActiveActionDock extends StatelessWidget {
     required VoidCallback? onPressed,
   }) {
     return Material(
-      elevation: 16,
+      elevation: 12,
       color: Colors.transparent,
       shadowColor: Colors.black.withValues(alpha: 0.1),
       child: DecoratedBox(
@@ -620,7 +613,7 @@ class _ActiveActionDock extends StatelessWidget {
                     backgroundColor: color,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
