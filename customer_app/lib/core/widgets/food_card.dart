@@ -257,6 +257,7 @@ class MenuItemCard extends StatelessWidget {
   final int quantity;
   final VoidCallback? onIncrease;
   final VoidCallback? onDecrease;
+  final bool showCartControls;
   static final intl.NumberFormat _currencyFormatter = intl.NumberFormat.currency(
     locale: 'en_US',
     symbol: '₪ ',
@@ -274,6 +275,7 @@ class MenuItemCard extends StatelessWidget {
     this.quantity = 0,
     this.onIncrease,
     this.onDecrease,
+    this.showCartControls = true,
   });
 
   @override
@@ -357,7 +359,10 @@ class MenuItemCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    quantity > 0 ? _buildQuantityControls() : _buildAddButton(),
+                    if (!showCartControls)
+                      const SizedBox(width: 72, height: 36)
+                    else
+                      quantity > 0 ? _buildQuantityControls() : _buildAddButton(),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),

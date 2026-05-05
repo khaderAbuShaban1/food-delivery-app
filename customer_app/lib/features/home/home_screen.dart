@@ -41,11 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Address? _selectedAddress;
   bool _isAddressLoading = true;
 
-  final List<Map<String, String>> _quickFilters = const [
-    {'icon': '⚡', 'label': 'سريع'},
-    {'icon': '🔥', 'label': 'الأكثر طلباً'},
-    {'icon': '💚', 'label': 'صحي'},
-  ];
+  // Removed per design request.
+  final List<String> _quickFilters = const [];
 
   @override
   void initState() {
@@ -835,6 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickFilters() {
+    if (_quickFilters.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 44,
       child: ListView.builder(
@@ -842,7 +840,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: _quickFilters.length,
         itemBuilder: (context, index) {
-          final filter = _quickFilters[index];
+          final icon = _quickFilters[index];
           return Container(
             margin: const EdgeInsetsDirectional.only(start: AppSpacing.sm),
             padding: const EdgeInsets.symmetric(
@@ -853,20 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: AppColors.secondary,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
-            child: Row(
-              children: [
-                Text(filter['icon']!, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  filter['label']!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+            child: Text(icon, style: const TextStyle(fontSize: 14)),
           );
         },
       ),

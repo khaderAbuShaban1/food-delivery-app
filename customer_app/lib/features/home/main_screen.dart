@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/cart_provider.dart';
-import '../../core/services/auth_service.dart';
 import '../home/home_screen.dart';
 import '../cart/cart_screen.dart';
 import '../orders/orders_screen.dart';
@@ -22,6 +21,7 @@ class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
 
   late final List<Widget> _screens;
+  static const double _navBarHeight = 74;
 
   @override
   void initState() {
@@ -41,57 +41,56 @@ class _MainScreenState extends State<MainScreen> {
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Consumer<CartProvider>(
         builder: (context, cart, child) {
-          return Container(
-            margin: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.lg,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.xxl),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 28,
-                  offset: const Offset(0, 14),
+          return SafeArea(
+            top: false,
+            child: Container(
+              height: _navBarHeight,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
                 ),
-              ],
-            ),
-            child: SafeArea(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 18,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.sm,
+                  horizontal: AppSpacing.lg,
+                  vertical: 10,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildNavItem(
                       0,
-                      Icons.home_outlined,
-                      Icons.home,
-                      'الرئيسية',
+                      icon: Icons.home_outlined,
+                      activeIcon: Icons.home_rounded,
+                      label: 'الرئيسية',
                     ),
                     _buildNavItem(
                       1,
-                      Icons.shopping_cart_outlined,
-                      Icons.shopping_cart,
-                      'السلة',
+                      icon: Icons.shopping_cart_outlined,
+                      activeIcon: Icons.shopping_cart_rounded,
+                      label: 'السلة',
                       showBadge: true,
+                      badgeCountOverride: cart.itemCount,
                     ),
                     _buildNavItem(
                       2,
-                      Icons.receipt_long_outlined,
-                      Icons.receipt_long,
-                      'الطلبات',
+                      icon: Icons.receipt_long_outlined,
+                      activeIcon: Icons.receipt_long_rounded,
+                      label: 'الطلبات',
                     ),
                     _buildNavItem(
                       3,
-                      Icons.person_outlined,
-                      Icons.person,
-                      'حسابي',
+                      icon: Icons.person_outline_rounded,
+                      activeIcon: Icons.person_rounded,
+                      label: 'حسابي',
                     ),
                   ],
                 ),
@@ -104,30 +103,26 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildNavItem(
-    int index,
-    IconData icon,
-    IconData activeIcon,
-    String label, {
+    int index, {
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
     bool showBadge = false,
+    int? badgeCountOverride,
   }) {
     final isSelected = _currentIndex == index;
-    final badgeCount = showBadge ? context.watch<CartProvider>().itemCount : 0;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _currentIndex = index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.secondary : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
+    final badgeCount =
+        showBadge ? (badgeCountOverride ?? context.watch<CartProvider>().itemCount) : 0;
+
+    return SizedBox(
+      width: 72,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _currentIndex = index),
+          borderRadius: BorderRadius.circular(16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Stack(
                 clipBehavior: Clip.none,
@@ -135,28 +130,29 @@ class _MainScreenState extends State<MainScreen> {
                   Icon(
                     isSelected ? activeIcon : icon,
                     color: isSelected ? AppColors.primary : AppColors.textHint,
-                    size: 23,
+                    size: 26,
                   ),
                   if (badgeCount > 0)
-                    Positioned(
-                      right: -8,
-                      top: -4,
+                    PositionedDirectional(
+                      end: -10,
+                      top: -8,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
                           color: AppColors.primary,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
+                        constraints: const BoxConstraints(minWidth: 18),
                         child: Text(
-                          badgeCount > 9 ? '9+' : badgeCount.toString(),
+                          badgeCount > 99 ? '99+' : badgeCount.toString(),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -165,12 +161,25 @@ class _MainScreenState extends State<MainScreen> {
                 ],
               ),
               const SizedBox(height: 4),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 3,
+                width: isSelected ? 18 : 0,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 4),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? AppColors.primary : AppColors.textHint,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color:
+                      isSelected ? AppColors.primary : AppColors.textSecondary,
                 ),
               ),
             ],

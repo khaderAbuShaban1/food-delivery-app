@@ -10,6 +10,7 @@ import '../../core/services/cart_provider.dart';
 import '../../core/services/realtime_sync_service.dart';
 import '../../core/widgets/widgets.dart';
 import '../home/main_screen.dart';
+import '../meal/meal_details_screen.dart';
 
 class RestaurantScreen extends StatefulWidget {
   final Restaurant restaurant;
@@ -101,13 +102,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         .toList();
   }
 
-  void _onAddToCart(MenuItem item) {
-    context.read<CartProvider>().addItem(item);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تمت إضافة ${item.name} للسلة'),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 1),
+  void _openMealDetails(MenuItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MealDetailsScreen(menuItem: item),
       ),
     );
   }
@@ -438,29 +437,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final item = _filteredItems[index];
-                    return Consumer<CartProvider>(
-                      builder: (context, cart, child) {
-                        final inCart = cart.isInCart(item.id);
-                        final quantity = cart.getQuantity(item.id);
-                        return MenuItemCard(
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _openMealDetails(item),
+                        child: MenuItemCard(
                           title: item.name,
                           image: item.image,
                           description: item.description,
                           price: item.price,
                           category: item.category ?? 'أخرى',
-                          quantity: quantity,
-                          onAddToCart: inCart ? null : () => _onAddToCart(item),
-                          onIncrease: () =>
-                              cart.updateQuantity(item, quantity + 1),
-                          onDecrease: () {
-                            if (quantity > 1) {
-                              cart.updateQuantity(item, quantity - 1);
-                            } else {
-                              cart.removeItem(item.id);
-                            }
-                          },
-                        );
-                      },
+                          showCartControls: false,
+                        ),
+                      ),
                     );
                   }, childCount: _filteredItems.length),
                 ),
