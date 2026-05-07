@@ -29,6 +29,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _vehicleType = 'motorcycle';
   String? _profileImagePath;
   Uint8List? _profileImageBytes;
+  String? _nationalIdImagePath;
+  Uint8List? _nationalIdImageBytes;
+  String? _vehicleImagePath;
+  Uint8List? _vehicleImageBytes;
   bool _obscurePassword = true;
 
   static const _vehicleLabels = {
@@ -54,7 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _pickProfileImage() async {
+  Future<void> _pickImage({
+    required void Function(String path, Uint8List bytes) onPicked,
+  }) async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1200,
@@ -63,10 +69,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted || picked == null) return;
     final bytes = await picked.readAsBytes();
     if (!mounted) return;
-    setState(() {
-      _profileImagePath = picked.path;
-      _profileImageBytes = bytes;
-    });
+    setState(() => onPicked(picked.path, bytes));
+  }
+
+  Future<void> _pickProfileImage() async {
+    await _pickImage(
+      onPicked: (path, bytes) {
+        _profileImagePath = path;
+        _profileImageBytes = bytes;
+      },
+    );
+  }
+
+  Future<void> _pickNationalIdImage() async {
+    await _pickImage(
+      onPicked: (path, bytes) {
+        _nationalIdImagePath = path;
+        _nationalIdImageBytes = bytes;
+      },
+    );
+  }
+
+  Future<void> _pickVehicleImage() async {
+    await _pickImage(
+      onPicked: (path, bytes) {
+        _vehicleImagePath = path;
+        _vehicleImageBytes = bytes;
+      },
+    );
   }
 
   String? _required(String? value, String message) {
@@ -104,6 +134,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final navigator = Navigator.of(context);
     final auth = context.read<AuthProvider>();
 
+    final missingImageMessage = _missingImageMessage();
+    if (missingImageMessage != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(missingImageMessage),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
     final ok = await auth.register(
       name: _nameController.text.trim(),
       nationalId: _nationalIdController.text.trim(),
@@ -115,7 +156,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       vehiclePlateNumber: _plateController.text,
       city: _cityController.text,
       emergencyContactNumber: _emergencyController.text,
-      profileImagePath: _profileImagePath,
+      profileImagePath: _profileImagePath!,
+      nationalIdImagePath: _nationalIdImagePath!,
+      vehicleImagePath: _vehicleImagePath!,
     );
 
     if (!mounted) return;
@@ -136,6 +179,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (ok) {
       navigator.pop();
     }
+  }
+
+  String? _missingImageMessage() {
+    if (_profileImagePath == null) return 'الصورة الشخصية مطلوبة';
+    if (_nationalIdImagePath == null) return 'صورة الهوية مطلوبة';
+    if (_vehicleImagePath == null) return 'صورة المركبة مطلوبة';
+    return null;
   }
 
   @override
@@ -182,6 +232,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             : null,
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  _documentTile(
+                    title: 'الصورة الشخصية',
+                    subtitle: 'صورة واضحة للسائق',
+                    icon: Icons.account_circle_outlined,
+                    imageBytes: _profileImageBytes,
+                    onTap: auth.isLoading ? null : _pickProfileImage,
+                  ),
+                  _documentTile(
+                    title: 'صورة الهوية',
+                    subtitle: 'صورة الهوية الوطنية أو الشخصية',
+                    icon: Icons.badge_outlined,
+                    imageBytes: _nationalIdImageBytes,
+                    onTap: auth.isLoading ? null : _pickNationalIdImage,
+                  ),
+                  _documentTile(
+                    title: 'صورة المركبة',
+                    subtitle: 'صورة الدراجة أو السيارة المستخدمة للتوصيل',
+                    icon: Icons.two_wheeler_outlined,
+                    imageBytes: _vehicleImageBytes,
+                    onTap: auth.isLoading ? null : _pickVehicleImage,
                   ),
                   const SizedBox(height: 18),
                   _field(
@@ -262,6 +334,76 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _documentTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Uint8List? imageBytes,
+    required VoidCallback? onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.incomingGlow,
+                  borderRadius: BorderRadius.circular(12),
+                  image: imageBytes == null
+                      ? null
+                      : DecorationImage(
+                          image: MemoryImage(imageBytes),
+                          fit: BoxFit.cover,
+                        ),
+                ),
+                child: imageBytes == null
+                    ? Icon(icon, color: AppColors.accent)
+                    : const Icon(Icons.check_circle, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      imageBytes == null ? subtitle : 'تم اختيار الصورة',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.upload_file, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     );
