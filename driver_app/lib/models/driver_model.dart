@@ -4,6 +4,11 @@ class DriverModel {
   final String email;
   final String? phone;
   final bool isAvailable;
+  final String approvalStatus;
+  final String? nationalId;
+  final String? vehicleType;
+  final String? vehiclePlateNumber;
+  final String? city;
 
   DriverModel({
     required this.id,
@@ -11,6 +16,11 @@ class DriverModel {
     required this.email,
     required this.phone,
     required this.isAvailable,
+    required this.approvalStatus,
+    required this.nationalId,
+    required this.vehicleType,
+    required this.vehiclePlateNumber,
+    required this.city,
   });
 
   factory DriverModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +30,11 @@ class DriverModel {
       email: (json['email'] ?? '').toString(),
       phone: json['phone']?.toString(),
       isAvailable: json['is_available'] == true || json['is_available'] == 1,
+      approvalStatus: (json['approval_status'] ?? 'approved').toString(),
+      nationalId: json['national_id']?.toString(),
+      vehicleType: json['vehicle_type']?.toString(),
+      vehiclePlateNumber: json['vehicle_plate_number']?.toString(),
+      city: json['city']?.toString(),
     );
   }
 
@@ -30,6 +45,11 @@ class DriverModel {
       'email': email,
       'phone': phone,
       'is_available': isAvailable,
+      'approval_status': approvalStatus,
+      'national_id': nationalId,
+      'vehicle_type': vehicleType,
+      'vehicle_plate_number': vehiclePlateNumber,
+      'city': city,
     };
   }
 }

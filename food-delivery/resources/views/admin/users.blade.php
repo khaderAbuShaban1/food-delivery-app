@@ -223,6 +223,23 @@
     color: #DC2626;
 }
 
+.status-badge.pending {
+    background: #FEF3C7;
+    color: #B45309;
+}
+
+.status-badge.rejected {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.driver-meta {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: #6B7280;
+}
+
 .action-btns {
     display: flex;
     gap: 0.5rem;
@@ -268,6 +285,26 @@
 .btn-unban:hover {
     background: #FF6B2C;
     color: #FFFFFF;
+}
+
+.btn-approve {
+    background: #D1FAE5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+}
+
+.btn-approve:hover {
+    background: #A7F3D0;
+}
+
+.btn-reject {
+    background: #FEE2E2;
+    color: #B91C1C;
+    border: 1px solid #FECACA;
+}
+
+.btn-reject:hover {
+    background: #FECACA;
 }
 
 .pagination-bar {
@@ -692,6 +729,12 @@
                 <option value="restaurant" {{ request()->get('role') == 'restaurant' ? 'selected' : '' }}>المطاعم</option>
                 <option value="admin" {{ request()->get('role') == 'admin' ? 'selected' : '' }}>المدراء</option>
             </select>
+            <select name="approval_status" class="filter-select">
+                <option value="">كل حالات السائقين</option>
+                <option value="pending" {{ request()->get('approval_status') == 'pending' ? 'selected' : '' }}>بانتظار الموافقة</option>
+                <option value="approved" {{ request()->get('approval_status') == 'approved' ? 'selected' : '' }}>موافق عليه</option>
+                <option value="rejected" {{ request()->get('approval_status') == 'rejected' ? 'selected' : '' }}>مرفوض</option>
+            </select>
             <input type="date" name="date_from" class="date-input" placeholder="من" value="{{ request()->get('date_from') }}">
             <input type="date" name="date_to" class="date-input" placeholder="إلى" value="{{ request()->get('date_to') }}">
             <button type="submit" class="btn-filter">
@@ -721,6 +764,14 @@
                                 <h4>{{ $user->name }}</h4>
                                 <p>{{ $user->email }}</p>
                                 <p>{{ $roles[$user->account_type] ?? ucfirst($user->account_type) }}</p>
+                                @if($user->account_type === 'driver')
+                                    <span class="driver-meta">
+                                        {{ $user->national_id ? 'هوية: '.$user->national_id : 'هوية غير مسجلة' }}
+                                        @if($user->vehicle_type)
+                                            · {{ str_replace('_', ' ', $user->vehicle_type) }}
+                                        @endif
+                                    </span>
+                                @endif
                             </div>
                         </div>
                     </td>
@@ -743,10 +794,22 @@
                         <span class="status-badge {{ $user->is_active ? 'active' : 'banned' }}">
                             {{ $user->is_active ? 'نشط' : 'محظور' }}
                         </span>
+                        @if($user->account_type === 'driver')
+                            @php($approvalStatus = $user->approval_status ?? 'approved')
+                            <span class="status-badge {{ $approvalStatus === 'approved' ? 'active' : ($approvalStatus === 'rejected' ? 'rejected' : 'pending') }}" style="margin-top: .35rem;">
+                                {{ $approvalStatus === 'approved' ? 'موافق عليه' : ($approvalStatus === 'rejected' ? 'مرفوض' : 'بانتظار الموافقة') }}
+                            </span>
+                        @endif
                     </td>
                     <td>
                         <div class="action-btns">
                             <button class="btn-action btn-details" onclick="openDrawer({{ $user->id }}, '{{ $user->account_type }}')">التفاصيل</button>
+                            @if($user->account_type === 'driver' && ($user->approval_status ?? 'approved') !== 'approved')
+                                <button class="btn-action btn-approve" onclick="driverApproval({{ $user->id }}, 'approve')">موافقة</button>
+                            @endif
+                            @if($user->account_type === 'driver' && ($user->approval_status ?? 'approved') !== 'rejected')
+                                <button class="btn-action btn-reject" onclick="driverApproval({{ $user->id }}, 'reject')">رفض</button>
+                            @endif
                             @if($user->account_type !== 'admin')
                                 <button class="btn-action {{ $user->is_active ? 'btn-ban' : 'btn-unban' }}" onclick="quickToggle({{ $user->id }}, '{{ $user->account_type }}', {{ $user->is_active ? 'true' : 'false' }})">
                                     {{ $user->is_active ? 'حظر' : 'إلغاء حظر' }}
@@ -809,6 +872,32 @@
                     <span class="info-label">تاريخ الانضمام</span>
                     <span class="info-value" id="drawerJoined"></span>
                 </div>
+                <div id="driverApprovalDetails" style="display: none;">
+                    <div class="info-row">
+                        <span class="info-label">حالة طلب السائق</span>
+                        <span class="info-value" id="drawerDriverApproval"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">رقم الهوية</span>
+                        <span class="info-value" id="drawerNationalId"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">نوع المركبة</span>
+                        <span class="info-value" id="drawerVehicleType"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">رقم اللوحة</span>
+                        <span class="info-value" id="drawerVehiclePlate"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">المدينة</span>
+                        <span class="info-value" id="drawerCity"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">رقم الطوارئ</span>
+                        <span class="info-value" id="drawerEmergencyContact"></span>
+                    </div>
+                </div>
             </div>
 
             <div class="drawer-section">
@@ -857,6 +946,23 @@ function openDrawer(userId, accountType = 'customer') {
             document.getElementById('drawerEmail').textContent = data.email;
             document.getElementById('drawerId').textContent = '#' + data.id;
             document.getElementById('drawerJoined').textContent = data.created_at;
+            const driverDetails = document.getElementById('driverApprovalDetails');
+            if (data.account_type === 'driver') {
+                const approvalLabels = {
+                    pending: 'بانتظار الموافقة',
+                    approved: 'موافق عليه',
+                    rejected: 'مرفوض'
+                };
+                driverDetails.style.display = 'block';
+                document.getElementById('drawerDriverApproval').textContent = approvalLabels[data.approval_status] || data.approval_status || '-';
+                document.getElementById('drawerNationalId').textContent = data.national_id || '-';
+                document.getElementById('drawerVehicleType').textContent = (data.vehicle_type || '-').replaceAll('_', ' ');
+                document.getElementById('drawerVehiclePlate').textContent = data.vehicle_plate_number || '-';
+                document.getElementById('drawerCity').textContent = data.city || '-';
+                document.getElementById('drawerEmergencyContact').textContent = data.emergency_contact_number || '-';
+            } else {
+                driverDetails.style.display = 'none';
+            }
             
             const statusEl = document.getElementById('drawerStatus');
             if (data.account_type === 'admin') {
@@ -988,6 +1094,34 @@ function submitConfirmedToggle() {
 <script>
 function quickToggle(userId, accountType = 'customer', isActive = true) {
     openStatusConfirm(userId, accountType, isActive);
+}
+
+function driverApproval(driverId, action) {
+    const label = action === 'approve' ? 'الموافقة على السائق' : 'رفض طلب السائق';
+    if (!confirm('تأكيد ' + label + '؟')) return;
+
+    fetch('/admin/drivers/' + driverId + '/' + action, {
+        method: 'PATCH',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+            throw new Error(data.message || 'تعذر تحديث حالة السائق');
+        }
+        return data;
+    })
+    .then(data => {
+        toastr.success(data.message || 'تم تحديث حالة السائق');
+        window.location.reload();
+    })
+    .catch(err => {
+        toastr.error(err.message || 'حدث خطأ');
+    });
 }
 </script>
 @endsection

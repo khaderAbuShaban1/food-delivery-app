@@ -18,6 +18,7 @@ Route::get('/user', function (Request $request) {
 // User auth routes (public) - for Flutter app
 Route::post('/user/register', [AuthController::class, 'register']);
 Route::post('/user/login', [AuthController::class, 'login']);
+Route::post('/driver/register', [DriverAuthController::class, 'register']);
 Route::post('/driver/login', [DriverAuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->prefix('driver')->group(function () {

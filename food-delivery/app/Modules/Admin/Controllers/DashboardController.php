@@ -158,6 +158,12 @@ class DashboardController extends Controller
                 profile_image as avatar,
                 created_at,
                 COALESCE(is_active, 1) as is_active,
+                null as approval_status,
+                null as national_id,
+                null as vehicle_type,
+                null as vehicle_plate_number,
+                null as city,
+                null as emergency_contact_number,
                 'customer' as account_type,
                 (
                     select count(*)
@@ -179,9 +185,15 @@ class DashboardController extends Controller
                 name,
                 email,
                 phone,
-                null as avatar,
+                profile_image as avatar,
                 created_at,
                 COALESCE(is_available, 1) as is_active,
+                COALESCE(approval_status, 'approved') as approval_status,
+                national_id,
+                vehicle_type,
+                vehicle_plate_number,
+                city,
+                emergency_contact_number,
                 'driver' as account_type,
                 (
                     select count(*)
@@ -200,6 +212,12 @@ class DashboardController extends Controller
                 image as avatar,
                 created_at,
                 COALESCE(is_active, 1) as is_active,
+                null as approval_status,
+                null as national_id,
+                null as vehicle_type,
+                null as vehicle_plate_number,
+                null as city,
+                null as emergency_contact_number,
                 'restaurant' as account_type,
                 (
                     select count(*)
@@ -218,6 +236,12 @@ class DashboardController extends Controller
                 null as avatar,
                 created_at,
                 1 as is_active,
+                null as approval_status,
+                null as national_id,
+                null as vehicle_type,
+                null as vehicle_plate_number,
+                null as city,
+                null as emergency_contact_number,
                 'admin' as account_type,
                 0 as orders_count,
                 0 as total_spent
@@ -232,6 +256,11 @@ class DashboardController extends Controller
 
         if ($request->role && $request->role !== 'all') {
             $query->where('account_type', $request->role);
+        }
+
+        if ($request->filled('approval_status') && $request->approval_status !== 'all') {
+            $query->where('account_type', 'driver')
+                ->where('approval_status', $request->approval_status);
         }
 
         if ($request->search) {
@@ -695,6 +724,12 @@ class DashboardController extends Controller
             'email' => $account->email,
             'created_at' => $account->created_at->format('Y-m-d'),
             'is_active' => $this->isAccountActive($account, $type),
+            'approval_status' => $type === 'driver' ? ($account->approval_status ?? 'approved') : null,
+            'national_id' => $type === 'driver' ? ($account->national_id ?? null) : null,
+            'vehicle_type' => $type === 'driver' ? ($account->vehicle_type ?? null) : null,
+            'vehicle_plate_number' => $type === 'driver' ? ($account->vehicle_plate_number ?? null) : null,
+            'city' => $type === 'driver' ? ($account->city ?? null) : null,
+            'emergency_contact_number' => $type === 'driver' ? ($account->emergency_contact_number ?? null) : null,
             'account_type' => $type,
             'avatar' => $this->resolveAvatar($account, $type),
             'addresses' => [],
@@ -719,6 +754,41 @@ class DashboardController extends Controller
             'success' => true,
             'message' => $message,
             'is_active' => $isActive,
+        ]);
+    }
+
+    public function approveDriver(int $id): JsonResponse
+    {
+        $driver = Driver::findOrFail($id);
+        $driver->update([
+            'approval_status' => 'approved',
+            'approved_at' => now(),
+            'rejected_at' => null,
+            'is_available' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تمت الموافقة على السائق بنجاح',
+            'approval_status' => $driver->approval_status,
+        ]);
+    }
+
+    public function rejectDriver(int $id): JsonResponse
+    {
+        $driver = Driver::findOrFail($id);
+        $driver->tokens()->delete();
+        $driver->update([
+            'approval_status' => 'rejected',
+            'approved_at' => null,
+            'rejected_at' => now(),
+            'is_available' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم رفض طلب تسجيل السائق',
+            'approval_status' => $driver->approval_status,
         ]);
     }
 

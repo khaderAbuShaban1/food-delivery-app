@@ -18,7 +18,7 @@ class DriverOrderController extends Controller
     {
         $user = $request->user();
 
-        return $user instanceof Driver ? $user : null;
+        return $user instanceof Driver && $user->isApproved() ? $user : null;
     }
 
     /**

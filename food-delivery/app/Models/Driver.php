@@ -15,12 +15,20 @@ class Driver extends Model implements Authenticatable
 
     protected $fillable = [
         'name',
+        'national_id',
         'email',
         'phone',
         'password',
+        'approval_status',
+        'profile_image',
         'is_available',
         'vehicle_type',
+        'vehicle_plate_number',
+        'city',
+        'emergency_contact_number',
         'license_number',
+        'approved_at',
+        'rejected_at',
     ];
 
     protected $hidden = [
@@ -34,7 +42,14 @@ class Driver extends Model implements Authenticatable
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
             'is_available' => 'boolean',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === 'approved';
     }
 
     public function orders()
