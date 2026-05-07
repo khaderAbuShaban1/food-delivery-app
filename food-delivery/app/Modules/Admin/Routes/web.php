@@ -18,6 +18,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/users/{id}', [DashboardController::class, 'getUser'])->name('users.show');
         Route::post('/users/{id}/ban', [DashboardController::class, 'toggleUserStatusApi'])->name('users.ban');
         Route::post('/users/{id}/toggle', [DashboardController::class, 'toggleUserStatus'])->name('users.toggle');
+        Route::get('/drivers', [DashboardController::class, 'drivers'])->name('drivers.index');
         Route::patch('/drivers/{id}/approve', [DashboardController::class, 'approveDriver'])->name('drivers.approve');
         Route::patch('/drivers/{id}/reject', [DashboardController::class, 'rejectDriver'])->name('drivers.reject');
         

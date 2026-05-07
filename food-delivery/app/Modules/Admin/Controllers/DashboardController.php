@@ -285,6 +285,54 @@ class DashboardController extends Controller
         return view('admin::users', compact('users', 'roles'));
     }
 
+    public function drivers(Request $request): View
+    {
+        $status = (string) $request->query('status', 'pending');
+        $allowedStatuses = ['pending', 'approved', 'rejected'];
+        if (! in_array($status, $allowedStatuses, true)) {
+            $status = 'pending';
+        }
+
+        $query = Driver::query()
+            ->where('approval_status', $status)
+            ->orderByRaw("CASE WHEN approval_status = 'pending' THEN 0 ELSE 1 END")
+            ->latest();
+
+        $drivers = $query->paginate(20)->appends($request->except('partial'));
+
+        $counts = Driver::query()
+            ->select('approval_status', DB::raw('COUNT(*) as total'))
+            ->groupBy('approval_status')
+            ->pluck('total', 'approval_status');
+
+        $stats = [
+            'pending' => (int) ($counts['pending'] ?? 0),
+            'approved' => (int) ($counts['approved'] ?? 0),
+            'rejected' => (int) ($counts['rejected'] ?? 0),
+        ];
+
+        $statusLabels = [
+            'pending' => 'بانتظار الموافقة',
+            'approved' => 'موافق عليه',
+            'rejected' => 'مرفوض',
+        ];
+
+        $vehicleLabels = [
+            'bicycle' => 'دراجة هوائية',
+            'electric_bicycle' => 'دراجة كهربائية',
+            'motorcycle' => 'دراجة نارية',
+            'car' => 'سيارة',
+        ];
+
+        $viewData = compact('drivers', 'status', 'stats', 'statusLabels', 'vehicleLabels');
+
+        if ($request->boolean('partial') || $request->ajax()) {
+            return view('admin::partials.drivers-list', $viewData);
+        }
+
+        return view('admin::drivers', $viewData);
+    }
+
     public function restaurants(Request $request): View
     {
         $query = Restaurant::query();
