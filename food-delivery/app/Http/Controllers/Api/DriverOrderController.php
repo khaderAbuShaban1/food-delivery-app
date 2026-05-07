@@ -226,4 +226,34 @@ class DriverOrderController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Read-only history for the authenticated driver (MySQL).
+     * Returns only completed/delivered orders using the same formatter payload.
+     */
+    public function history(Request $request): JsonResponse
+    {
+        $driver = $this->ensureDriver($request);
+        if (!$driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح',
+            ], 403);
+        }
+
+        $orders = Order::query()
+            ->where('driver_id', $driver->id)
+            ->whereIn('status', [OrderWorkflow::DELIVERED, 'completed'])
+            ->with(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])
+            ->orderByDesc('updated_at')
+            ->limit(200)
+            ->get();
+
+        $formatter = app(OrderController::class);
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders->map(static fn (Order $order) => $formatter->formatOrder($order))->values()->all(),
+        ]);
+    }
 }

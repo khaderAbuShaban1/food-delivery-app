@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/order_provider.dart';
+import 'driver_order_history_screen.dart';
 import 'login_screen.dart';
 
 /// Account hub: driver identity, snapshot stats from existing providers, settings stubs, logout.
@@ -110,6 +111,17 @@ class ProfileScreen extends StatelessWidget {
               _Card(
                 child: Column(
                   children: [
+                    _ActionRow(
+                      icon: Icons.history_rounded,
+                      title: 'سجل الطلبات',
+                      subtitle: 'جميع الطلبات المكتملة',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const DriverOrderHistoryScreen()),
+                        );
+                      },
+                    ),
+                    const _CardDivider(),
                     _ActionRow(
                       icon: Icons.notifications_outlined,
                       title: 'الإشعارات',
