@@ -3,15 +3,37 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\DriverEmailVerificationCodeMail;
 use App\Models\Driver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class DriverAuthController extends Controller
 {
+    private const EMAIL_VERIFICATION_TTL_MINUTES = 10;
+
+    private function generateOtpCode(): string
+    {
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
+
+    private function driverEmailVerifyResendKey(string $email, string $ip): string
+    {
+        return 'driver-email-verify-resend:' . Str::lower(trim($email)) . '|' . $ip;
+    }
+
+    private function driverEmailVerifyAttemptKey(int $driverId, string $ip): string
+    {
+        return 'driver-email-verify-attempt:' . $driverId . '|' . $ip;
+    }
+
     public function register(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -44,17 +66,8 @@ class DriverAuthController extends Controller
             'vehicle_type.required' => 'نوع المركبة مطلوب',
             'vehicle_type.in' => 'نوع المركبة غير صالح',
             'profile_image.required' => 'الصورة الشخصية مطلوبة',
-            'profile_image.image' => 'الصورة الشخصية يجب أن تكون ملف صورة',
-            'profile_image.mimes' => 'الصورة الشخصية يجب أن تكون jpg أو jpeg أو png',
-            'profile_image.max' => 'حجم الصورة الشخصية يجب أن يكون أقل من 4 ميجابايت',
             'national_id_image.required' => 'صورة الهوية مطلوبة',
-            'national_id_image.image' => 'صورة الهوية يجب أن تكون ملف صورة',
-            'national_id_image.mimes' => 'صورة الهوية يجب أن تكون jpg أو jpeg أو png',
-            'national_id_image.max' => 'حجم صورة الهوية يجب أن يكون أقل من 4 ميجابايت',
             'vehicle_image.required' => 'صورة المركبة مطلوبة',
-            'vehicle_image.image' => 'صورة المركبة يجب أن تكون ملف صورة',
-            'vehicle_image.mimes' => 'صورة المركبة يجب أن تكون jpg أو jpeg أو png',
-            'vehicle_image.max' => 'حجم صورة المركبة يجب أن يكون أقل من 4 ميجابايت',
         ]);
 
         if ($validator->fails()) {
@@ -66,11 +79,12 @@ class DriverAuthController extends Controller
         }
 
         $validated = $validator->validated();
+
         $profileImagePath = $request->file('profile_image')->store('driver-profiles', 'public');
         $nationalIdImagePath = $request->file('national_id_image')->store('driver-documents/national-ids', 'public');
         $vehicleImagePath = $request->file('vehicle_image')->store('driver-documents/vehicles', 'public');
 
-        Driver::create([
+        $driver = Driver::create([
             'name' => $validated['name'],
             'national_id' => $validated['national_id'],
             'phone' => $validated['phone'],
@@ -83,13 +97,44 @@ class DriverAuthController extends Controller
             'profile_image' => $profileImagePath,
             'national_id_image' => $nationalIdImagePath,
             'vehicle_image' => $vehicleImagePath,
-            'approval_status' => 'pending',
+            // Important: don't submit to admin until email is verified.
+            'approval_status' => 'draft',
             'is_available' => false,
         ]);
 
+        $code = $this->generateOtpCode();
+        $expiresAt = now()->addMinutes(self::EMAIL_VERIFICATION_TTL_MINUTES);
+        $driver->forceFill([
+            'email_verified_at' => null,
+            'email_verification_code_hash' => Hash::make($code),
+            'email_verification_expires_at' => $expiresAt,
+            'email_verification_last_sent_at' => now(),
+        ])->save();
+
+        try {
+            Mail::to($driver->email)->send(new DriverEmailVerificationCodeMail(
+                code: $code,
+                expiresAt: $expiresAt,
+                driverName: (string) $driver->name,
+            ));
+            Log::info('driver_email_verification_sent', [
+                'driver_id' => $driver->id,
+                'email' => $driver->email,
+                'expires_at' => $expiresAt->toDateTimeString(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('driver_email_verification_send_failed', [
+                'driver_id' => $driver->id,
+                'email' => $driver->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'تم إرسال طلبك للإدارة وبانتظار الموافقة',
+            'message' => 'تم إنشاء الحساب. يرجى التحقق من البريد الإلكتروني أولاً',
+            'needs_email_verification' => true,
+            'email' => $driver->email,
         ], 201);
     }
 
@@ -110,11 +155,28 @@ class DriverAuthController extends Controller
 
         $driver = Driver::where('email', $request->email)->first();
 
-        if (!$driver || !Hash::check($request->password, $driver->password)) {
+        if (! $driver || ! Hash::check($request->password, $driver->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credentials',
             ], 401);
+        }
+
+        if (empty($driver->email_verified_at)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يرجى التحقق من البريد الإلكتروني أولاً',
+                'status' => 'email_not_verified',
+            ], 403);
+        }
+
+        // Email verified but not submitted yet (should be rare, but keep it explicit).
+        if (($driver->approval_status ?? '') === 'draft') {
+            return response()->json([
+                'success' => false,
+                'message' => 'تم التحقق من البريد الإلكتروني. يرجى إرسال طلب التسجيل للإدارة',
+                'status' => 'not_submitted',
+            ], 403);
         }
 
         if ($driver->approval_status === 'pending') {
@@ -149,4 +211,177 @@ class DriverAuthController extends Controller
             'data' => $driver,
         ]);
     }
+
+    public function verifyEmail(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'code' => 'required|string|min:4|max:12',
+        ], [
+            'email.required' => 'البريد الإلكتروني مطلوب',
+            'email.email' => 'يرجى إدخال بريد إلكتروني صحيح',
+            'code.required' => 'رمز التحقق مطلوب',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = (string) $request->email;
+        $driver = Driver::where('email', $email)->first();
+        if (! $driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'بيانات غير صحيحة',
+            ], 404);
+        }
+
+        if (! empty($driver->email_verified_at)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم التحقق من البريد الإلكتروني مسبقاً',
+                'status' => $driver->approval_status,
+            ]);
+        }
+
+        $attemptKey = $this->driverEmailVerifyAttemptKey((int) $driver->id, (string) $request->ip());
+        if (RateLimiter::tooManyAttempts($attemptKey, 10)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تم تجاوز عدد المحاولات. يرجى المحاولة لاحقاً',
+            ], 429);
+        }
+
+        if (empty($driver->email_verification_code_hash) || empty($driver->email_verification_expires_at)) {
+            RateLimiter::hit($attemptKey, 600);
+            return response()->json([
+                'success' => false,
+                'message' => 'يرجى طلب إرسال رمز جديد',
+            ], 400);
+        }
+
+        if (now()->greaterThan($driver->email_verification_expires_at)) {
+            RateLimiter::hit($attemptKey, 600);
+            return response()->json([
+                'success' => false,
+                'message' => 'انتهت صلاحية الرمز. يرجى طلب إرسال رمز جديد',
+            ], 400);
+        }
+
+        $code = (string) $request->code;
+        if (! Hash::check($code, (string) $driver->email_verification_code_hash)) {
+            RateLimiter::hit($attemptKey, 600);
+            return response()->json([
+                'success' => false,
+                'message' => 'رمز التحقق غير صحيح',
+            ], 400);
+        }
+
+        // Email verified: now submit the registration request to admin.
+        $driver->forceFill([
+            'email_verified_at' => now(),
+            'email_verification_code_hash' => null,
+            'email_verification_expires_at' => null,
+            'approval_status' => $driver->approval_status === 'draft' ? 'pending' : $driver->approval_status,
+            'approved_at' => null,
+            'rejected_at' => null,
+            'is_available' => false,
+        ])->save();
+
+        RateLimiter::clear($attemptKey);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم التحقق من البريد الإلكتروني بنجاح. تم إرسال طلبك للإدارة وبانتظار الموافقة',
+            'status' => $driver->approval_status,
+        ]);
+    }
+
+    public function resendEmailVerification(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ], [
+            'email.required' => 'البريد الإلكتروني مطلوب',
+            'email.email' => 'يرجى إدخال بريد إلكتروني صحيح',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = (string) $request->email;
+        $driver = Driver::where('email', $email)->first();
+        if (! $driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'بيانات غير صحيحة',
+            ], 404);
+        }
+
+        if (! empty($driver->email_verified_at)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم التحقق من البريد الإلكتروني مسبقاً',
+                'status' => $driver->approval_status,
+            ]);
+        }
+
+        $resendKey = $this->driverEmailVerifyResendKey($email, (string) $request->ip());
+        if (RateLimiter::tooManyAttempts($resendKey, 5)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يرجى الانتظار قبل إعادة الإرسال',
+            ], 429);
+        }
+
+        if (! empty($driver->email_verification_last_sent_at) && now()->diffInSeconds($driver->email_verification_last_sent_at) < 60) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يرجى الانتظار قبل إعادة الإرسال',
+            ], 429);
+        }
+
+        $code = $this->generateOtpCode();
+        $expiresAt = now()->addMinutes(self::EMAIL_VERIFICATION_TTL_MINUTES);
+        $driver->forceFill([
+            'email_verification_code_hash' => Hash::make($code),
+            'email_verification_expires_at' => $expiresAt,
+            'email_verification_last_sent_at' => now(),
+        ])->save();
+
+        try {
+            Mail::to($driver->email)->send(new DriverEmailVerificationCodeMail(
+                code: $code,
+                expiresAt: $expiresAt,
+                driverName: (string) $driver->name,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('driver_email_verification_resend_failed', [
+                'driver_id' => $driver->id,
+                'email' => $driver->email,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'تعذر إرسال البريد الإلكتروني حالياً',
+            ], 500);
+        }
+
+        RateLimiter::hit($resendKey, 600);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+        ]);
+    }
 }
+

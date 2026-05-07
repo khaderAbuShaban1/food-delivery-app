@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import 'email_verification_screen.dart';
 import 'main_nav_screen.dart';
 import 'register_screen.dart';
 
@@ -121,6 +122,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (auth.error != null) ...[
                   const SizedBox(height: 10),
                   Text(auth.error!, style: const TextStyle(color: Colors.red)),
+                  if ((auth.error ?? '').contains(
+                    'يرجى التحقق من البريد الإلكتروني',
+                  )) ...[
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              final email = _emailController.text.trim();
+                              if (email.isEmpty) return;
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => EmailVerificationScreen(
+                                    initialEmail: email,
+                                  ),
+                                ),
+                              );
+                            },
+                      child: const Text('تأكيد البريد الإلكتروني'),
+                    ),
+                  ],
                 ],
               ],
             ),

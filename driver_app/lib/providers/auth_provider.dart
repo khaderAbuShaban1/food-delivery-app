@@ -94,6 +94,48 @@ class AuthProvider extends ChangeNotifier {
     return ok;
   }
 
+  Future<bool> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    isLoading = true;
+    error = null;
+    successMessage = null;
+    notifyListeners();
+
+    final (ok, message) = await _authService.verifyEmail(
+      email: email,
+      code: code,
+    );
+    isLoading = false;
+    if (ok) {
+      successMessage = message;
+    } else {
+      error = message;
+    }
+    notifyListeners();
+    return ok;
+  }
+
+  Future<bool> resendVerificationCode({required String email}) async {
+    isLoading = true;
+    error = null;
+    successMessage = null;
+    notifyListeners();
+
+    final (ok, message) = await _authService.resendVerificationCode(
+      email: email,
+    );
+    isLoading = false;
+    if (ok) {
+      successMessage = message;
+    } else {
+      error = message;
+    }
+    notifyListeners();
+    return ok;
+  }
+
   String? _firstValidationMessage(Map<String, dynamic>? errors) {
     if (errors == null || errors.isEmpty) return null;
     final first = errors.values.first;

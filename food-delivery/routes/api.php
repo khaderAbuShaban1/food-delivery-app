@@ -20,6 +20,8 @@ Route::post('/user/register', [AuthController::class, 'register']);
 Route::post('/user/login', [AuthController::class, 'login']);
 Route::post('/driver/register', [DriverAuthController::class, 'register']);
 Route::post('/driver/login', [DriverAuthController::class, 'login']);
+Route::post('/driver/verify-email', [DriverAuthController::class, 'verifyEmail']);
+Route::post('/driver/resend-verification', [DriverAuthController::class, 'resendEmailVerification']);
 
 Route::middleware('auth:sanctum')->prefix('driver')->group(function () {
     Route::get('/orders/available-pool', [DriverOrderController::class, 'availablePool']);
