@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Services\OrderWorkflow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,11 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    private function statusLabel(string $status): string
+    {
+        return OrderWorkflow::label($status);
+    }
+
     public function index(): View|RedirectResponse
     {
         $restaurant = Auth::guard('restaurant')->user();
@@ -23,8 +29,11 @@ class DashboardController extends Controller
             return redirect()->route('restaurant.login');
         }
 
+        $visible = OrderWorkflow::restaurantVisibleStatuses();
+
         $orderStatusCounts = Order::query()
             ->where('restaurant_id', $restaurant->id)
+            ->whereIn('status', $visible)
             ->select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -32,34 +41,95 @@ class DashboardController extends Controller
         $today = now()->startOfDay();
         $todayOrdersQuery = Order::query()
             ->where('restaurant_id', $restaurant->id)
+            ->whereIn('status', $visible)
             ->where('created_at', '>=', $today);
 
         $stats = [
-            'orders_total' => (int) Order::where('restaurant_id', $restaurant->id)->count(),
+            'orders_total' => (int) Order::where('restaurant_id', $restaurant->id)->whereIn('status', $visible)->count(),
             'orders_today' => (int) (clone $todayOrdersQuery)->count(),
-            'pending_orders' => (int) ($orderStatusCounts['pending'] ?? 0),
+            'pending_orders' => (int) ($orderStatusCounts[OrderWorkflow::PAYMENT_VERIFIED] ?? 0),
             'menu_items_total' => (int) MenuItem::where('restaurant_id', $restaurant->id)->count(),
             'menu_items_available' => (int) MenuItem::where('restaurant_id', $restaurant->id)->where('is_available', true)->count(),
-            'revenue_total' => (float) Order::where('restaurant_id', $restaurant->id)->where('status', 'completed')->sum('total_price'),
-            'revenue_today' => (float) (clone $todayOrdersQuery)->where('status', 'completed')->sum('total_price'),
+            'revenue_total' => (float) Order::where('restaurant_id', $restaurant->id)->where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
+            'revenue_today' => (float) (clone $todayOrdersQuery)->where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
         ];
 
-        $orderStats = [
-            'pending' => (int) ($orderStatusCounts['pending'] ?? 0),
-            'accepted' => (int) ($orderStatusCounts['accepted'] ?? 0),
-            'preparing' => (int) ($orderStatusCounts['preparing'] ?? 0),
-            'delivering' => (int) ($orderStatusCounts['delivering'] ?? 0),
-            'completed' => (int) ($orderStatusCounts['completed'] ?? 0),
-            'cancelled' => (int) ($orderStatusCounts['cancelled'] ?? 0),
-        ];
+        $orderStats = collect($visible)
+            ->mapWithKeys(fn (string $s) => [$s => (int) ($orderStatusCounts[$s] ?? 0)])
+            ->all();
 
         $recentOrders = Order::query()
             ->where('restaurant_id', $restaurant->id)
+            ->whereIn('status', $visible)
             ->latest()
             ->limit(6)
             ->get(['id', 'order_number', 'status', 'total_price', 'created_at']);
 
         return view('restaurant::dashboard', compact('restaurant', 'stats', 'orderStats', 'recentOrders'));
+    }
+
+    public function realtime(Request $request): JsonResponse
+    {
+        $restaurant = Auth::guard('restaurant')->user();
+        if (!$restaurant || !$restaurant->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح',
+            ], 401);
+        }
+
+        $visible = OrderWorkflow::restaurantVisibleStatuses();
+
+        $orderStatusCounts = Order::query()
+            ->where('restaurant_id', $restaurant->id)
+            ->whereIn('status', $visible)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $today = now()->startOfDay();
+        $todayOrdersQuery = Order::query()
+            ->where('restaurant_id', $restaurant->id)
+            ->whereIn('status', $visible)
+            ->where('created_at', '>=', $today);
+
+        $stats = [
+            'orders_total' => (int) Order::where('restaurant_id', $restaurant->id)->whereIn('status', $visible)->count(),
+            'orders_today' => (int) (clone $todayOrdersQuery)->count(),
+            'pending_orders' => (int) ($orderStatusCounts[OrderWorkflow::PAYMENT_VERIFIED] ?? 0),
+            'menu_items_total' => (int) MenuItem::where('restaurant_id', $restaurant->id)->count(),
+            'menu_items_available' => (int) MenuItem::where('restaurant_id', $restaurant->id)->where('is_available', true)->count(),
+            'revenue_total' => (float) Order::where('restaurant_id', $restaurant->id)->where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
+            'revenue_today' => (float) (clone $todayOrdersQuery)->where('status', OrderWorkflow::DELIVERED)->sum('total_price'),
+        ];
+
+        $orderStats = collect($visible)
+            ->mapWithKeys(fn (string $s) => [$s => (int) ($orderStatusCounts[$s] ?? 0)])
+            ->all();
+
+        $recentOrders = Order::query()
+            ->where('restaurant_id', $restaurant->id)
+            ->whereIn('status', $visible)
+            ->latest()
+            ->limit(6)
+            ->get(['id', 'order_number', 'status', 'total_price', 'created_at'])
+            ->map(fn ($order) => [
+                'id' => $order->id,
+                'order_number' => $order->order_number ?: $order->id,
+                'status' => $order->status,
+                'status_label' => $this->statusLabel($order->status),
+                'total_price' => (float) $order->total_price,
+                'created_at' => optional($order->created_at)->format('Y-m-d H:i'),
+            ])->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'stats' => $stats,
+                'orderStats' => $orderStats,
+                'recentOrders' => $recentOrders,
+            ],
+        ]);
     }
 
     public function updateStatus(Request $request, int $restaurantId): JsonResponse|RedirectResponse

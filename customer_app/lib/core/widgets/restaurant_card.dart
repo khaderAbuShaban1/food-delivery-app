@@ -163,21 +163,16 @@ class RestaurantCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.sm),
-                            const Text(
-                              '•',
-                              style: TextStyle(color: AppColors.textHint),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Text(
-                              restaurant.avgPrice != null
-                                  ? 'متوسط ₪${restaurant.avgPrice!.toStringAsFixed(0)}'
-                                  : 'سعر غير متوفر',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                            if (restaurant.ratingsCount == 0) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              const Text(
+                                'لا توجد تقييمات بعد',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ],

@@ -2,17 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
-class Restaurant extends Model implements Authenticatable
+class Restaurant extends Authenticatable
 {
-    use HasFactory, Notifiable, AuthenticatableTrait, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $table = 'restaurants';
 

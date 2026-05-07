@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+
 import '../../core/api/api_client.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'order_tracking_screen.dart';
@@ -17,61 +20,101 @@ class _OrdersScreenState extends State<OrdersScreen> {
   List<Map<String, dynamic>> _orders = [];
   bool _isLoading = true;
   String? _errorMessage;
+  StreamSubscription<dynamic>? _userSub;
+  Timer? _ordersPollTimer;
 
   static const List<String> _statusFlow = [
-    'pending',
-    'accepted',
+    'pending_payment_verification',
+    'payment_verified',
+    'accepted_by_restaurant',
     'preparing',
-    'delivering',
-    'completed',
+    'on_the_way',
+    'delivered',
   ];
 
   static const Map<String, String> _statusLabels = {
+    'pending_payment_verification': 'بانتظار تحقق الدفع',
+    'payment_verified': 'تم التحقق من الدفع',
+    'payment_rejected': 'رفض الدفع',
+    'accepted_by_restaurant': 'مقبول من المطعم',
+    'preparing': 'قيد التحضير',
+    'on_the_way': 'في الطريق',
+    'delivered': 'تم التسليم',
     'pending': 'بانتظار التأكيد',
     'accepted': 'تم التأكيد',
-    'preparing': 'قيد التحضير',
-    'delivering': 'في الطريق',
-    'completed': 'تم التسليم',
     'cancelled': 'ملغى',
   };
 
   static const Map<String, Color> _statusColors = {
+    'pending_payment_verification': AppColors.textSecondary,
+    'payment_verified': Color(0xFF3498DB),
+    'payment_rejected': AppColors.error,
+    'accepted_by_restaurant': Color(0xFF0891B2),
+    'preparing': AppColors.primary,
+    'on_the_way': AppColors.primaryDark,
+    'delivered': AppColors.success,
     'pending': AppColors.textSecondary,
     'accepted': Color(0xFF3498DB),
-    'preparing': AppColors.primary,
-    'delivering': Color(0xFF9B59B6),
-    'completed': AppColors.success,
     'cancelled': AppColors.error,
   };
 
   @override
   void initState() {
     super.initState();
+    AuthService.fetchCurrentUser();
+    _watchUserChanges();
+    _startOrdersPolling();
     _loadOrders();
   }
 
-  Future<void> _loadOrders() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+  void _watchUserChanges() {
+    _userSub?.cancel();
+    _userSub = AuthService.watchCurrentUser().listen((_) {
+      if (!mounted) return;
+      _loadOrders(showLoading: false);
     });
+  }
+
+  void _startOrdersPolling() {
+    _ordersPollTimer?.cancel();
+    _ordersPollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _loadOrders(showLoading: false);
+    });
+  }
+
+  Future<void> _loadOrders({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     final response = await ApiClient.get('/orders');
     if (!mounted) return;
 
     if (response['success'] == true && response['data'] is List) {
       final List data = response['data'] as List;
+      final orders = data.map((e) => Map<String, dynamic>.from(e)).toList();
       setState(() {
-        _orders = data.map((e) => Map<String, dynamic>.from(e)).toList();
-        _isLoading = false;
+        _orders = orders;
+        if (showLoading) _isLoading = false;
+        if (!showLoading && _errorMessage != null) _errorMessage = null;
       });
       return;
     }
 
     setState(() {
       _errorMessage = response['message']?.toString() ?? 'تعذر تحميل الطلبات';
-      _isLoading = false;
+      if (showLoading) _isLoading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    _ordersPollTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -83,28 +126,24 @@ class _OrdersScreenState extends State<OrdersScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadOrders,
-        color: AppColors.primary,
-        child: _isLoading
-            ? const LoadingShimmer(itemCount: 4)
-            : _errorMessage != null
-                ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
-                : _orders.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.receipt_long_outlined,
-                        title: 'لا توجد طلبات بعد',
-                        subtitle: 'عند إتمام أي طلب سيظهر هنا',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        itemCount: _orders.length,
-                        itemBuilder: (context, index) {
-                          final order = _orders[index];
-                          return _buildOrderCard(order);
-                        },
-                      ),
-      ),
+      body: _isLoading
+          ? const LoadingShimmer(itemCount: 4)
+          : _errorMessage != null
+              ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
+              : _orders.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'لا توجد طلبات بعد',
+                      subtitle: 'عند إتمام أي طلب سيظهر هنا',
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      itemCount: _orders.length,
+                      itemBuilder: (context, index) {
+                        final order = _orders[index];
+                        return _buildOrderCard(order);
+                      },
+                    ),
     );
   }
 
@@ -203,7 +242,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 child: Image.network(
                                   restaurant['image']!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(
+                                  errorBuilder: (_, _, _) => const Icon(
                                     Icons.restaurant_outlined,
                                     color: AppColors.textHint,
                                   ),
@@ -259,68 +298,108 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Widget _buildStatusTimeline(String currentStatus) {
+    if (currentStatus == 'payment_rejected') {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.08),
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(AppRadius.xl),
+          ),
+        ),
+        child: const Text(
+          'تم رفض الدفع لهذا الطلب',
+          style: TextStyle(fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
+
     final currentIndex = _statusFlow.indexOf(currentStatus);
-    final adjustedIndex = currentStatus == 'cancelled' ? -1 : currentIndex;
+    final adjustedIndex = currentStatus == 'cancelled'
+        ? -1
+        : (currentIndex >= 0 ? currentIndex : 0);
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.secondary.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(AppRadius.xl),
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          for (int i = 0; i < _statusFlow.length; i++) ...[
-            if (i > 0)
-              Expanded(
-                child: Container(
-                  height: 3,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.xl),
-                  decoration: BoxDecoration(
-                    color: i <= adjustedIndex
-                        ? _statusColors[_statusFlow[i]] ?? AppColors.primary
-                        : AppColors.divider,
-                    borderRadius: BorderRadius.circular(2),
+          Row(
+            children: [
+              for (int i = 0; i < _statusFlow.length; i++) ...[
+                Expanded(
+                  child: Center(
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: i <= adjustedIndex
+                            ? _statusColors[_statusFlow[i]] ?? AppColors.primary
+                            : AppColors.divider,
+                        shape: BoxShape.circle,
+                      ),
+                      child: i <= adjustedIndex
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 13,
+                            )
+                          : null,
+                    ),
                   ),
                 ),
-              ),
-            Column(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: i <= adjustedIndex
-                        ? _statusColors[_statusFlow[i]] ?? AppColors.primary
-                        : AppColors.divider,
-                    shape: BoxShape.circle,
+                if (i < _statusFlow.length - 1)
+                  Expanded(
+                    child: Container(
+                      height: 3,
+                      margin: const EdgeInsets.only(bottom: 1),
+                      decoration: BoxDecoration(
+                        color: (i + 1) <= adjustedIndex
+                            ? _statusColors[_statusFlow[i + 1]] ?? AppColors.primary
+                            : AppColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  child: i <= adjustedIndex
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 14,
-                        )
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _statusLabels[_statusFlow[i]] ?? '',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight:
-                        i == adjustedIndex ? FontWeight.bold : FontWeight.normal,
-                    color: i <= adjustedIndex
-                        ? AppColors.textPrimary
-                        : AppColors.textHint,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
               ],
-            ),
-          ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < _statusFlow.length; i++) ...[
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(
+                      _statusLabels[_statusFlow[i]] ?? '',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: i == adjustedIndex ? FontWeight.bold : FontWeight.normal,
+                        color: i <= adjustedIndex ? AppColors.textPrimary : AppColors.textHint,
+                        height: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                if (i < _statusFlow.length - 1) const Expanded(child: SizedBox()),
+              ],
+            ],
+          ),
         ],
       ),
     );

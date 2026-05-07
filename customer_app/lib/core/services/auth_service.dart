@@ -1,7 +1,10 @@
 import '../api/api_client.dart';
+import 'dart:async';
 
 class AuthService {
   static Map<String, dynamic>? _currentUser;
+  static final StreamController<Map<String, dynamic>?> _userController =
+      StreamController<Map<String, dynamic>?>.broadcast();
 
   static bool _isSuccess(Map<String, dynamic> response) {
     return response['status'] == true || response['success'] == true;
@@ -20,7 +23,8 @@ class AuthService {
 
     if (response['data'] is Map<String, dynamic>) {
       final data = response['data'] as Map<String, dynamic>;
-      final nestedToken = data['token']?.toString() ?? data['access_token']?.toString();
+      final nestedToken =
+          data['token']?.toString() ?? data['access_token']?.toString();
       if (nestedToken != null && nestedToken.isNotEmpty) {
         return nestedToken;
       }
@@ -40,11 +44,23 @@ class AuthService {
   }
 
   static Map<String, dynamic>? get currentUser => _currentUser;
+  static Stream<Map<String, dynamic>?> watchCurrentUser() =>
+      _userController.stream;
+
   static String get currentUserName =>
       _currentUser?['name']?.toString() ?? 'ضيف';
+
   static String get currentUserEmail =>
       _currentUser?['email']?.toString() ?? '';
-  static String? get currentUserImage => _currentUser?['profile_image']?.toString();
+
+  static String? get currentUserImage =>
+      _currentUser?['profile_image']?.toString();
+
+  static void _emitUser() {
+    _userController.add(
+      _currentUser == null ? null : Map<String, dynamic>.from(_currentUser!),
+    );
+  }
 
   static Future<String> login(String email, String password) async {
     try {
@@ -60,6 +76,7 @@ class AuthService {
         }
         ApiClient.token = token;
         _currentUser = _extractUser(response);
+        _emitUser();
         return 'success';
       }
 
@@ -92,12 +109,12 @@ class AuthService {
         }
         ApiClient.token = token;
         _currentUser = _extractUser(response);
+        _emitUser();
         return 'success';
       }
 
       final message = response['message']?.toString() ?? 'حدث خطأ';
 
-      // Handle validation errors
       if (response['errors'] != null) {
         final errors = response['errors'];
         final firstError = errors.keys.first;
@@ -113,11 +130,11 @@ class AuthService {
   static Future<void> logout() async {
     try {
       await ApiClient.post('/logout', {});
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
+
     ApiClient.token = null;
     _currentUser = null;
+    _emitUser();
   }
 
   static bool isLoggedIn() {
@@ -126,11 +143,15 @@ class AuthService {
 
   static Future<Map<String, dynamic>?> fetchCurrentUser() async {
     if (!isLoggedIn()) return null;
+
     final response = await ApiClient.get('/me');
+
     if (_isSuccess(response) && response['data'] is Map<String, dynamic>) {
       _currentUser = response['data'] as Map<String, dynamic>;
+      _emitUser();
       return _currentUser;
     }
+
     return _currentUser;
   }
 
@@ -145,10 +166,15 @@ class AuthService {
       });
 
       if (_isSuccess(response)) {
-        if (_currentUser != null) {
+        final updated = _extractUser(response);
+        if (updated != null) {
+          _currentUser = updated;
+        } else if (_currentUser != null) {
           _currentUser!['name'] = name;
           if (phone != null) _currentUser!['phone'] = phone;
         }
+
+        _emitUser();
         return 'success';
       }
 
@@ -174,7 +200,8 @@ class AuthService {
         return 'success';
       }
 
-      final message = response['message']?.toString() ?? 'تعذر تغيير كلمة المرور';
+      final message =
+          response['message']?.toString() ?? 'تعذر تغيير كلمة المرور';
       return message;
     } catch (e) {
       return 'حدث خطأ في الاتصال';
@@ -183,10 +210,15 @@ class AuthService {
 
   static Future<String> uploadProfileImage(String imagePath) async {
     try {
-      final response = await ApiClient.uploadFile('/profile/image', imagePath, 'image');
+      final response = await ApiClient.uploadFile(
+        '/profile/image',
+        imagePath,
+        'image',
+      );
 
       if (_isSuccess(response)) {
         await fetchCurrentUser();
+        _emitUser();
         return 'success';
       }
 

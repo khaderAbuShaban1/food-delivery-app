@@ -45,8 +45,13 @@ class User extends Authenticatable
         return $this->hasMany(Order::class, 'customer_id');
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
     public function getTotalSpentAttribute(): float
     {
-        return $this->orders()->where('status', 'completed')->sum('total_price') ?? 0;
+        return $this->orders()->where('status', 'delivered')->sum('total_price') ?? 0;
     }
 }

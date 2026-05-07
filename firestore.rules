@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Order data lives in Laravel (MySQL) only; no Firestore reads/writes for orders.
+    // Optional future: use Firebase Cloud Messaging (FCM) for push — not Firestore payloads.
+    match /orders/{orderId} {
+      allow read, write: if false;
+    }
+  }
+}

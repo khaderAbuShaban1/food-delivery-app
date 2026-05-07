@@ -63,43 +63,41 @@
 <div class="dashboard-grid">
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">إجمالي الطلبات</span><span class="kpi-icon primary"><i class="fas fa-receipt"></i></span></div>
-        <div class="kpi-value">{{ number_format($stats['totalOrders']) }}</div>
-        <div class="kpi-meta">طلبات اليوم: {{ number_format($stats['todayOrders']) }}</div>
+        <div id="kpiTotalOrders" class="kpi-value">{{ number_format($stats['totalOrders']) }}</div>
+        <div class="kpi-meta">طلبات اليوم: <span id="kpiTodayOrders">{{ number_format($stats['todayOrders']) }}</span></div>
     </div>
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">إيراد اليوم</span><span class="kpi-icon success"><i class="fas fa-coins"></i></span></div>
-        <div class="kpi-value">@price($stats['todayRevenue'])</div>
-        <div class="kpi-meta">الإيراد الكلي: @price($stats['totalRevenue'])</div>
+        <div id="kpiTodayRevenue" class="kpi-value">@price($stats['todayRevenue'])</div>
+        <div class="kpi-meta">الإيراد الكلي: <span id="kpiTotalRevenue">@price($stats['totalRevenue'])</span></div>
     </div>
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">العملاء</span><span class="kpi-icon info"><i class="fas fa-users"></i></span></div>
-        <div class="kpi-value">{{ number_format($stats['totalCustomers']) }}</div>
-        <div class="kpi-meta">النشطون: {{ number_format($stats['activeCustomers']) }}</div>
+        <div id="kpiTotalCustomers" class="kpi-value">{{ number_format($stats['totalCustomers']) }}</div>
+        <div class="kpi-meta">النشطون: <span id="kpiActiveCustomers">{{ number_format($stats['activeCustomers']) }}</span></div>
     </div>
     <div class="kpi-card">
         <div class="kpi-head"><span class="kpi-title">المطاعم</span><span class="kpi-icon warning"><i class="fas fa-store"></i></span></div>
-        <div class="kpi-value">{{ number_format($stats['totalRestaurants']) }}</div>
-        <div class="kpi-meta">فعّال: {{ number_format($stats['activeRestaurants']) }} | مفتوح: {{ number_format($stats['openRestaurants']) }}</div>
+        <div id="kpiTotalRestaurants" class="kpi-value">{{ number_format($stats['totalRestaurants']) }}</div>
+        <div class="kpi-meta">فعّال: <span id="kpiActiveRestaurants">{{ number_format($stats['activeRestaurants']) }}</span> | مفتوح: <span id="kpiOpenRestaurants">{{ number_format($stats['openRestaurants']) }}</span></div>
     </div>
 
     <section class="panel panel-half">
         <h3>حالة الطلبات</h3>
         <div class="progress-stack">
-            <div class="progress-row"><span class="progress-label">قيد الانتظار</span><div class="progress-track"><div class="progress-fill pending" style="width: {{ $orderProgress['pending'] }}%"></div></div><span class="progress-value">{{ $orderStats['pending'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">قيد التجهيز</span><div class="progress-track"><div class="progress-fill preparing" style="width: {{ $orderProgress['preparing'] }}%"></div></div><span class="progress-value">{{ $orderStats['preparing'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">في الطريق</span><div class="progress-track"><div class="progress-fill delivering" style="width: {{ $orderProgress['delivering'] }}%"></div></div><span class="progress-value">{{ $orderStats['delivering'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">مكتمل</span><div class="progress-track"><div class="progress-fill completed" style="width: {{ $orderProgress['completed'] }}%"></div></div><span class="progress-value">{{ $orderStats['completed'] }}</span></div>
-            <div class="progress-row"><span class="progress-label">ملغي</span><div class="progress-track"><div class="progress-fill cancelled" style="width: {{ $orderProgress['cancelled'] }}%"></div></div><span class="progress-value">{{ $orderStats['cancelled'] }}</span></div>
+            @foreach(\App\Services\OrderWorkflow::arabicLabels() as $code => $label)
+            <div class="progress-row"><span class="progress-label">{{ $label }}</span><div class="progress-track"><div id="progressFill-{{ $code }}" class="progress-fill preparing" style="width: {{ $orderProgress[$code] ?? 0 }}%"></div></div><span id="progressValue-{{ $code }}" class="progress-value">{{ $orderStats[$code] ?? 0 }}</span></div>
+            @endforeach
         </div>
     </section>
 
     <section class="panel panel-third">
         <h3>ملخص التشغيل</h3>
         <div class="summary-list">
-            <div class="summary-item"><div class="label">السائقون</div><div class="value">{{ $stats['activeDrivers'] }} / {{ $stats['totalDrivers'] }}</div></div>
-            <div class="summary-item"><div class="label">المدراء</div><div class="value">{{ $stats['totalAdmins'] }}</div></div>
-            <div class="summary-item"><div class="label">طلبات مقبولة</div><div class="value">{{ $orderStats['accepted'] }}</div></div>
-            <div class="summary-item"><div class="label">طلبات اليوم</div><div class="value">{{ $stats['todayOrders'] }}</div></div>
+            <div class="summary-item"><div class="label">السائقون</div><div id="summaryDrivers" class="value">{{ $stats['activeDrivers'] }} / {{ $stats['totalDrivers'] }}</div></div>
+            <div class="summary-item"><div class="label">المدراء</div><div id="summaryAdmins" class="value">{{ $stats['totalAdmins'] }}</div></div>
+            <div class="summary-item"><div class="label">قيد تنفيذ المطعم</div><div id="summaryAcceptedOrders" class="value">{{ $summaryAcceptedOrders }}</div></div>
+            <div class="summary-item"><div class="label">طلبات اليوم</div><div id="summaryTodayOrders" class="value">{{ $stats['todayOrders'] }}</div></div>
         </div>
     </section>
 
@@ -122,23 +120,13 @@
                 <thead>
                     <tr><th>رقم الطلب</th><th>المطعم</th><th>الحالة</th><th>الإجمالي</th><th>التاريخ</th></tr>
                 </thead>
-                <tbody>
+                <tbody id="recentOrdersBody">
                     @forelse($recentOrders as $order)
-                        @php
-                            $statusLabel = match($order->status) {
-                                'pending' => 'قيد الانتظار',
-                                'accepted' => 'مقبول',
-                                'preparing' => 'قيد التجهيز',
-                                'delivering' => 'في الطريق',
-                                'completed' => 'مكتمل',
-                                'cancelled' => 'ملغي',
-                                default => $order->status,
-                            };
-                        @endphp
+                        @php $statusLabel = \App\Services\OrderWorkflow::label($order->status); @endphp
                         <tr>
                             <td>#{{ $order->order_number ?: $order->id }}</td>
                             <td>{{ $order->restaurant?->name ?? '-' }}</td>
-                            <td><span class="badge-soft {{ $order->status }}">{{ $statusLabel }}</span></td>
+                            <td><span class="badge-soft">{{ $statusLabel }}</span></td>
                             <td>@price($order->total_price)</td>
                             <td>{{ $order->created_at?->format('Y-m-d H:i') }}</td>
                         </tr>
@@ -150,4 +138,100 @@
         </div>
     </section>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+let adminDashboardRealtimeTimer = null;
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatPrice(value) {
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) + ' ₪';
+}
+
+function updateOrderProgress(orderStats, totalOrders) {
+    const total = Math.max(Number(totalOrders || 0), 1);
+    const statuses = @json(array_keys(\App\Services\OrderWorkflow::arabicLabels()));
+    statuses.forEach((status) => {
+        const count = Number(orderStats?.[status] || 0);
+        const fillEl = document.getElementById(`progressFill-${status}`);
+        const valueEl = document.getElementById(`progressValue-${status}`);
+        if (fillEl) fillEl.style.width = `${(count / total) * 100}%`;
+        if (valueEl) valueEl.textContent = count.toLocaleString();
+    });
+}
+
+function renderRecentOrders(orders) {
+    const body = document.getElementById('recentOrdersBody');
+    if (!body) return;
+    if (!orders || !orders.length) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">لا توجد طلبات حديثة</td></tr>';
+        return;
+    }
+    body.innerHTML = orders.map((order) => `
+        <tr>
+            <td>#${escapeHtml(order.order_number)}</td>
+            <td>${escapeHtml(order.restaurant_name)}</td>
+            <td><span class="badge-soft ${escapeHtml(order.status)}">${escapeHtml(order.status_label)}</span></td>
+            <td>${formatPrice(order.total_price)}</td>
+            <td>${escapeHtml(order.created_at)}</td>
+        </tr>
+    `).join('');
+}
+
+async function fetchAdminDashboardRealtime() {
+    try {
+        const response = await fetch('{{ route('admin.dashboard.realtime') }}', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!payload?.success) return;
+        const data = payload.data || {};
+        const stats = data.stats || {};
+        const orderStats = data.orderStats || {};
+
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+
+        setText('kpiTotalOrders', Number(stats.totalOrders || 0).toLocaleString());
+        setText('kpiTodayOrders', Number(stats.todayOrders || 0).toLocaleString());
+        setText('kpiTodayRevenue', formatPrice(stats.todayRevenue));
+        setText('kpiTotalRevenue', formatPrice(stats.totalRevenue));
+        setText('kpiTotalCustomers', Number(stats.totalCustomers || 0).toLocaleString());
+        setText('kpiActiveCustomers', Number(stats.activeCustomers || 0).toLocaleString());
+        setText('kpiTotalRestaurants', Number(stats.totalRestaurants || 0).toLocaleString());
+        setText('kpiActiveRestaurants', Number(stats.activeRestaurants || 0).toLocaleString());
+        setText('kpiOpenRestaurants', Number(stats.openRestaurants || 0).toLocaleString());
+        setText('summaryDrivers', `${Number(stats.activeDrivers || 0).toLocaleString()} / ${Number(stats.totalDrivers || 0).toLocaleString()}`);
+        setText('summaryAdmins', Number(stats.totalAdmins || 0).toLocaleString());
+        const pipelineCount = data.summaryAcceptedOrders != null
+            ? Number(data.summaryAcceptedOrders)
+            : (Number(orderStats?.payment_verified || 0) + Number(orderStats?.accepted_by_restaurant || 0) + Number(orderStats?.preparing || 0));
+        setText('summaryAcceptedOrders', pipelineCount.toLocaleString());
+        setText('summaryTodayOrders', Number(stats.todayOrders || 0).toLocaleString());
+
+        updateOrderProgress(orderStats, stats.totalOrders);
+        renderRecentOrders(data.recentOrders || []);
+    } catch (_) {
+        // Ignore one failed refresh tick.
+    }
+}
+
+adminDashboardRealtimeTimer = setInterval(fetchAdminDashboardRealtime, 5000);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) fetchAdminDashboardRealtime();
+});
+</script>
 @endsection

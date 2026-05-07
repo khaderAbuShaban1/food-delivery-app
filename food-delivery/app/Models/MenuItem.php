@@ -39,10 +39,15 @@ class MenuItem extends \Illuminate\Database\Eloquent\Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function optionGroups(): HasMany
+    {
+        return $this->hasMany(MenuItemOptionGroup::class)->orderBy('sort_order');
+    }
+
     public function hasActiveOrders(): bool
     {
         return $this->orderItems()
-            ->whereHas('order', fn($q) => $q->whereNotIn('status', ['completed', 'cancelled']))
+            ->whereHas('order', fn($q) => $q->whereNotIn('status', ['delivered', 'payment_rejected']))
             ->exists();
     }
 

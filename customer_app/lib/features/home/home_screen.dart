@@ -1,11 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/models/address.dart';
 import '../../core/models/restaurant.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/services/address_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/cart_provider.dart';
+import '../../core/services/realtime_sync_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../restaurant/restaurant_screen.dart';
 
@@ -26,21 +31,67 @@ class _HomeScreenState extends State<HomeScreen> {
   double _minRating = 0;
   String _priceFilter = 'all';
   Timer? _searchDebounce;
+  StreamSubscription<Map<String, dynamic>?>? _userSub;
+  StreamSubscription<List<Restaurant>>? _restaurantsSub;
   final _searchController = TextEditingController();
+  Timer? _realtimeBackfillTimer;
   String? _profileImage;
   int _imageCacheKey = 0;
+  List<Address> _addresses = [];
+  Address? _selectedAddress;
+  bool _isAddressLoading = true;
 
-  final List<Map<String, String>> _quickFilters = const [
-    {'icon': '⚡', 'label': 'سريع'},
-    {'icon': '🔥', 'label': 'الأكثر طلباً'},
-    {'icon': '💚', 'label': 'صحي'},
-  ];
+  // Removed per design request.
+  final List<String> _quickFilters = const [];
 
   @override
   void initState() {
     super.initState();
     _loadRestaurants();
+    _subscribeToUser();
     _loadUserProfile();
+    _loadAddresses();
+    _startRealtimeListeners();
+    _startRealtimeBackfillLoop();
+  }
+
+  void _startRealtimeBackfillLoop() {
+    _realtimeBackfillTimer?.cancel();
+    _realtimeBackfillTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadRestaurants(showLoading: false);
+    });
+  }
+
+  void _subscribeToUser() {
+    _userSub?.cancel();
+    _userSub = AuthService.watchCurrentUser().listen((user) {
+      if (!mounted || user == null) return;
+      setState(() {
+        _profileImage = user['profile_image']?.toString();
+        _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
+      });
+    });
+  }
+
+  Future<void> _startRealtimeListeners() async {
+    await AuthService.fetchCurrentUser();
+
+    _restaurantsSub?.cancel();
+    _restaurantsSub = RealtimeSyncService.watchRestaurants().listen((items) {
+      if (!mounted) return;
+      if (items.isEmpty && _restaurants.isNotEmpty) return;
+      setState(() {
+        _restaurants = items;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    }, onError: (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'تعذر مزامنة المطاعم مباشرة';
+        _isLoading = false;
+      });
+    });
   }
 
   Future<void> _loadUserProfile() async {
@@ -58,9 +109,217 @@ class _HomeScreenState extends State<HomeScreen> {
     return '$url${separator}v=$_imageCacheKey';
   }
 
+  Future<void> _loadAddresses({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() => _isAddressLoading = true);
+    }
+    try {
+      final addresses = await AddressService.getAddresses();
+      if (!mounted) return;
+      final resolved = _resolveSelectedAddress(addresses);
+      setState(() {
+        _addresses = addresses;
+        _selectedAddress = resolved;
+        if (showLoading) _isAddressLoading = false;
+      });
+      context.read<CartProvider>().setDeliveryAddressId(resolved?.id);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (showLoading) _isAddressLoading = false;
+      });
+    }
+  }
+
+  Address? _resolveSelectedAddress(List<Address> addresses) {
+    if (addresses.isEmpty) return null;
+    final currentId = _selectedAddress?.id;
+    if (currentId != null) {
+      for (final address in addresses) {
+        if (address.id == currentId) return address;
+      }
+    }
+    for (final address in addresses) {
+      if (address.isDefault) return address;
+    }
+    return addresses.first;
+  }
+
+  Future<void> _onAddressTap() async {
+    if (_isAddressLoading) return;
+
+    if (_addresses.isEmpty) {
+      await Navigator.pushNamed(context, '/addresses');
+      if (!mounted) return;
+      await _loadAddresses();
+      return;
+    }
+
+    final selected = await showModalBottomSheet<Address>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            itemCount: _addresses.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return const Text(
+                  'اختر عنوان التوصيل',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                );
+              }
+
+              final address = _addresses[index - 1];
+              final isSelected = _selectedAddress?.id == address.id;
+              return InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: () => Navigator.pop(ctx, address),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.08)
+                        : AppColors.background,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      if (address.isDefault)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: const Text(
+                            'الافتراضي',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              address.title,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              address.fullAddress,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        isSelected
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textHint,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+
+    // Reflect selection immediately in the header.
+    setState(() => _selectedAddress = selected);
+    context.read<CartProvider>().setDeliveryAddressId(selected.id);
+
+    if (!selected.isDefault) {
+      try {
+        await AddressService.updateAddress(
+          id: selected.id,
+          title: selected.title,
+          city: selected.city,
+          street: selected.street,
+          details: selected.details,
+          isDefault: true,
+        );
+        if (!mounted) return;
+        setState(() {
+          _addresses = _addresses
+              .map(
+                (a) => Address(
+                  id: a.id,
+                  title: a.title,
+                  city: a.city,
+                  street: a.street,
+                  details: a.details,
+                  isDefault: a.id == selected.id,
+                ),
+              )
+              .toList();
+          _selectedAddress = _resolveSelectedAddress(_addresses);
+        });
+        context
+            .read<CartProvider>()
+            .setDeliveryAddressId(_selectedAddress?.id);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        await _loadAddresses();
+      }
+    }
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _realtimeBackfillTimer?.cancel();
+    _userSub?.cancel();
+    _restaurantsSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -74,31 +333,40 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _loadRestaurants() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadRestaurants({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final response = await ApiClient.get('/restaurants');
 
       if (response['success'] == true && response['data'] != null) {
         final List data = response['data'];
+        final restaurants = data.map((json) => Restaurant.fromJson(json)).toList();
+        try {
+          await RealtimeSyncService.syncRestaurants(restaurants);
+        } catch (_) {
+          // Firestore sync must not block showing API restaurants.
+        }
         setState(() {
-          _restaurants = data.map((json) => Restaurant.fromJson(json)).toList();
-          _isLoading = false;
+          _restaurants = restaurants;
+          if (showLoading) _isLoading = false;
+          if (!showLoading && _errorMessage != null) _errorMessage = null;
         });
       } else {
         setState(() {
           _errorMessage = response['message'] ?? 'حدث خطأ';
-          _isLoading = false;
+          if (showLoading) _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'فشل في الاتصال بالخادم';
-        _isLoading = false;
+        if (showLoading) _isLoading = false;
       });
     }
   }
@@ -160,58 +428,54 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _loadRestaurants,
-            color: AppColors.primary,
-            child: CustomScrollView(
-              slivers: [
-                // Header
-                SliverToBoxAdapter(child: _buildHeader()),
-                // Search
-                SliverToBoxAdapter(child: _buildSearch()),
-                // Featured banner
-                SliverToBoxAdapter(child: _buildFeaturedBanner()),
-                // Categories
-                SliverToBoxAdapter(child: _buildCategories()),
-                // Quick filters
-                SliverToBoxAdapter(child: _buildQuickFilters()),
-                // Section title
-                SliverToBoxAdapter(child: _buildSectionHeader()),
-                // Content
-                if (_isLoading)
-                  const SliverToBoxAdapter(child: LoadingShimmer(itemCount: 5))
-                else if (_errorMessage != null)
-                  SliverToBoxAdapter(
-                    child: ErrorState(
-                      message: _errorMessage!,
-                      onRetry: _loadRestaurants,
-                    ),
-                  )
-                else if (_filteredRestaurants.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: EmptyState(
-                      icon: Icons.restaurant_outlined,
-                      title: 'لا توجد مطاعم',
-                      subtitle: 'جرب اختيار فئة أخرى',
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final restaurant = _filteredRestaurants[index];
-                      return RestaurantCard(
-                        restaurant: restaurant,
-                        onTap: () => _navigateToRestaurant(restaurant),
-                        onRateTap: () => _rateRestaurant(restaurant),
-                      );
-                    }, childCount: _filteredRestaurants.length),
+          child: CustomScrollView(
+            slivers: [
+              // Header
+              SliverToBoxAdapter(child: _buildHeader()),
+              // Search
+              SliverToBoxAdapter(child: _buildSearch()),
+              // Featured banner
+              SliverToBoxAdapter(child: _buildFeaturedBanner()),
+              // Categories
+              SliverToBoxAdapter(child: _buildCategories()),
+              // Quick filters
+              SliverToBoxAdapter(child: _buildQuickFilters()),
+              // Section title
+              SliverToBoxAdapter(child: _buildSectionHeader()),
+              // Content
+              if (_isLoading)
+                const SliverToBoxAdapter(child: LoadingShimmer(itemCount: 5))
+              else if (_errorMessage != null)
+                SliverToBoxAdapter(
+                  child: ErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadRestaurants,
                   ),
-                // Bottom padding
+                )
+              else if (_filteredRestaurants.isEmpty)
                 const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xxl),
+                  child: EmptyState(
+                    icon: Icons.restaurant_outlined,
+                    title: 'لا توجد مطاعم',
+                    subtitle: 'جرب اختيار فئة أخرى',
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final restaurant = _filteredRestaurants[index];
+                    return RestaurantCard(
+                      restaurant: restaurant,
+                      onTap: () => _navigateToRestaurant(restaurant),
+                      onRateTap: () => _rateRestaurant(restaurant),
+                    );
+                  }, childCount: _filteredRestaurants.length),
                 ),
-              ],
-            ),
+              // Bottom padding
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.xxl),
+              ),
+            ],
           ),
         ),
       ),
@@ -219,6 +483,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final addressTitle = _selectedAddress?.title ?? 'إضافة عنوان';
+    final addressDetails = _selectedAddress?.fullAddress ?? 'اختر عنوان التوصيل';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -226,7 +493,9 @@ class _HomeScreenState extends State<HomeScreen> {
         AppSpacing.lg,
         AppSpacing.md,
       ),
-      child: Row(
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Row(
         children: [
           GestureDetector(
             onTap: () async {
@@ -263,49 +532,106 @@ class _HomeScreenState extends State<HomeScreen> {
                   : null,
             ),
           ),
-          const Spacer(),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.tune_rounded, color: AppColors.textPrimary),
-          ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: const [
-                Text(
-                  'التوصيل إلى',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
+            child: InkWell(
+              onTap: _onAddressTap,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'HH#21, ST#22, ISB',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: _isAddressLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppColors.primary,
+                            ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'التوصيل إلى',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            addressTitle,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            addressDetails,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -506,6 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickFilters() {
+    if (_quickFilters.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 44,
       child: ListView.builder(
@@ -513,7 +840,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: _quickFilters.length,
         itemBuilder: (context, index) {
-          final filter = _quickFilters[index];
+          final icon = _quickFilters[index];
           return Container(
             margin: const EdgeInsetsDirectional.only(start: AppSpacing.sm),
             padding: const EdgeInsets.symmetric(
@@ -524,20 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: AppColors.secondary,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
-            child: Row(
-              children: [
-                Text(filter['icon']!, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  filter['label']!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+            child: Text(icon, style: const TextStyle(fontSize: 14)),
           );
         },
       ),
@@ -660,6 +974,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     if (response['success'] == true && response['data'] != null) {
       final updated = Restaurant.fromJson(response['data']);
+      await RealtimeSyncService.syncRestaurant(updated);
       setState(() {
         _restaurants = _restaurants
             .map((r) => r.id == updated.id ? updated : r)

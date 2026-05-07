@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primary = Color(0xFF2ECC71);
-  static const Color primaryLight = Color(0xFF58D68D);
-  static const Color primaryDark = Color(0xFF27AE60);
-  
-  static const Color secondary = Color(0xFFEAFBF0);
-  static const Color background = Color(0xFFF8FBF9);
+  /// Vibrant brand orange — CTAs, focus, nav selection (not semantics).
+  static const Color primary = Color(0xFFFF6D00);
+  static const Color primaryLight = Color(0xFFFF8A38);
+  static const Color primaryDark = Color(0xFFE65100);
+
+  static const Color secondary = Color(0xFFFFF3E8);
+  static const Color background = Color(0xFFF7F8FA);
   static const Color surface = Color(0xFFFFFFFF);
   
   static const Color accent = Color(0xFF1A1A1A);
@@ -148,6 +149,9 @@ class AppTheme {
         color: AppColors.divider,
         thickness: 1,
         space: 1,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
       ),
       textTheme: const TextTheme(
         displayLarge: TextStyle(

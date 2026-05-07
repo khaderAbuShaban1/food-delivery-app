@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/auth_service.dart';
@@ -19,11 +20,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _email = '';
   String? _profileImage;
   int _imageCacheKey = 0;
+  StreamSubscription<Map<String, dynamic>?>? _userSub;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToUser();
     _loadUser();
+  }
+
+  void _subscribeToUser() {
+    _userSub?.cancel();
+    _userSub = AuthService.watchCurrentUser().listen((user) {
+      if (!mounted || user == null) return;
+      setState(() {
+        _name = user['name']?.toString() ?? 'ضيف';
+        _email = user['email']?.toString() ?? '';
+        _profileImage = user['profile_image']?.toString();
+        _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
+        _isLoading = false;
+      });
+    });
   }
 
   String? _getImageUrlWithCacheBuster(String? url) {
@@ -43,12 +60,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
       _isLoading = false;
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadUser();
   }
 
   @override
@@ -145,7 +156,6 @@ Container(
                     builder: (_) => const EditProfileScreen(),
                   ),
                 );
-                _loadUser();
               },
             ),
             _buildMenuItem(
@@ -175,7 +185,9 @@ Container(
             _buildMenuItem(
               icon: Icons.location_on_outlined,
               title: 'العناوين',
-              onTap: () => _showComingSoon(context),
+              onTap: () {
+                Navigator.pushNamed(context, '/addresses');
+              },
             ),
             _buildMenuItem(
               icon: Icons.payment_outlined,
@@ -310,5 +322,11 @@ Container(
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    super.dispose();
   }
 }

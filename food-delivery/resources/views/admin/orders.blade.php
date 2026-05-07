@@ -133,6 +133,80 @@
     margin-bottom: 1.5rem;
 }
 
+.payment-proof-empty {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.payment-method-card {
+    display: flex;
+    gap: 1rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+    align-items: flex-start;
+}
+
+.payment-method-logo {
+    width: 68px;
+    height: 68px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: #f3f4f6;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.payment-method-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.payment-method-row {
+    font-size: 0.88rem;
+    color: var(--text-dark);
+}
+
+.payment-method-row strong {
+    color: var(--text-muted);
+    margin-left: 0.35rem;
+}
+
+.customer-name-highlight {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.customer-name-label {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.customer-info-stack {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.customer-id-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: fit-content;
+    background: var(--primary-muted);
+    color: var(--primary);
+    border: 1px solid rgba(255, 107, 44, 0.25);
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
 .pricing-row {
     display: flex;
     justify-content: space-between;
@@ -288,6 +362,43 @@
     overflow-y: auto;
 }
 
+.orders-list-card .pagination-nav {
+    display: flex;
+    justify-content: center;
+}
+
+.orders-list-card .pagination {
+    --bs-pagination-color: var(--primary);
+    --bs-pagination-hover-color: var(--primary);
+    --bs-pagination-focus-color: var(--primary);
+    --bs-pagination-bg: #fff;
+    --bs-pagination-hover-bg: var(--primary-muted);
+    --bs-pagination-focus-bg: var(--primary-muted);
+    --bs-pagination-border-color: var(--border);
+    --bs-pagination-hover-border-color: var(--primary);
+    --bs-pagination-focus-box-shadow: 0 0 0 3px var(--primary-muted);
+    --bs-pagination-active-color: #fff;
+    --bs-pagination-active-bg: var(--primary);
+    --bs-pagination-active-border-color: var(--primary);
+    --bs-pagination-disabled-color: var(--text-muted);
+    --bs-pagination-disabled-bg: #f9fafb;
+    --bs-pagination-disabled-border-color: var(--border);
+    gap: 0.35rem;
+    margin-bottom: 0;
+}
+
+.orders-list-card .page-link {
+    border-radius: 10px !important;
+    min-width: 2.3rem;
+    text-align: center;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.orders-list-card .page-item.active .page-link {
+    box-shadow: 0 6px 16px rgba(255, 107, 44, 0.25);
+}
+
 .order-list-item {
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border);
@@ -334,12 +445,13 @@
     font-weight: 600;
 }
 
-.badge-status.pending { background: #FEF3C7; color: #D97706; }
-.badge-status.accepted { background: #DBEAFE; color: #2563EB; }
+.badge-status.pending_payment_verification { background: #FEF3C7; color: #B45309; }
+.badge-status.payment_verified { background: #DBEAFE; color: #2563EB; }
+.badge-status.payment_rejected { background: #FEE2E2; color: #DC2626; }
+.badge-status.accepted_by_restaurant { background: #E0F2FE; color: #0369A1; }
 .badge-status.preparing { background: #EDE9FE; color: #7C3AED; }
-.badge-status.delivering { background: #CFFAFE; color: #0891B2; }
-.badge-status.completed { background: #D1FAE5; color: #059669; }
-.badge-status.cancelled { background: #FEE2E2; color: #DC2626; }
+.badge-status.on_the_way { background: #CFFAFE; color: #0891B2; }
+.badge-status.delivered { background: #D1FAE5; color: #059669; }
 
 .list-item-time {
     font-size: 0.75rem;
@@ -628,12 +740,13 @@
     <div class="filter-bar-bottom">
         <div class="status-tabs">
             <button class="status-tab active" data-status="">الكل</button>
-            <button class="status-tab" data-status="pending">قيد الانتظار</button>
-            <button class="status-tab" data-status="accepted">مقبول</button>
-            <button class="status-tab" data-status="preparing">قيد التجهيز</button>
-            <button class="status-tab" data-status="delivering">في الطريق</button>
-            <button class="status-tab" data-status="completed">مكتمل</button>
-            <button class="status-tab" data-status="cancelled">ملغى</button>
+            <button class="status-tab" data-status="pending_payment_verification">انتظار التحقق</button>
+            <button class="status-tab" data-status="payment_verified">دفع موثّق</button>
+            <button class="status-tab" data-status="payment_rejected">رفض الدفع</button>
+            <button class="status-tab" data-status="accepted_by_restaurant">مقبول المطعم</button>
+            <button class="status-tab" data-status="preparing">تحضير</button>
+            <button class="status-tab" data-status="on_the_way">بالطريق</button>
+            <button class="status-tab" data-status="delivered">تم التسليم</button>
         </div>
     </div>
 </div>
@@ -671,7 +784,7 @@
         </div>
         @if($orders->hasPages())
         <div class="p-2">
-            {!! $orders->links() !!}
+            {!! $orders->links('vendor.pagination.bootstrap-5') !!}
         </div>
         @endif
     </div>
@@ -697,20 +810,21 @@ function selectOrder(orderId) {
 
 function renderOrderDetails(order) {
     const timelineSteps = [
-        { status: 'pending', title: 'طلب جديد', desc: 'تم استلام الطلب' },
-        { status: 'accepted', title: 'تم القبول', desc: 'وافق المطعم على الطلب' },
-        { status: 'preparing', title: 'قيد التجهيز', desc: 'جاري تحضير الطلب' },
-        { status: 'delivering', title: 'في الطريق', desc: 'الطلب في الطريق إليك' },
-        { status: 'completed', title: 'مكتمل', desc: 'تم تسليم الطلب بنجاح' }
+        { status: 'pending_payment_verification', title: 'انتظار التحقق', desc: 'بانتظار مراجعة إثبات الدفع' },
+        { status: 'payment_verified', title: 'دفع موثّق', desc: 'اعتمد الطلب لمطعمه' },
+        { status: 'accepted_by_restaurant', title: 'قبول المطعم', desc: 'وافق المطعم على تنفيذ الطلب' },
+        { status: 'preparing', title: 'قيد التجهيز', desc: 'المطبخ يحضّر الطلب' },
+        { status: 'on_the_way', title: 'بالطريق', desc: 'السائق في الطريق' },
+        { status: 'delivered', title: 'تم التسليم', desc: 'تم توصيل الطلب' }
     ];
 
-    const statusOrder = ['pending', 'accepted', 'preparing', 'delivering', 'completed', 'cancelled'];
+    const statusOrder = ['pending_payment_verification', 'payment_verified', 'accepted_by_restaurant', 'preparing', 'on_the_way', 'delivered'];
     const currentIndex = statusOrder.indexOf(order.status);
 
     let timelineHTML = timelineSteps.map(step => {
         const stepIndex = statusOrder.indexOf(step.status);
         let stepClass = '';
-        if (order.status === 'cancelled') {
+        if (order.status === 'payment_rejected') {
             stepClass = 'cancelled';
         } else if (stepIndex < currentIndex) {
             stepClass = 'completed';
@@ -751,6 +865,54 @@ function renderOrderDetails(order) {
         }).join('')
         : '<tr><td colspan="5" class="text-center text-muted">لا توجد أصناف</td></tr>';
 
+    const paymentMethod = order.payment_method_details;
+    const paymentMethodName = (paymentMethod && paymentMethod.bank_or_wallet_name) ? paymentMethod.bank_or_wallet_name : 'غير محدد';
+    const paymentAccountName = (paymentMethod && paymentMethod.account_name) ? paymentMethod.account_name : 'غير محدد';
+    const paymentTypeIsWallet = paymentMethod && paymentMethod.type === 'wallet';
+    const paymentNumberLabel = paymentTypeIsWallet ? 'الهاتف' : 'رقم الحساب';
+    const paymentNumberValue = paymentTypeIsWallet
+        ? ((paymentMethod && paymentMethod.phone_number) || 'غير محدد')
+        : ((paymentMethod && paymentMethod.account_number) || (paymentMethod && paymentMethod.phone_number) || 'غير محدد');
+
+    const paymentMethodCard = paymentMethod ? `
+        <div class="payment-method-card">
+            <img
+                src="${paymentMethod.image || 'https://placehold.co/80x80/FFE8DC/FF6B2C?text=Pay'}"
+                class="payment-method-logo"
+                alt="${paymentMethodName}"
+                onerror="this.onerror=null;this.src='https://placehold.co/80x80/FFE8DC/FF6B2C?text=Pay'">
+            <div class="payment-method-details">
+                <div class="payment-method-row"><strong>${paymentTypeIsWallet ? 'المحفظة' : 'البنك'}:</strong>${paymentMethodName}</div>
+                <div class="payment-method-row"><strong>اسم الحساب:</strong>${paymentAccountName}</div>
+                <div class="payment-method-row"><strong>${paymentNumberLabel}:</strong>${paymentNumberValue}</div>
+            </div>
+        </div>
+    ` : `
+        <div class="payment-method-card">
+            <img
+                src="https://placehold.co/80x80/F3F4F6/9CA3AF?text=?"
+                class="payment-method-logo"
+                alt="غير محدد">
+            <div class="payment-method-details">
+                <div class="payment-method-row"><strong>طريقة الدفع:</strong>غير محدد</div>
+                <div class="payment-method-row"><strong>اسم الحساب:</strong>غير محدد</div>
+                <div class="payment-method-row"><strong>الهاتف / رقم الحساب:</strong>غير محدد</div>
+            </div>
+        </div>
+    `;
+
+    const proofBlock = `
+        <h4 class="section-title"><i class="fas fa-receipt me-2"></i> إثبات الدفع</h4>
+        <div class="pricing-summary mb-4">
+            ${order.payment_proof_url
+                ? `<p class="mb-2"><a href="${order.payment_proof_url}" target="_blank" rel="noopener">عرض الصورة الكاملة</a></p>
+                   <a href="${order.payment_proof_url}" target="_blank" rel="noopener"><img src="${order.payment_proof_url}" alt="" style="max-height:220px;border-radius:12px;border:1px solid var(--border);"></a>`
+                : '<p class="payment-proof-empty">لا يوجد إثبات دفع</p>'}
+            ${order.payment_reference ? `<p class="mt-2 mb-0"><strong>رقم المرجع:</strong> ${order.payment_reference}</p>` : ''}
+            ${paymentMethodCard}
+        </div>
+    `;
+
     const html = `
         <div class="detail-header">
             <div class="detail-id">
@@ -762,10 +924,14 @@ function renderOrderDetails(order) {
             </button>
         </div>
         <div class="detail-body">
+            ${proofBlock}
             <div class="info-grid">
                 <div class="info-card">
                     <h6><i class="fas fa-user me-1"></i> معلومات العميل</h6>
-                    <p>عميل #${order.customer_id || 'غير معروف'}</p>
+                    <div class="customer-info-stack">
+                        <span class="customer-id-chip"><i class="fas fa-id-badge"></i> ID: ${(order.customer && order.customer.id) ? order.customer.id : (order.customer_id || 'غير محدد')}</span>
+                        <p class="mb-0"><span class="customer-name-label">اسم الزبون:</span> <span class="customer-name-highlight">${(order.customer && order.customer.name) ? order.customer.name : 'غير محدد'}</span></p>
+                    </div>
                 </div>
                 <div class="info-card">
                     <h6><i class="fas fa-store me-1"></i> المطعم</h6>
@@ -818,15 +984,13 @@ function renderOrderDetails(order) {
             <h4 class="section-title"><i class="fas fa-history me-2"></i> تتبع الطلب</h4>
             <div class="timeline">${timelineHTML}</div>
 
-            ${order.status !== 'completed' && order.status !== 'cancelled' ? `
+            ${order.status === 'pending_payment_verification' ? `
             <div class="action-buttons">
-                ${order.status === 'pending' ? `
-                <button onclick="acceptOrder(${order.id})" class="btn-action btn-accept">
-                    <i class="fas fa-check me-1"></i> قبول الطلب
+                <button onclick="verifyPayment(${order.id})" class="btn-action btn-accept">
+                    <i class="fas fa-check me-1"></i> التحقق من الدفع
                 </button>
-                ` : ''}
-                <button onclick="cancelOrder(${order.id})" class="btn-action btn-cancel">
-                    <i class="fas fa-times me-1"></i> إلغاء الطلب
+                <button onclick="rejectPayment(${order.id})" class="btn-action btn-cancel">
+                    <i class="fas fa-times me-1"></i> رفض الدفع
                 </button>
             </div>
             ` : ''}
@@ -836,14 +1000,15 @@ function renderOrderDetails(order) {
     $('#orderDetails').html(html);
 }
 
-function acceptOrder(orderId) {
-    if (!confirm('هل أنت متأكد من قبول هذا الطلب؟')) return;
+function verifyPayment(orderId) {
+    if (!confirm('تأكيد أن الدفع صحيح وإرسال الطلب إلى المطعم؟')) return;
     $.ajax({
-        url: `/admin/orders/${orderId}/accept`,
-        type: 'POST',
+        url: `/admin/orders/${orderId}/verify-payment`,
+        type: 'PATCH',
         data: { _token: '{{ csrf_token() }}' },
         success: function() {
-            toastr.success('تم قبول الطلب بنجاح');
+            toastr.success('تم التحقق من الدفع');
+            loadOrders();
             selectOrder(orderId);
         },
         error: function() {
@@ -852,14 +1017,15 @@ function acceptOrder(orderId) {
     });
 }
 
-function cancelOrder(orderId) {
-    if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
+function rejectPayment(orderId) {
+    if (!confirm('رفض إثبات الدفع؟ لن يصل الطلب إلى المطعم.')) return;
     $.ajax({
-        url: `/admin/orders/${orderId}/cancel`,
-        type: 'POST',
-        data: { _token: '{{ csrf_token() }}', _method: 'PATCH' },
+        url: `/admin/orders/${orderId}/reject-payment`,
+        type: 'PATCH',
+        data: { _token: '{{ csrf_token() }}' },
         success: function() {
-            toastr.success('تم إلغاء الطلب بنجاح');
+            toastr.success('تم رفض الدفع');
+            loadOrders();
             selectOrder(orderId);
         },
         error: function() {
@@ -884,6 +1050,7 @@ let currentFilters = {
 };
 
 function loadOrders() {
+    const selectedOrderId = $('.order-list-item.selected').data('order-id');
     $.ajax({
         url: '/admin/orders/list',
         type: 'GET',
@@ -891,6 +1058,12 @@ function loadOrders() {
         success: function(response) {
             renderOrdersList(response.orders);
             $('#orderCount').text(response.total);
+            if (selectedOrderId) {
+                const exists = $(`.order-list-item[data-order-id="${selectedOrderId}"]`).length > 0;
+                if (exists) {
+                    selectOrder(selectedOrderId);
+                }
+            }
         }
     });
 }
@@ -962,5 +1135,10 @@ $('#searchInput').on('input', function() {
 @if($orders->count() > 0)
 selectOrder({{ $orders->first()->id }});
 @endif
+
+setInterval(loadOrders, 5000);
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) loadOrders();
+});
 </script>
 @endsection

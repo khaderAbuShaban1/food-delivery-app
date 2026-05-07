@@ -1,5 +1,7 @@
 import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 class ApiClient {
   // IMPORTANT: Change this to your computer's local IP
@@ -28,8 +30,20 @@ class ApiClient {
         headers: headers,
       ).timeout(const Duration(seconds: 15));
       return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
     }
   }
 
@@ -41,8 +55,20 @@ class ApiClient {
         body: jsonEncode(data),
       ).timeout(const Duration(seconds: 15));
       return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
     }
   }
 
@@ -54,8 +80,80 @@ class ApiClient {
         body: jsonEncode(data),
       ).timeout(const Duration(seconds: 15));
       return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> delete(String endpoint) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 15));
+      return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
+    }
+  }
+
+  /// Order creation with `items[]` fields and optional `payment_proof` file — do not send JSON Content-Type.
+  static Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    required Map<String, String> fields,
+    List<http.MultipartFile> files = const [],
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll({
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+      request.fields.addAll(fields);
+      request.files.addAll(files);
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
     }
   }
 
@@ -74,17 +172,58 @@ class ApiClient {
       final response = await http.Response.fromStream(streamedResponse);
       
       return _handleResponse(response);
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'انتهت مهلة الاتصال بالخادم. تأكد من تشغيل Laravel وأن الهاتف على نفس الشبكة.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'تعذر الوصول إلى الخادم. تحقق من عنوان IP في التطبيق ومن اتصال الشبكة.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {'success': false, 'message': 'حدث خطأ في الاتصال: $e'};
     }
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return jsonDecode(response.body);
-    } else {
-      return {'success': false, 'message': 'Error: ${response.statusCode}'};
+    Map<String, dynamic> body;
+    try {
+      final decoded = jsonDecode(response.body);
+      body = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    } catch (_) {
+      body = <String, dynamic>{};
     }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+
+    final backendMessage = body['message']?.toString();
+    return {
+      'success': false,
+      'message': backendMessage ?? 'فشل الطلب: ${response.statusCode}',
+      'http_status': response.statusCode,
+      if (body['errors'] != null) 'errors': body['errors'],
+      if (body['status'] != null) 'status': body['status'],
+    };
+  }
+
+  /// Origin without `/api` (for Laravel `asset()` URLs returned by the API).
+  static String get publicOrigin {
+    var u = baseUrl.trim();
+    if (u.endsWith('/api')) {
+      u = u.substring(0, u.length - 4);
+    } else if (u.endsWith('/api/')) {
+      u = u.substring(0, u.length - 5);
+    }
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
   }
 
   // Call this once at app start to set correct IP

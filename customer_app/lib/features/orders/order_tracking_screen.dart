@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -14,84 +16,100 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   static const List<String> _statusFlow = [
-    'pending',
-    'accepted',
+    'pending_payment_verification',
+    'payment_verified',
+    'accepted_by_restaurant',
     'preparing',
-    'delivering',
-    'completed',
+    'on_the_way',
+    'delivered',
   ];
 
   static const Map<String, String> _statusLabels = {
+    'pending_payment_verification': 'بانتظار تحقق الدفع',
+    'payment_verified': 'تم التحقق من الدفع',
+    'payment_rejected': 'رفض الدفع',
+    'accepted_by_restaurant': 'مقبول من المطعم',
+    'preparing': 'قيد التحضير',
+    'on_the_way': 'في الطريق',
+    'delivered': 'تم التسليم',
     'pending': 'بانتظار التأكيد',
     'accepted': 'تم التأكيد',
-    'preparing': 'قيد التحضير',
-    'delivering': 'في الطريق',
-    'completed': 'تم التسليم',
     'cancelled': 'ملغى',
   };
 
   static const Map<String, Color> _statusColors = {
+    'pending_payment_verification': AppColors.textSecondary,
+    'payment_verified': Color(0xFF3498DB),
+    'payment_rejected': AppColors.error,
+    'accepted_by_restaurant': Color(0xFF0891B2),
+    'preparing': AppColors.primary,
+    'on_the_way': AppColors.primaryDark,
+    'delivered': AppColors.success,
     'pending': AppColors.textSecondary,
     'accepted': Color(0xFF3498DB),
-    'preparing': AppColors.primary,
-    'delivering': Color(0xFF9B59B6),
-    'completed': AppColors.success,
     'cancelled': AppColors.error,
   };
 
   static const Map<String, IconData> _statusIcons = {
-    'pending': Icons.receipt_outlined,
-    'accepted': Icons.check_circle_outline,
+    'pending_payment_verification': Icons.receipt_outlined,
+    'payment_verified': Icons.verified_outlined,
+    'payment_rejected': Icons.cancel_outlined,
+    'accepted_by_restaurant': Icons.check_circle_outline,
     'preparing': Icons.restaurant_outlined,
-    'delivering': Icons.delivery_dining,
-    'completed': Icons.done_all,
+    'on_the_way': Icons.delivery_dining,
+    'delivered': Icons.done_all,
   };
 
   late Map<String, dynamic> _order;
-  Timer? _refreshTimer;
+  Timer? _pollTimer;
   bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     _order = Map<String, dynamic>.from(widget.order);
-    _startAutoRefresh();
+    _refreshFromApi();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _refreshFromApi());
   }
 
-  void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _refreshStatus();
-    });
-  }
+  Future<void> _refreshFromApi() async {
+    final rawId = _order['id'];
+    final id =
+        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (id == null || id <= 0) return;
 
-  Future<void> _refreshStatus() async {
+    final status = (_order['status'] ?? '').toString();
+    if (status == 'delivered' || status == 'payment_rejected') {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+
     if (_isRefreshing) return;
-
-    final orderId = _order['id'];
-    if (orderId == null) return;
-
-    setState(() => _isRefreshing = true);
+    _isRefreshing = true;
 
     try {
-      final response = await ApiClient.get('/orders/$orderId');
+      final response = await ApiClient.get('/orders/$id');
       if (!mounted) return;
-
-      if (response['success'] == true && response['data'] != null) {
+      if (response['success'] == true && response['data'] is Map) {
         setState(() {
-          _order = Map<String, dynamic>.from(response['data']);
-          _isRefreshing = false;
+          _order = Map<String, dynamic>.from(response['data'] as Map);
         });
-      } else {
-        setState(() => _isRefreshing = false);
       }
-    } catch (e) {
-      if (mounted) setState(() => _isRefreshing = false);
+    } finally {
+      _isRefreshing = false;
+    }
+    if (!mounted) return;
+    final s = (_order['status'] ?? '').toString();
+    if (s == 'delivered' || s == 'payment_rejected') {
+      _pollTimer?.cancel();
+      _pollTimer = null;
     }
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -136,18 +154,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         title: Text('طلب #$orderId'),
         backgroundColor: AppColors.background,
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _refreshStatus,
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -269,7 +275,31 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   Widget _buildTimelineSection(String currentStatus) {
     final currentIndex = _statusFlow.indexOf(currentStatus);
-    final adjustedIndex = currentStatus == 'cancelled' ? -1 : currentIndex;
+    final adjustedIndex =
+        currentStatus == 'payment_rejected' || currentStatus == 'cancelled' ? -1 : currentIndex;
+
+    if (currentStatus == 'payment_rejected') {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 28),
+            const SizedBox(width: AppSpacing.md),
+            const Expanded(
+              child: Text(
+                'لم يتم اعتماد الدفع لهذا الطلب. تواصل مع الدعم إذا لزم الأمر.',
+                style: TextStyle(fontSize: 15, height: 1.35),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -517,10 +547,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             final name = item['name']?.toString() ?? 'عنصر';
             final quantity = item['quantity'] ?? 1;
             final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0;
+            final options = (item['options'] as List?)
+                    ?.map((e) => Map<String, dynamic>.from(e as Map))
+                    .toList() ??
+                const <Map<String, dynamic>>[];
+            final optionsText = _formatItemOptions(options);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 32,
@@ -542,12 +578,28 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: AppColors.textPrimary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (optionsText.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            optionsText,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Text(
@@ -565,6 +617,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ],
       ),
     );
+  }
+
+  String _formatItemOptions(List<Map<String, dynamic>> options) {
+    if (options.isEmpty) return '';
+    final grouped = <String, List<String>>{};
+    for (final o in options) {
+      final g = (o['group_name'] ?? '').toString().trim();
+      final v = (o['value_name'] ?? '').toString().trim();
+      if (g.isEmpty || v.isEmpty) continue;
+      (grouped[g] ??= <String>[]).add(v);
+    }
+    if (grouped.isEmpty) return '';
+    final parts = <String>[];
+    grouped.forEach((g, vals) {
+      final uniq = vals.toSet().toList();
+      parts.add('$g: ${uniq.join('، ')}');
+    });
+    return parts.join('\n');
   }
 
   Widget _buildOrderSummary(double totalPrice) {

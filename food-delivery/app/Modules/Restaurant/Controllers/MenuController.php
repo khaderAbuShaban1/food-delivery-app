@@ -8,6 +8,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class MenuController extends Controller
@@ -25,7 +28,7 @@ class MenuController extends Controller
         'Other' => 'أخرى',
     ];
 
-    public function index(): View|RedirectResponse
+    public function index(Request $request): View|RedirectResponse|JsonResponse
     {
         $restaurant = Auth::guard('restaurant')->user();
 
@@ -33,11 +36,53 @@ class MenuController extends Controller
             return redirect()->route('restaurant.login');
         }
 
-        $menuItems = MenuItem::where('restaurant_id', $restaurant->id)
-            ->latest()
-            ->get();
+        $menuItemsQuery = MenuItem::where('restaurant_id', $restaurant->id);
 
-        return view('restaurant::menu', compact('restaurant', 'menuItems') + ['categories' => self::CATEGORIES]);
+        $category = trim((string) $request->query('category', ''));
+        $status = trim((string) $request->query('status', 'all'));
+        $search = trim((string) $request->query('search', ''));
+
+        if ($category !== '') {
+            $menuItemsQuery->where('category', $category);
+        }
+
+        if ($status === 'available') {
+            $menuItemsQuery->where('is_available', true);
+        } elseif ($status === 'unavailable') {
+            $menuItemsQuery->where('is_available', false);
+        }
+
+        if ($search !== '') {
+            $menuItemsQuery->where('name', 'like', '%' . $search . '%');
+        }
+
+        if (Schema::hasTable('menu_item_option_groups') && Schema::hasTable('menu_item_option_values')) {
+            $menuItemsQuery->with('optionGroups.values');
+        }
+
+        $menuItems = $menuItemsQuery->latest()->get();
+        $menuOptionsMap = $this->buildOptionsMap($menuItems);
+        $filters = [
+            'category' => $category,
+            'status' => in_array($status, ['all', 'available', 'unavailable'], true) ? $status : 'all',
+            'search' => $search,
+        ];
+
+        if ($request->ajax() || Str::contains((string) $request->header('Accept'), 'application/json')) {
+            $html = view('restaurant::partials.menu-items-grid', [
+                'menuItems' => $menuItems,
+                'restaurant' => $restaurant,
+                'categories' => self::CATEGORIES,
+            ])->render();
+
+            return response()->json([
+                'html' => $html,
+                'count' => $menuItems->count(),
+                'menu_options_map' => $menuOptionsMap,
+            ]);
+        }
+
+        return view('restaurant::menu', compact('restaurant', 'menuItems', 'menuOptionsMap', 'filters') + ['categories' => self::CATEGORIES]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -54,6 +99,12 @@ class MenuController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'category' => 'nullable|string|in:' . implode(',', array_keys(self::CATEGORIES)),
+            'options' => 'nullable|array',
+            'options.*.name' => 'nullable|string|max:100',
+            'options.*.selection_type' => 'nullable|in:single,multiple',
+            'options.*.values' => 'nullable|array',
+            'options.*.values.*.name' => 'nullable|string|max:100',
+            'options.*.values.*.extra_price' => 'nullable|numeric|min:0',
         ]);
 
         $imagePath = null;
@@ -61,15 +112,21 @@ class MenuController extends Controller
             $imagePath = $request->file('image')->store('menu-images', 'public');
         }
         
-        MenuItem::create([
-            'restaurant_id' => $restaurant->id,
-            'name' => $request->name,
-            'price' => $request->price,
-            'description' => $request->description ?? '',
-            'image' => $imagePath,
-            'category' => $request->category ?? null,
-            'is_available' => true,
-        ]);
+        DB::transaction(function () use ($request, $restaurant, $imagePath): void {
+            $menuItem = MenuItem::create([
+                'restaurant_id' => $restaurant->id,
+                'name' => $request->name,
+                'price' => $request->price,
+                'description' => $request->description ?? '',
+                'image' => $imagePath,
+                'category' => $request->category ?? null,
+                'is_available' => true,
+            ]);
+
+            if (Schema::hasTable('menu_item_option_groups') && Schema::hasTable('menu_item_option_values')) {
+                $this->syncMenuItemOptions($menuItem, $request->input('options', []));
+            }
+        });
 
         return back()->with('success', 'تمت إضافة الصنف بنجاح!');
     }
@@ -88,6 +145,12 @@ class MenuController extends Controller
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'category' => 'nullable|string|in:' . implode(',', array_keys(self::CATEGORIES)),
             'is_available' => 'nullable|boolean',
+            'options' => 'nullable|array',
+            'options.*.name' => 'nullable|string|max:100',
+            'options.*.selection_type' => 'nullable|in:single,multiple',
+            'options.*.values' => 'nullable|array',
+            'options.*.values.*.name' => 'nullable|string|max:100',
+            'options.*.values.*.extra_price' => 'nullable|numeric|min:0',
         ]);
 
         $menuItem = MenuItem::where('id', $menuItemId)->where('restaurant_id', $restaurantId)->first();
@@ -96,18 +159,24 @@ class MenuController extends Controller
             return back()->with('error', 'الصنف غير موجود');
         }
 
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('menu-images', 'public');
-            $menuItem->update(['image' => $imagePath]);
-        }
-        
-        $menuItem->update([
-            'name' => $request->name,
-            'price' => $request->price,
-            'description' => $request->description ?? '',
-            'category' => $request->category ?? null,
-            'is_available' => $request->boolean('is_available'),
-        ]);
+        DB::transaction(function () use ($request, $menuItem): void {
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store('menu-images', 'public');
+                $menuItem->update(['image' => $imagePath]);
+            }
+
+            $menuItem->update([
+                'name' => $request->name,
+                'price' => $request->price,
+                'description' => $request->description ?? '',
+                'category' => $request->category ?? null,
+                'is_available' => $request->boolean('is_available'),
+            ]);
+
+            if (Schema::hasTable('menu_item_option_groups') && Schema::hasTable('menu_item_option_values')) {
+                $this->syncMenuItemOptions($menuItem, $request->input('options', []));
+            }
+        });
 
         return back()->with('success', 'تم تحديث الصنف بنجاح!');
     }
@@ -157,5 +226,68 @@ class MenuController extends Controller
             'message' => $menuItem->is_available ? 'تم تفعيل الصنف' : 'تم إيقاف الصنف',
             'is_available' => (bool) $menuItem->is_available,
         ]);
+    }
+
+    private function syncMenuItemOptions(MenuItem $menuItem, array $rawOptions): void
+    {
+        $menuItem->optionGroups()->delete();
+
+        foreach (array_values($rawOptions) as $groupIndex => $group) {
+            $groupName = trim((string) ($group['name'] ?? ''));
+            if ($groupName === '') {
+                continue;
+            }
+
+            $selectionType = in_array(($group['selection_type'] ?? 'single'), ['single', 'multiple'], true)
+                ? $group['selection_type']
+                : 'single';
+
+            $values = is_array($group['values'] ?? null) ? $group['values'] : [];
+            $normalizedValues = [];
+            foreach (array_values($values) as $valueIndex => $value) {
+                $valueName = trim((string) ($value['name'] ?? ''));
+                if ($valueName === '') {
+                    continue;
+                }
+
+                $normalizedValues[] = [
+                    'name' => $valueName,
+                    'extra_price' => max(0, (float) ($value['extra_price'] ?? 0)),
+                    'sort_order' => $valueIndex,
+                ];
+            }
+
+            if (count($normalizedValues) === 0) {
+                continue;
+            }
+
+            $optionGroup = $menuItem->optionGroups()->create([
+                'name' => $groupName,
+                'selection_type' => $selectionType,
+                'sort_order' => $groupIndex,
+            ]);
+
+            $optionGroup->values()->createMany($normalizedValues);
+        }
+    }
+
+    private function buildOptionsMap($menuItems): array
+    {
+        return collect($menuItems)->mapWithKeys(function ($item) {
+            return [
+                $item->id => collect($item->optionGroups ?? [])->map(function ($group) {
+                    return [
+                        'name' => $group->name,
+                        'selection_type' => $group->selection_type,
+                        'values' => collect($group->values ?? [])->map(function ($value) {
+                            return [
+                                'name' => $value->name,
+                                'extra_price' => (float) $value->extra_price,
+                            ];
+                        })->values()->all(),
+                    ];
+                })->values()->all(),
+            ];
+        })->all();
     }
 }

@@ -7,6 +7,7 @@ use App\Models\MenuItem;
 use App\Models\Restaurant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class MenuController extends Controller
 {
@@ -71,7 +72,31 @@ class MenuController extends Controller
             ], 404);
         }
 
-        $menuItems = $restaurant->menuItems->map(function ($item) {
+        $query = $restaurant->menuItems();
+        if (Schema::hasTable('menu_item_option_groups') && Schema::hasTable('menu_item_option_values')) {
+            $query->with(['optionGroups.values']);
+        }
+
+        $menuItems = $query->get()->map(function ($item) {
+            $optionGroups = [];
+            if (Schema::hasTable('menu_item_option_groups') && Schema::hasTable('menu_item_option_values')) {
+                $optionGroups = $item->optionGroups->map(function ($g) {
+                    return [
+                        'id' => $g->id,
+                        'name' => $g->name,
+                        'selection_type' => $g->selection_type,
+                        'sort_order' => $g->sort_order,
+                        'values' => $g->values->map(function ($v) {
+                            return [
+                                'id' => $v->id,
+                                'name' => $v->name,
+                                'extra_price' => (float) ($v->extra_price ?? 0),
+                                'sort_order' => $v->sort_order,
+                            ];
+                        })->values()->all(),
+                    ];
+                })->values()->all();
+            }
             return [
                 'id' => $item->id,
                 'restaurant_id' => $item->restaurant_id,
@@ -82,6 +107,7 @@ class MenuController extends Controller
                 'image' => $this->getFullImageUrl($item->image),
                 'created_at' => $item->created_at,
                 'updated_at' => $item->updated_at,
+                'option_groups' => $optionGroups,
             ];
         });
 

@@ -13,6 +13,7 @@ Route::prefix('restaurant')->name('restaurant.')->group(function () {
 
     Route::middleware('auth.restaurant')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/realtime', [DashboardController::class, 'realtime'])->name('dashboard.realtime');
         Route::patch('/dashboard/status/{id}', [DashboardController::class, 'updateStatus'])->name('dashboard.status');
 
         Route::get('/menu', [MenuController::class, 'index'])->name('menu');
@@ -22,6 +23,7 @@ Route::prefix('restaurant')->name('restaurant.')->group(function () {
         Route::patch('/menu/{menuItemId}/toggle-availability', [MenuController::class, 'toggleAvailability'])->name('menu.toggle-availability');
 
         Route::get('/orders', [OrderController::class, 'index'])->name('orders');
+        Route::get('/orders/realtime', [OrderController::class, 'realtime'])->name('orders.realtime');
         Route::put('/orders/{orderId}', [OrderController::class, 'updateStatus'])->name('orders.status');
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');

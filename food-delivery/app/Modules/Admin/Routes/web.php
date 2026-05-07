@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Controllers\AuthController;
 use App\Modules\Admin\Controllers\DashboardController;
+use App\Modules\Admin\Controllers\PaymentMethodController;
 use App\Modules\Admin\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,10 +13,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/realtime', [DashboardController::class, 'realtime'])->name('dashboard.realtime');
         Route::get('/users', [DashboardController::class, 'users'])->name('users');
         Route::get('/users/{id}', [DashboardController::class, 'getUser'])->name('users.show');
         Route::post('/users/{id}/ban', [DashboardController::class, 'toggleUserStatusApi'])->name('users.ban');
         Route::post('/users/{id}/toggle', [DashboardController::class, 'toggleUserStatus'])->name('users.toggle');
+        Route::get('/drivers', [DashboardController::class, 'drivers'])->name('drivers.index');
+        Route::patch('/drivers/{id}/approve', [DashboardController::class, 'approveDriver'])->name('drivers.approve');
+        Route::patch('/drivers/{id}/reject', [DashboardController::class, 'rejectDriver'])->name('drivers.reject');
         
         Route::get('/restaurants', [DashboardController::class, 'restaurants'])->name('restaurants');
         Route::post('/restaurants', [DashboardController::class, 'storeRestaurant'])->name('restaurants.store');
@@ -31,9 +36,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/orders', [DashboardController::class, 'orders'])->name('orders');
         Route::get('/orders/list', [DashboardController::class, 'getOrders'])->name('orders.list');
         Route::get('/orders/{id}/data', [DashboardController::class, 'getOrderData'])->name('orders.data');
-        Route::patch('/orders/{id}/accept', [DashboardController::class, 'acceptOrder'])->name('orders.accept');
-        Route::patch('/orders/{id}/cancel', [DashboardController::class, 'cancelOrder'])->name('orders.cancel');
+        Route::patch('/orders/{id}/verify-payment', [DashboardController::class, 'verifyOrderPayment'])->name('orders.verify-payment');
+        Route::patch('/orders/{id}/reject-payment', [DashboardController::class, 'rejectOrderPayment'])->name('orders.reject-payment');
         Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
+
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
+        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
+        Route::put('/payment-methods/{payment_method}', [PaymentMethodController::class, 'update'])->name('payment-methods.update');
+        Route::delete('/payment-methods/{payment_method}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
+        Route::patch('/payment-methods/{payment_method}/toggle', [PaymentMethodController::class, 'toggle'])->name('payment-methods.toggle');
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
         Route::put('/settings/general', [SettingsController::class, 'updateGeneral'])->name('settings.general');

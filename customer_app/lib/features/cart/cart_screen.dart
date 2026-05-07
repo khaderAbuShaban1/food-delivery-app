@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/api/api_client.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/cart_provider.dart';
 import '../../core/widgets/widgets.dart';
-import '../home/main_screen.dart';
+import '../checkout/checkout_flow_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -14,7 +14,6 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  bool _isPlacingOrder = false;
   static const double _deliveryFee = 15.0;
 
   @override
@@ -64,7 +63,7 @@ class _CartScreenState extends State<CartScreen> {
     CartProvider cart,
     CartItem item,
   ) {
-    final itemTotal = item.menuItem.price * item.quantity;
+    final itemTotal = item.totalPrice;
     
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.95, end: 1.0),
@@ -104,7 +103,7 @@ class _CartScreenState extends State<CartScreen> {
                       ? Image.network(
                           item.menuItem.image!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, __) => _buildPlaceholder(),
+                          errorBuilder: (_, _, _) => _buildPlaceholder(),
                         )
                       : _buildPlaceholder(),
                 ),
@@ -129,12 +128,25 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '₪${item.menuItem.price.toStringAsFixed(2)}',
+                        '₪${item.unitPriceWithOptions.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      if (item.selectedOptionValueIdsByGroup.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _selectedOptionsLine(item),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textHint,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                       const Spacer(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -194,9 +206,9 @@ class _CartScreenState extends State<CartScreen> {
             icon: item.quantity > 1 ? Icons.remove : Icons.delete_outline,
             onTap: () {
               if (item.quantity > 1) {
-                cart.updateQuantity(item.menuItem, item.quantity - 1);
+                cart.updateCartItemQuantity(item, item.quantity - 1);
               } else {
-                cart.removeItem(item.menuItem.id);
+                cart.removeCartItem(item);
               }
             },
             isDelete: item.quantity == 1,
@@ -215,11 +227,27 @@ class _CartScreenState extends State<CartScreen> {
           ),
           _buildQuantityButton(
             icon: Icons.add,
-            onTap: () => cart.updateQuantity(item.menuItem, item.quantity + 1),
+            onTap: () => cart.updateCartItemQuantity(item, item.quantity + 1),
           ),
         ],
       ),
     );
+  }
+
+  String _selectedOptionsLine(CartItem item) {
+    final parts = <String>[];
+    for (final group in item.menuItem.optionGroups) {
+      final selectedIds = item.selectedOptionValueIdsByGroup[group.id] ?? const <int>[];
+      if (selectedIds.isEmpty) continue;
+      final names = group.values
+          .where((v) => selectedIds.contains(v.id))
+          .map((v) => v.name)
+          .where((n) => n.trim().isNotEmpty)
+          .toList(growable: false);
+      if (names.isEmpty) continue;
+      parts.add('${group.name}: ${names.join('، ')}');
+    }
+    return parts.join(' • ');
   }
 
   Widget _buildQuantityButton({
@@ -246,7 +274,7 @@ class _CartScreenState extends State<CartScreen> {
 
 Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     final subtotal = cart.totalPrice;
-    final total = subtotal + 15.0;
+    final total = subtotal + _deliveryFee;
     final totalStr = '₪${total.toStringAsFixed(2)}';
 
     return Container(
@@ -284,7 +312,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
             ),
             _buildSummaryRow('المجموع', '₪${subtotal.toStringAsFixed(2)}'),
             const SizedBox(height: AppSpacing.sm),
-            _buildSummaryRow('التوصيل', '₪15.00'),
+            _buildSummaryRow('التوصيل', '₪${_deliveryFee.toStringAsFixed(2)}'),
             const SizedBox(height: AppSpacing.sm),
             Divider(color: AppColors.divider, height: 1),
             const SizedBox(height: AppSpacing.sm),
@@ -314,7 +342,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
               width: double.infinity,
               height: 42,
               child: ElevatedButton(
-                onPressed: _isPlacingOrder ? null : () => _placeOrder(cart),
+                onPressed: () => _goToCheckout(cart),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -324,29 +352,20 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
                   ),
                   elevation: 0,
                 ),
-                child: _isPlacingOrder
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle_outline, size: 18),
-                          const SizedBox(width: AppSpacing.sm),
-                          Text(
-                            'إتمام الطلب',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.payments_outlined, size: 18),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'متابعة للدفع',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -378,12 +397,19 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     );
   }
 
-  Future<void> _placeOrder(CartProvider cart) async {
+  void _goToCheckout(CartProvider cart) {
     if (cart.items.isEmpty) return;
+    if (!AuthService.isLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى تسجيل الدخول أولاً'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
-    final restaurantIds = cart.items
-        .map((item) => item.menuItem.restaurantId)
-        .toSet();
+    final restaurantIds = cart.items.map((item) => item.menuItem.restaurantId).toSet();
     if (restaurantIds.length != 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -394,48 +420,19 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
       return;
     }
 
-    setState(() => _isPlacingOrder = true);
-    final payload = {
-      'restaurant_id': restaurantIds.first,
-      'items': cart.items
-          .map(
-            (item) => {
-              'menu_item_id': item.menuItem.id,
-              'quantity': item.quantity,
-            },
-          )
-          .toList(),
-    };
-
-    final response = await ApiClient.post('/orders', payload);
-    if (!mounted) return;
-    setState(() => _isPlacingOrder = false);
-
-    if (response['success'] == true && response['data'] != null) {
-      final orderId = response['data']['id'] as int?;
-      cart.clearCart();
+    final restaurantId = restaurantIds.first;
+    if (restaurantId <= 0 || cart.items.any((e) => e.menuItem.id <= 0 || e.quantity < 1)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم إرسال الطلب بنجاح'),
-          backgroundColor: AppColors.success,
+          content: Text('بيانات الطلب غير صالحة'),
+          backgroundColor: AppColors.error,
         ),
-      );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              MainScreen(initialIndex: 2, highlightedOrderId: orderId),
-        ),
-        (route) => false,
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(response['message']?.toString() ?? 'تعذر إتمام الطلب'),
-        backgroundColor: AppColors.error,
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CheckoutFlowScreen()),
     );
   }
 }
