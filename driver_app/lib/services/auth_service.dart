@@ -57,7 +57,9 @@ class AuthService {
     String? vehiclePlateNumber,
     String? city,
     String? emergencyContactNumber,
-    String? profileImagePath,
+    required String profileImagePath,
+    required String nationalIdImagePath,
+    required String vehicleImagePath,
   }) async {
     final fields = <String, String>{
       'name': name,
@@ -75,12 +77,14 @@ class AuthService {
         'emergency_contact_number': emergencyContactNumber.trim(),
     };
 
-    final files = <http.MultipartFile>[];
-    if (profileImagePath != null && profileImagePath.trim().isNotEmpty) {
-      files.add(
-        await http.MultipartFile.fromPath('profile_image', profileImagePath),
-      );
-    }
+    final files = <http.MultipartFile>[
+      await http.MultipartFile.fromPath('profile_image', profileImagePath),
+      await http.MultipartFile.fromPath(
+        'national_id_image',
+        nationalIdImagePath,
+      ),
+      await http.MultipartFile.fromPath('vehicle_image', vehicleImagePath),
+    ];
 
     final response = await _apiClient.postMultipart(
       '/driver/register',

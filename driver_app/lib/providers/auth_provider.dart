@@ -59,7 +59,9 @@ class AuthProvider extends ChangeNotifier {
     String? vehiclePlateNumber,
     String? city,
     String? emergencyContactNumber,
-    String? profileImagePath,
+    required String profileImagePath,
+    required String nationalIdImagePath,
+    required String vehicleImagePath,
   }) async {
     isLoading = true;
     error = null;
@@ -78,6 +80,8 @@ class AuthProvider extends ChangeNotifier {
       city: city,
       emergencyContactNumber: emergencyContactNumber,
       profileImagePath: profileImagePath,
+      nationalIdImagePath: nationalIdImagePath,
+      vehicleImagePath: vehicleImagePath,
     );
 
     isLoading = false;
