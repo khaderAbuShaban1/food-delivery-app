@@ -63,7 +63,7 @@ class _CartScreenState extends State<CartScreen> {
     CartProvider cart,
     CartItem item,
   ) {
-    final itemTotal = item.menuItem.price * item.quantity;
+    final itemTotal = item.totalPrice;
     
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.95, end: 1.0),
@@ -128,12 +128,25 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '₪${item.menuItem.price.toStringAsFixed(2)}',
+                        '₪${item.unitPriceWithOptions.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      if (item.selectedOptionValueIdsByGroup.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _selectedOptionsLine(item),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textHint,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                       const Spacer(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -193,9 +206,9 @@ class _CartScreenState extends State<CartScreen> {
             icon: item.quantity > 1 ? Icons.remove : Icons.delete_outline,
             onTap: () {
               if (item.quantity > 1) {
-                cart.updateQuantity(item.menuItem, item.quantity - 1);
+                cart.updateCartItemQuantity(item, item.quantity - 1);
               } else {
-                cart.removeItem(item.menuItem.id);
+                cart.removeCartItem(item);
               }
             },
             isDelete: item.quantity == 1,
@@ -214,11 +227,27 @@ class _CartScreenState extends State<CartScreen> {
           ),
           _buildQuantityButton(
             icon: Icons.add,
-            onTap: () => cart.updateQuantity(item.menuItem, item.quantity + 1),
+            onTap: () => cart.updateCartItemQuantity(item, item.quantity + 1),
           ),
         ],
       ),
     );
+  }
+
+  String _selectedOptionsLine(CartItem item) {
+    final parts = <String>[];
+    for (final group in item.menuItem.optionGroups) {
+      final selectedIds = item.selectedOptionValueIdsByGroup[group.id] ?? const <int>[];
+      if (selectedIds.isEmpty) continue;
+      final names = group.values
+          .where((v) => selectedIds.contains(v.id))
+          .map((v) => v.name)
+          .where((n) => n.trim().isNotEmpty)
+          .toList(growable: false);
+      if (names.isEmpty) continue;
+      parts.add('${group.name}: ${names.join('، ')}');
+    }
+    return parts.join(' • ');
   }
 
   Widget _buildQuantityButton({

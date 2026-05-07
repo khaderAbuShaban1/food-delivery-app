@@ -271,6 +271,12 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         final item = cart.items[i];
         fields['items[$i][menu_item_id]'] = item.menuItem.id.toString();
         fields['items[$i][quantity]'] = item.quantity.toString();
+        // Forward selected options (read-only for now; backend may ignore if not implemented).
+        item.selectedOptionValueIdsByGroup.forEach((groupId, valueIds) {
+          for (var j = 0; j < valueIds.length; j++) {
+            fields['items[$i][options][$groupId][$j]'] = valueIds[j].toString();
+          }
+        });
       }
 
       final files = <http.MultipartFile>[

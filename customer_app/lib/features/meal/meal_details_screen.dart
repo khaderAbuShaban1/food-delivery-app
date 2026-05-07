@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/menu_item.dart';
+import '../../core/models/menu_item_option.dart';
 import '../../core/services/cart_provider.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -16,14 +17,64 @@ class MealDetailsScreen extends StatefulWidget {
 
 class _MealDetailsScreenState extends State<MealDetailsScreen> {
   int _quantity = 1;
+  bool _initializedFromCart = false;
+  final Map<int, Set<int>> _selectedValueIdsByGroup = <int, Set<int>>{};
+
+  List<MenuItemOptionGroup> get _groupsWithValues =>
+      widget.menuItem.optionGroups.where((g) => g.values.isNotEmpty).toList(growable: false);
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final current = context.read<CartProvider>().getQuantity(widget.menuItem.id);
-    if (_quantity == 1 && current > 0) {
-      _quantity = current;
+    if (_initializedFromCart) return;
+    _initializedFromCart = true;
+
+    final cart = context.read<CartProvider>();
+    final current = cart.getQuantityForVariant(widget.menuItem.id, _normalizedSelections());
+    if (current > 0) _quantity = current;
+  }
+
+  double _selectedExtrasPerUnit() {
+    double total = 0;
+    for (final group in _groupsWithValues) {
+      final selected = _selectedValueIdsByGroup[group.id] ?? const <int>{};
+      for (final value in group.values) {
+        if (selected.contains(value.id)) total += value.extraPrice;
+      }
     }
+    return total;
+  }
+
+  double get _unitPriceWithOptions => widget.menuItem.price + _selectedExtrasPerUnit();
+  double get _totalPrice => _unitPriceWithOptions * _quantity;
+
+  String _priceTag(double value) => '₪${value.toStringAsFixed(2)}';
+
+  void _selectSingle(int groupId, int valueId) {
+    setState(() {
+      _selectedValueIdsByGroup[groupId] = <int>{valueId};
+    });
+  }
+
+  void _toggleMulti(int groupId, int valueId, bool selected) {
+    setState(() {
+      final set = _selectedValueIdsByGroup[groupId] ?? <int>{};
+      if (selected) {
+        set.add(valueId);
+      } else {
+        set.remove(valueId);
+      }
+      _selectedValueIdsByGroup[groupId] = set;
+    });
+  }
+
+  Map<int, List<int>> _normalizedSelections() {
+    final out = <int, List<int>>{};
+    _selectedValueIdsByGroup.forEach((groupId, ids) {
+      if (ids.isEmpty) return;
+      out[groupId] = ids.toList()..sort();
+    });
+    return out;
   }
 
   void _inc() => setState(() => _quantity++);
@@ -35,13 +86,11 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
 
   void _addToCart() {
     final cart = context.read<CartProvider>();
-    final existing = cart.getQuantity(widget.menuItem.id);
-    if (existing == 0) {
-      cart.addItem(widget.menuItem);
-      if (_quantity > 1) cart.updateQuantity(widget.menuItem, _quantity);
-    } else {
-      cart.updateQuantity(widget.menuItem, _quantity);
-    }
+    cart.addOrReplaceItemWithOptions(
+      widget.menuItem,
+      quantity: _quantity,
+      selections: _normalizedSelections(),
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -111,6 +160,16 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                         ),
                       ],
                       const SizedBox(height: AppSpacing.lg),
+                      if (_groupsWithValues.isNotEmpty) ...[
+                        _OptionsSection(
+                          groups: _groupsWithValues,
+                          selectedValueIdsByGroup: _selectedValueIdsByGroup,
+                          onSelectSingle: _selectSingle,
+                          onToggleMulti: _toggleMulti,
+                          priceTag: _priceTag,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
@@ -155,7 +214,7 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                             Directionality(
                               textDirection: TextDirection.ltr,
                               child: Text(
-                                '₪${item.price.toStringAsFixed(2)}',
+                                _priceTag(_totalPrice),
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
@@ -191,7 +250,7 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _addToCart,
-                    child: const Text('إضافة إلى السلة'),
+                    child: Text('إضافة إلى السلة • ${_priceTag(_totalPrice)}'),
                   ),
                 ),
               ),
@@ -233,6 +292,180 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
           Icons.fastfood_outlined,
           size: 42,
           color: AppColors.textHint,
+        ),
+      ),
+    );
+  }
+}
+
+class _OptionsSection extends StatelessWidget {
+  final List<MenuItemOptionGroup> groups;
+  final Map<int, Set<int>> selectedValueIdsByGroup;
+  final void Function(int groupId, int valueId) onSelectSingle;
+  final void Function(int groupId, int valueId, bool selected) onToggleMulti;
+  final String Function(double) priceTag;
+
+  const _OptionsSection({
+    required this.groups,
+    required this.selectedValueIdsByGroup,
+    required this.onSelectSingle,
+    required this.onToggleMulti,
+    required this.priceTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'التخصيصات',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ...groups.map((group) {
+            final selected = selectedValueIdsByGroup[group.id] ?? const <int>{};
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _OptionGroupCard(
+                group: group,
+                selected: selected,
+                onSelectSingle: onSelectSingle,
+                onToggleMulti: onToggleMulti,
+                priceTag: priceTag,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionGroupCard extends StatelessWidget {
+  final MenuItemOptionGroup group;
+  final Set<int> selected;
+  final void Function(int groupId, int valueId) onSelectSingle;
+  final void Function(int groupId, int valueId, bool selected) onToggleMulti;
+  final String Function(double) priceTag;
+
+  const _OptionGroupCard({
+    required this.group,
+    required this.selected,
+    required this.onSelectSingle,
+    required this.onToggleMulti,
+    required this.priceTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    group.name,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    group.isMulti ? 'متعدد' : 'اختيار واحد',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ...group.values.map((value) {
+              final isSelected = selected.contains(value.id);
+              final priceSuffix = value.extraPrice > 0 ? ' +${priceTag(value.extraPrice)}' : '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.secondary : Colors.white,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                    ),
+                  ),
+                  child: group.isMulti
+                      ? CheckboxListTile(
+                          dense: true,
+                          value: isSelected,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          onChanged: (v) => onToggleMulti(group.id, value.id, v ?? false),
+                          title: Text(
+                            '${value.name}$priceSuffix',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        )
+                      : RadioListTile<int>(
+                          dense: true,
+                          value: value.id,
+                          groupValue: selected.isEmpty ? null : selected.first,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          onChanged: (v) {
+                            if (v == null) return;
+                            onSelectSingle(group.id, v);
+                          },
+                          title: Text(
+                            '${value.name}$priceSuffix',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                ),
+              );
+            }),
+          ],
         ),
       ),
     );
