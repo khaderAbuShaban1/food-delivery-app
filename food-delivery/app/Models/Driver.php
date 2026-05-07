@@ -21,6 +21,8 @@ class Driver extends Model implements Authenticatable
         'password',
         'approval_status',
         'profile_image',
+        'national_id_image',
+        'vehicle_image',
         'is_available',
         'vehicle_type',
         'vehicle_plate_number',

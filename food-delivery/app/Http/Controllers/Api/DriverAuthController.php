@@ -24,12 +24,14 @@ class DriverAuthController extends Controller
             'vehicle_plate_number' => 'nullable|string|max:32',
             'city' => 'nullable|string|max:120',
             'emergency_contact_number' => 'nullable|string|max:32',
-            'profile_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'profile_image' => 'required|image|mimes:jpg,jpeg,png|max:4096',
+            'national_id_image' => 'required|image|mimes:jpg,jpeg,png|max:4096',
+            'vehicle_image' => 'required|image|mimes:jpg,jpeg,png|max:4096',
         ], [
             'name.required' => 'الاسم الكامل مطلوب',
             'name.min' => 'الاسم يجب أن يكون 3 أحرف على الأقل',
             'national_id.required' => 'رقم الهوية مطلوب',
-            'national_id.unique' => 'رقم الهوية مستخدم من قبل',
+            'national_id.unique' => 'رقم الهوية مستخدم مسبقاً',
             'phone.required' => 'رقم الهاتف مطلوب',
             'phone.min' => 'رقم الهاتف يجب أن يكون 8 أرقام على الأقل',
             'phone.unique' => 'رقم الهاتف مستخدم من قبل',
@@ -41,8 +43,18 @@ class DriverAuthController extends Controller
             'password.confirmed' => 'كلمتا المرور غير متطابقتين',
             'vehicle_type.required' => 'نوع المركبة مطلوب',
             'vehicle_type.in' => 'نوع المركبة غير صالح',
+            'profile_image.required' => 'الصورة الشخصية مطلوبة',
             'profile_image.image' => 'الصورة الشخصية يجب أن تكون ملف صورة',
-            'profile_image.max' => 'حجم الصورة يجب أن يكون أقل من 2 ميجابايت',
+            'profile_image.mimes' => 'الصورة الشخصية يجب أن تكون jpg أو jpeg أو png',
+            'profile_image.max' => 'حجم الصورة الشخصية يجب أن يكون أقل من 4 ميجابايت',
+            'national_id_image.required' => 'صورة الهوية مطلوبة',
+            'national_id_image.image' => 'صورة الهوية يجب أن تكون ملف صورة',
+            'national_id_image.mimes' => 'صورة الهوية يجب أن تكون jpg أو jpeg أو png',
+            'national_id_image.max' => 'حجم صورة الهوية يجب أن يكون أقل من 4 ميجابايت',
+            'vehicle_image.required' => 'صورة المركبة مطلوبة',
+            'vehicle_image.image' => 'صورة المركبة يجب أن تكون ملف صورة',
+            'vehicle_image.mimes' => 'صورة المركبة يجب أن تكون jpg أو jpeg أو png',
+            'vehicle_image.max' => 'حجم صورة المركبة يجب أن يكون أقل من 4 ميجابايت',
         ]);
 
         if ($validator->fails()) {
@@ -54,10 +66,9 @@ class DriverAuthController extends Controller
         }
 
         $validated = $validator->validated();
-        $profileImagePath = null;
-        if ($request->hasFile('profile_image')) {
-            $profileImagePath = $request->file('profile_image')->store('driver-profiles', 'public');
-        }
+        $profileImagePath = $request->file('profile_image')->store('driver-profiles', 'public');
+        $nationalIdImagePath = $request->file('national_id_image')->store('driver-documents/national-ids', 'public');
+        $vehicleImagePath = $request->file('vehicle_image')->store('driver-documents/vehicles', 'public');
 
         Driver::create([
             'name' => $validated['name'],
@@ -70,6 +81,8 @@ class DriverAuthController extends Controller
             'city' => $validated['city'] ?? null,
             'emergency_contact_number' => $validated['emergency_contact_number'] ?? null,
             'profile_image' => $profileImagePath,
+            'national_id_image' => $nationalIdImagePath,
+            'vehicle_image' => $vehicleImagePath,
             'approval_status' => 'pending',
             'is_available' => false,
         ]);
