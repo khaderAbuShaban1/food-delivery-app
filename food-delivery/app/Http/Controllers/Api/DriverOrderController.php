@@ -36,7 +36,7 @@ class DriverOrderController extends Controller
         $orders = Order::query()
             ->whereIn('status', OrderWorkflow::preparingPoolStatuses())
             ->whereNull('driver_id')
-            ->with(['restaurant', 'orderItems.menuItem', 'customer'])
+            ->with(['restaurant', 'orderItems.menuItem', 'orderItems.optionValues', 'customer'])
             ->orderByDesc('updated_at')
             ->get();
 
@@ -68,7 +68,7 @@ class DriverOrderController extends Controller
                 OrderWorkflow::DELIVERED,
                 OrderWorkflow::PAYMENT_REJECTED,
             ])
-            ->with(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])
+            ->with(['restaurant', 'orderItems.menuItem', 'orderItems.optionValues', 'driver', 'customer'])
             ->orderByDesc('updated_at')
             ->first();
 
@@ -136,7 +136,7 @@ class DriverOrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم تعيين الطلب لك.',
-            'data' => app(OrderController::class)->formatOrder($order->fresh(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])),
+            'data' => app(OrderController::class)->formatOrder($order->fresh(['restaurant', 'orderItems.menuItem', 'orderItems.optionValues', 'driver', 'customer'])),
         ]);
     }
 
@@ -193,7 +193,7 @@ class DriverOrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث حالة الطلب',
-            'data' => app(OrderController::class)->formatOrder($order->fresh(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])),
+            'data' => app(OrderController::class)->formatOrder($order->fresh(['restaurant', 'orderItems.menuItem', 'orderItems.optionValues', 'driver', 'customer'])),
         ]);
     }
 
@@ -244,7 +244,7 @@ class DriverOrderController extends Controller
         $orders = Order::query()
             ->where('driver_id', $driver->id)
             ->whereIn('status', [OrderWorkflow::DELIVERED, 'completed'])
-            ->with(['restaurant', 'orderItems.menuItem', 'driver', 'customer'])
+            ->with(['restaurant', 'orderItems.menuItem', 'orderItems.optionValues', 'driver', 'customer'])
             ->orderByDesc('updated_at')
             ->limit(200)
             ->get();

@@ -134,6 +134,26 @@
                                 @foreach($order->orderItems as $item)
                                     <div>
                                         {{ $item->quantity ?? 1 }} × {{ $item->name ?? $item->menuItem->name ?? 'صنف' }}
+                                        @php
+                                            $opts = $item->optionValues ?? collect();
+                                            $optLines = [];
+                                            if ($opts->count() > 0) {
+                                                $grouped = $opts->groupBy(fn ($o) => (string) ($o->group_name ?? ''));
+                                                foreach ($grouped as $g => $rows) {
+                                                    $g = trim((string) $g);
+                                                    if ($g === '') continue;
+                                                    $vals = $rows->pluck('value_name')->filter()->unique()->values()->all();
+                                                    if (!empty($vals)) {
+                                                        $optLines[] = $g . ': ' . implode('، ', $vals);
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        @if(count($optLines) > 0)
+                                            <div class="muted" style="margin-top:.15rem; line-height:1.35;">
+                                                {{ implode(' | ', $optLines) }}
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -279,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tbody.innerHTML = orders.map((order) => {
             const statusClass = normalizeStatusClass(order.status);
             const itemsHtml = (order.items || []).length
-                ? `<div class="items-list">${order.items.map((item) => `<div>${escapeHtml(item.quantity)} × ${escapeHtml(item.name)}</div>`).join('')}</div>`
+                ? `<div class="items-list">${order.items.map((item) => `<div>${escapeHtml(item.quantity)} × ${escapeHtml(item.name)}${item.options_text ? `<div class="muted" style="margin-top:.15rem; line-height:1.35;">${escapeHtml(item.options_text)}</div>` : ''}</div>`).join('')}</div>`
                 : '<span class="muted">لا توجد أصناف</span>';
             const pendingActions = order.status === 'payment_verified'
                 ? `<button type="button" class="action-btn primary quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="accepted_by_restaurant">قبول الطلب</button>`

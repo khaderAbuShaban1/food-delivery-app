@@ -547,10 +547,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             final name = item['name']?.toString() ?? 'عنصر';
             final quantity = item['quantity'] ?? 1;
             final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0;
+            final options = (item['options'] as List?)
+                    ?.map((e) => Map<String, dynamic>.from(e as Map))
+                    .toList() ??
+                const <Map<String, dynamic>>[];
+            final optionsText = _formatItemOptions(options);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 32,
@@ -572,12 +578,28 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: AppColors.textPrimary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (optionsText.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            optionsText,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Text(
@@ -595,6 +617,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ],
       ),
     );
+  }
+
+  String _formatItemOptions(List<Map<String, dynamic>> options) {
+    if (options.isEmpty) return '';
+    final grouped = <String, List<String>>{};
+    for (final o in options) {
+      final g = (o['group_name'] ?? '').toString().trim();
+      final v = (o['value_name'] ?? '').toString().trim();
+      if (g.isEmpty || v.isEmpty) continue;
+      (grouped[g] ??= <String>[]).add(v);
+    }
+    if (grouped.isEmpty) return '';
+    final parts = <String>[];
+    grouped.forEach((g, vals) {
+      final uniq = vals.toSet().toList();
+      parts.add('$g: ${uniq.join('، ')}');
+    });
+    return parts.join('\n');
   }
 
   Widget _buildOrderSummary(double totalPrice) {

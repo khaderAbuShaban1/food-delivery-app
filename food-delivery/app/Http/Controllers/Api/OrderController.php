@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\MenuItem;
+use App\Models\MenuItemOptionGroup;
+use App\Models\MenuItemOptionValue;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderItemOptionValue;
 use App\Models\Restaurant;
 use App\Models\User;
 use App\Services\OrderWorkflow;
@@ -116,7 +119,7 @@ class OrderController extends Controller
         $customerColumn = $this->customerColumn();
 
         $orders = Order::where($customerColumn, $customer->id)
-            ->with(['restaurant', 'orderItems.menuItem', 'paymentMethod'])
+            ->with(['restaurant', 'orderItems.menuItem', 'orderItems.optionValues', 'paymentMethod'])
             ->latest()
             ->get()
             ->map(function ($order) {
@@ -167,6 +170,7 @@ class OrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.menu_item_id' => 'required|integer|exists:menu_items,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.options' => 'nullable|array',
             'address_id' => [
                 'required',
                 'integer',
@@ -239,6 +243,7 @@ class OrderController extends Controller
             $order = DB::transaction(function () use ($validated, $menuItems, $customer, $deliverySnapshot, $paymentProofPath, $paymentMethodId) {
                 $totalPrice = 0.0;
                 $orderItems = [];
+                $orderItemOptions = [];
 
                 foreach ($validated['items'] as $item) {
                     $menuItemId = (int) $item['menu_item_id'];
@@ -247,13 +252,85 @@ class OrderController extends Controller
                         throw new \RuntimeException('Menu item missing after validation');
                     }
                     $qty = (int) $item['quantity'];
-                    $lineTotal = (float) $menuItem->price * $qty;
+
+                    $optionsByGroup = $item['options'] ?? [];
+                    $selectedValueIds = [];
+                    $selectedByGroup = [];
+                    if (is_array($optionsByGroup)) {
+                        foreach ($optionsByGroup as $gid => $valueIds) {
+                            $groupId = (int) $gid;
+                            $ids = [];
+                            if (is_array($valueIds)) {
+                                foreach ($valueIds as $raw) {
+                                    $vid = (int) $raw;
+                                    if ($vid > 0) {
+                                        $ids[] = $vid;
+                                    }
+                                }
+                            }
+                            $ids = array_values(array_unique($ids));
+                            sort($ids);
+                            if (!empty($ids)) {
+                                $selectedByGroup[$groupId] = $ids;
+                                $selectedValueIds = array_merge($selectedValueIds, $ids);
+                            }
+                        }
+                    }
+                    $selectedValueIds = array_values(array_unique($selectedValueIds));
+
+                    $extraPerUnit = 0.0;
+                    $optionRows = [];
+
+                    if (!empty($selectedValueIds) && Schema::hasTable('menu_item_option_groups') && Schema::hasTable('menu_item_option_values')) {
+                        /** @var \Illuminate\Support\Collection<int, MenuItemOptionGroup> $groups */
+                        $groups = MenuItemOptionGroup::query()
+                            ->where('menu_item_id', $menuItemId)
+                            ->get()
+                            ->keyBy('id');
+
+                        /** @var \Illuminate\Support\Collection<int, MenuItemOptionValue> $values */
+                        $values = MenuItemOptionValue::query()
+                            ->whereIn('id', $selectedValueIds)
+                            ->with('group')
+                            ->get()
+                            ->keyBy('id');
+
+                        // Validate: all requested groups belong to this menu item and satisfy single/multiple rules.
+                        foreach ($selectedByGroup as $groupId => $ids) {
+                            $group = $groups->get($groupId);
+                            if (!$group) {
+                                throw new \RuntimeException('Invalid option group for menu item');
+                            }
+                            if ($group->selection_type === 'single' && count($ids) > 1) {
+                                throw new \RuntimeException('Single-select group has multiple values');
+                            }
+                            foreach ($ids as $vid) {
+                                $val = $values->get((int) $vid);
+                                if (!$val || (int) $val->option_group_id !== (int) $groupId) {
+                                    throw new \RuntimeException('Invalid option value for option group');
+                                }
+                                $extra = (float) ($val->extra_price ?? 0);
+                                $extraPerUnit += $extra;
+                                $optionRows[] = [
+                                    'option_group_id' => (int) $groupId,
+                                    'option_value_id' => (int) $val->id,
+                                    'group_name' => $group->name,
+                                    'value_name' => $val->name,
+                                    'extra_price' => $extra,
+                                ];
+                            }
+                        }
+                    }
+
+                    $unitBase = (float) $menuItem->price;
+                    $lineTotal = ($unitBase + $extraPerUnit) * $qty;
                     $totalPrice += $lineTotal;
                     $orderItems[] = [
                         'menu_item_id' => $menuItemId,
                         'quantity' => $qty,
-                        'price' => $menuItem->price,
+                        'price' => $menuItem->price, // base unit price snapshot
                     ];
+                    $orderItemOptions[] = $optionRows;
                 }
 
                 $orderNumber = Order::generateOrderNumber();
@@ -282,18 +359,35 @@ class OrderController extends Controller
 
                 $order = Order::create($createData);
 
-                foreach ($orderItems as $orderItem) {
-                    OrderItem::create([
+                foreach ($orderItems as $idx => $orderItem) {
+                    $oi = OrderItem::create([
                         'order_id' => $order->id,
                         'menu_item_id' => $orderItem['menu_item_id'],
                         'quantity' => $orderItem['quantity'],
                         'price' => $orderItem['price'],
                     ]);
+
+                    $optionRows = $orderItemOptions[$idx] ?? [];
+                    if (!empty($optionRows)) {
+                        foreach ($optionRows as $row) {
+                            $row['order_item_id'] = $oi->id;
+                            OrderItemOptionValue::create($row);
+                        }
+                    }
                 }
 
-                return $order->load(['orderItems.menuItem', 'restaurant', 'customer', 'paymentMethod']);
+                return $order->load(['orderItems.menuItem', 'orderItems.optionValues', 'restaurant', 'customer', 'paymentMethod']);
             });
         } catch (Throwable $e) {
+            // Option validation errors are client-side problems.
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'Invalid option') || str_contains($msg, 'Single-select group')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'خيارات الطلب غير صالحة. حدّث الصفحة وأعد الاختيار.',
+                ], 422);
+            }
+
             report($e);
 
             return response()->json([
@@ -314,7 +408,7 @@ class OrderController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $customerColumn = $this->customerColumn();
-        $order = Order::with(['restaurant', 'driver', 'orderItems.menuItem', 'paymentMethod'])
+        $order = Order::with(['restaurant', 'driver', 'orderItems.menuItem', 'orderItems.optionValues', 'paymentMethod'])
             ->where($customerColumn, $request->user()->id)
             ->find($id);
 
@@ -349,7 +443,7 @@ class OrderController extends Controller
 
         $query = Order::where('restaurant_id', $restaurantId)
             ->whereIn('status', OrderWorkflow::restaurantVisibleStatuses())
-            ->with(['orderItems.menuItem', 'customer']);
+            ->with(['orderItems.menuItem', 'orderItems.optionValues', 'customer']);
 
         if ($status) {
             if (! in_array($status, OrderWorkflow::restaurantVisibleStatuses(), true)) {
@@ -418,7 +512,7 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث حالة الطلب بنجاح',
-            'data' => $this->formatOrder($order->load('orderItems.menuItem')),
+            'data' => $this->formatOrder($order->load(['orderItems.menuItem', 'orderItems.optionValues'])),
         ]);
     }
 
@@ -477,12 +571,25 @@ class OrderController extends Controller
             'status_label' => $this->getStatusLabel($order->status),
             'status_color' => $this->getStatusColor($order->status),
             'items' => $order->orderItems->map(function ($item) {
+                $options = $item->relationLoaded('optionValues') ? $item->optionValues : $item->optionValues()->get();
+                $optionsTotal = (float) $options->sum(fn ($o) => (float) ($o->extra_price ?? 0));
+                $baseUnit = (float) $item->price;
+                $unit = $baseUnit + $optionsTotal;
                 return [
                     'id' => $item->id,
                     'menu_item_id' => $item->menu_item_id,
                     'name' => $item->menuItem?->name,
-                    'price' => (float) $item->price,
+                    'price' => $unit,
+                    'base_price' => $baseUnit,
+                    'options_total' => $optionsTotal,
                     'quantity' => $item->quantity,
+                    'options' => $options->map(static fn ($o) => [
+                        'option_group_id' => (int) $o->option_group_id,
+                        'option_value_id' => (int) $o->option_value_id,
+                        'group_name' => $o->group_name,
+                        'value_name' => $o->value_name,
+                        'extra_price' => (float) ($o->extra_price ?? 0),
+                    ])->values()->all(),
                 ];
             }),
             'created_at' => $order->created_at,

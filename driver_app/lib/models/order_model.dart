@@ -102,6 +102,26 @@ class OrderModel {
     return s;
   }
 
+  static String _optionsLine(dynamic optionsRaw) {
+    if (optionsRaw is! List) return '';
+    final grouped = <String, List<String>>{};
+    for (final e in optionsRaw) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e as Map);
+      final g = (m['group_name'] ?? '').toString().trim();
+      final v = (m['value_name'] ?? '').toString().trim();
+      if (g.isEmpty || v.isEmpty) continue;
+      (grouped[g] ??= <String>[]).add(v);
+    }
+    if (grouped.isEmpty) return '';
+    final parts = <String>[];
+    grouped.forEach((g, vals) {
+      final uniq = vals.toSet().toList();
+      parts.add('$g: ${uniq.join('، ')}');
+    });
+    return parts.join('، ');
+  }
+
   static String? _optionalString(dynamic value) {
     final s = _stringOrEmpty(value);
     return s.isEmpty ? null : s;
@@ -140,10 +160,12 @@ class OrderModel {
           final qty = m['quantity'];
           final qtyStr =
               qty is num ? qty.toInt().toString() : (qty ?? '').toString().trim();
+          final optionsText = _optionsLine(m['options']);
+          final fullName = optionsText.isEmpty ? name : '$name ($optionsText)';
           if (name.isNotEmpty && qtyStr.isNotEmpty) {
-            itemsList.add('$name × $qtyStr');
+            itemsList.add('$fullName × $qtyStr');
           } else if (name.isNotEmpty) {
-            itemsList.add(name);
+            itemsList.add(fullName);
           }
         }
       }

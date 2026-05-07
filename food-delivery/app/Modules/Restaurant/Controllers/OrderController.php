@@ -27,7 +27,7 @@ class OrderController extends Controller
         }
 
         $myOrders = $this->buildOrdersQuery((int) $restaurant->id, $request)
-            ->with(['orderItems.menuItem:id,name', 'customerUser:id,name', 'legacyUser:id,name'])
+            ->with(['orderItems.menuItem:id,name', 'orderItems.optionValues', 'customerUser:id,name', 'legacyUser:id,name'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -50,7 +50,7 @@ class OrderController extends Controller
         }
 
         $orders = $this->buildOrdersQuery((int) $restaurant->id, $request)
-            ->with(['orderItems.menuItem:id,name', 'customerUser:id,name', 'legacyUser:id,name'])
+            ->with(['orderItems.menuItem:id,name', 'orderItems.optionValues', 'customerUser:id,name', 'legacyUser:id,name'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -60,9 +60,27 @@ class OrderController extends Controller
                 'order_number' => $order->order_number ?: $order->id,
                 'customer_name' => $order->customerUser?->name ?? $order->legacyUser?->name ?? 'عميل غير محدد',
                 'items' => $order->orderItems->map(function ($item) {
+                    $optionsText = '';
+                    $opts = $item->optionValues ?? collect();
+                    if ($opts->count() > 0) {
+                        $grouped = $opts->groupBy(fn ($o) => (string) ($o->group_name ?? ''));
+                        $parts = [];
+                        foreach ($grouped as $g => $rows) {
+                            $g = trim((string) $g);
+                            if ($g === '') {
+                                continue;
+                            }
+                            $vals = $rows->pluck('value_name')->filter()->unique()->values()->all();
+                            if (!empty($vals)) {
+                                $parts[] = $g.': '.implode('، ', $vals);
+                            }
+                        }
+                        $optionsText = implode(' | ', $parts);
+                    }
                     return [
                         'quantity' => (int) ($item->quantity ?? 1),
                         'name' => $item->name ?? $item->menuItem?->name ?? 'صنف',
+                        'options_text' => $optionsText,
                     ];
                 })->values(),
                 'total_price' => (float) $order->total_price,
