@@ -36,6 +36,7 @@ class Driver extends Model implements Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_code_hash',
     ];
 
     protected function casts(): array
@@ -43,6 +44,8 @@ class Driver extends Model implements Authenticatable
         return [
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
+            'email_verification_expires_at' => 'datetime',
+            'email_verification_last_sent_at' => 'datetime',
             'is_available' => 'boolean',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',

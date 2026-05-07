@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
+import 'email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -167,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         content: Text(
           ok
               ? (auth.successMessage ??
-                    'تم إرسال طلبك للإدارة وبانتظار الموافقة')
+                    'تم إنشاء الحساب. يرجى التحقق من البريد الإلكتروني أولاً')
               : (auth.error ?? 'تعذر إرسال طلب التسجيل'),
         ),
         backgroundColor: ok
@@ -177,6 +178,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (ok) {
+      await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => EmailVerificationScreen(
+            initialEmail: _emailController.text.trim(),
+          ),
+        ),
+      );
+      if (!mounted) return;
       navigator.pop();
     }
   }

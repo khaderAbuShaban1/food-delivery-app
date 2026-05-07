@@ -111,6 +111,38 @@ class AuthService {
     );
   }
 
+  Future<(bool, String)> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    final response = await _apiClient.post('/driver/verify-email', {
+      'email': email,
+      'code': code,
+    });
+
+    if (response['success'] == true) {
+      return (true, response['message']?.toString() ?? 'تم التحقق بنجاح');
+    }
+
+    return (false, response['message']?.toString() ?? 'تعذر التحقق من البريد');
+  }
+
+  Future<(bool, String)> resendVerificationCode({required String email}) async {
+    final response = await _apiClient.post('/driver/resend-verification', {
+      'email': email,
+    });
+
+    if (response['success'] == true) {
+      return (
+        true,
+        response['message']?.toString() ??
+            'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+      );
+    }
+
+    return (false, response['message']?.toString() ?? 'تعذر إعادة إرسال الرمز');
+  }
+
   Future<(String?, DriverModel?)> restoreSession() async {
     final token = await _secureStorage.read(key: _tokenKey);
     final rawDriver = await _secureStorage.read(key: _driverKey);

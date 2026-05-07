@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Controllers\AuthController;
 use App\Modules\Admin\Controllers\DashboardController;
+use App\Modules\Admin\Controllers\DebugMailController;
 use App\Modules\Admin\Controllers\PaymentMethodController;
 use App\Modules\Admin\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/drivers', [DashboardController::class, 'drivers'])->name('drivers.index');
         Route::patch('/drivers/{id}/approve', [DashboardController::class, 'approveDriver'])->name('drivers.approve');
         Route::patch('/drivers/{id}/reject', [DashboardController::class, 'rejectDriver'])->name('drivers.reject');
+
+        Route::post('/debug/mail-test', [DebugMailController::class, 'send'])->name('debug.mail-test');
         
         Route::get('/restaurants', [DashboardController::class, 'restaurants'])->name('restaurants');
         Route::post('/restaurants', [DashboardController::class, 'storeRestaurant'])->name('restaurants.store');
