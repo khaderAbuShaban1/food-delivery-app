@@ -47,6 +47,10 @@
 .customer-name { font-weight:600; color:var(--text-primary); }
 .muted { color:var(--text-muted); font-size:.75rem; }
 .items-list { max-width:260px; display:flex; flex-direction:column; gap:.25rem; color:var(--text-secondary); }
+.item-base-price { margin-top:.15rem; line-height:1.35; }
+.item-options { margin-top:.25rem; padding-right:.9rem; display:flex; flex-direction:column; gap:.15rem; }
+.item-option-line { font-size:.75rem; color:var(--text-muted); line-height:1.35; }
+.item-option-group { font-weight:700; }
 
 .badge-status { display:inline-flex; align-items:center; padding:.28rem .62rem; border-radius:999px; font-size:.72rem; font-weight:700; }
 .badge-status.pending { background:#FEF3C7; color:#B45309; }
@@ -134,24 +138,134 @@
                                 @foreach($order->orderItems as $item)
                                     <div>
                                         {{ $item->quantity ?? 1 }} × {{ $item->name ?? $item->menuItem->name ?? 'صنف' }}
+
+                                        <div class="muted item-base-price">
+                                            السعر الأساسي:
+                                            <span dir="ltr">{{ number_format((float)($item->price ?? 0), 2) }} ₪</span>
+                                        </div>
+
                                         @php
                                             $opts = $item->optionValues ?? collect();
-                                            $optLines = [];
+                                            $optionsGroups = [];
+
                                             if ($opts->count() > 0) {
-                                                $grouped = $opts->groupBy(fn ($o) => (string) ($o->group_name ?? ''));
+                                                $grouped = $opts->groupBy(fn ($o) => trim((string) ($o->group_name ?? '')));
                                                 foreach ($grouped as $g => $rows) {
                                                     $g = trim((string) $g);
                                                     if ($g === '') continue;
-                                                    $vals = $rows->pluck('value_name')->filter()->unique()->values()->all();
-                                                    if (!empty($vals)) {
-                                                        $optLines[] = $g . ': ' . implode('، ', $vals);
+
+                                                    $values = [];
+                                                    $seen = [];
+                                                    foreach ($rows as $row) {
+                                                        $valueName = trim((string) ($row->value_name ?? ''));
+                                                        if ($valueName === '' || isset($seen[$valueName])) continue;
+                                                        $seen[$valueName] = true;
+
+                                                        $values[] = [
+                                                            'name' => $valueName,
+                                                            'extra_price' => (float) ($row->extra_price ?? 0),
+                                                        ];
+                                                    }
+
+                                                    if (!empty($values)) {
+                                                        $optionsGroups[] = [
+                                                            'group_name' => $g,
+                                                            'values' => $values,
+                                                        ];
+                                                    }
+                                                }
+                                            } else {
+                                                // Fallback: some older schemas may store options as JSON on the order_items row.
+                                                $rawOptions = $item->options ?? null;
+                                                $decoded = null;
+                                                if (is_string($rawOptions)) {
+                                                    $decoded = json_decode($rawOptions, true);
+                                                } elseif (is_array($rawOptions)) {
+                                                    $decoded = $rawOptions;
+                                                }
+
+                                                if (is_array($decoded) && !empty($decoded)) {
+                                                    $first = $decoded[0] ?? null;
+                                                    $isRowShape = is_array($first)
+                                                        && (array_key_exists('value_name', $first) || array_key_exists('value', $first) || array_key_exists('name', $first));
+
+                                                    if ($isRowShape) {
+                                                        $grouped = collect($decoded)->groupBy(fn ($r) => trim((string) ($r['group_name'] ?? '')));
+                                                        foreach ($grouped as $g => $rowsGroup) {
+                                                            $g = trim((string) $g);
+                                                            if ($g === '') continue;
+
+                                                            $values = [];
+                                                            $seen = [];
+                                                            foreach ($rowsGroup as $r) {
+                                                                if (!is_array($r)) continue;
+                                                                $valueName = trim((string) ($r['value_name'] ?? $r['name'] ?? $r['value'] ?? ''));
+                                                                if ($valueName === '' || isset($seen[$valueName])) continue;
+                                                                $seen[$valueName] = true;
+
+                                                                $values[] = [
+                                                                    'name' => $valueName,
+                                                                    'extra_price' => (float) ($r['extra_price'] ?? 0),
+                                                                ];
+                                                            }
+
+                                                            if (!empty($values)) {
+                                                                $optionsGroups[] = [
+                                                                    'group_name' => $g,
+                                                                    'values' => $values,
+                                                                ];
+                                                            }
+                                                        }
+                                                    } else {
+                                                        // Group shape: [ { group_name: 'Size', values: [ { name: 'Large', extra_price: 3 } ] } ]
+                                                        foreach ($decoded as $groupObj) {
+                                                            if (!is_array($groupObj)) continue;
+                                                            $g = trim((string) ($groupObj['group_name'] ?? $groupObj['name'] ?? ''));
+                                                            if ($g === '') continue;
+
+                                                            $groupValues = $groupObj['values'] ?? [];
+                                                            if (!is_array($groupValues)) continue;
+
+                                                            $values = [];
+                                                            $seen = [];
+                                                            foreach ($groupValues as $v) {
+                                                                if (!is_array($v)) continue;
+                                                                $valueName = trim((string) ($v['value_name'] ?? $v['name'] ?? $v['value'] ?? ''));
+                                                                if ($valueName === '' || isset($seen[$valueName])) continue;
+                                                                $seen[$valueName] = true;
+
+                                                                $values[] = [
+                                                                    'name' => $valueName,
+                                                                    'extra_price' => (float) ($v['extra_price'] ?? 0),
+                                                                ];
+                                                            }
+
+                                                            if (!empty($values)) {
+                                                                $optionsGroups[] = [
+                                                                    'group_name' => $g,
+                                                                    'values' => $values,
+                                                                ];
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
                                         @endphp
-                                        @if(count($optLines) > 0)
-                                            <div class="muted" style="margin-top:.15rem; line-height:1.35;">
-                                                {{ implode(' | ', $optLines) }}
+
+                                        @if(count($optionsGroups) > 0)
+                                            <div class="item-options">
+                                                @foreach($optionsGroups as $group)
+                                                    <div class="item-option-line">
+                                                        - {{ $group['group_name'] }}:
+                                                        @foreach($group['values'] as $val)
+                                                            <span>{{ $val['name'] }}</span>
+                                                            @if((float) $val['extra_price'] > 0)
+                                                                <span dir="ltr"> (+{{ number_format((float) $val['extra_price'], 2) }} ₪)</span>
+                                                            @endif
+                                                            @if(!$loop->last)، @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endforeach
                                             </div>
                                         @endif
                                     </div>
@@ -281,8 +395,38 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/'/g, '&#039;');
     }
 
+    function formatAmount(value) {
+        return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
+    }
+
     function formatPrice(value) {
-        return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) + ' ₪';
+        return formatAmount(value) + ' ₪';
+    }
+
+    function formatExtraPrice(extraPrice) {
+        const n = Number(extraPrice || 0);
+        return n > 0 ? ` (+${formatAmount(n)} ₪)` : '';
+    }
+
+    function renderItemOptions(options) {
+        if (!Array.isArray(options) || options.length === 0) return '';
+
+        const optionLines = options.map((opt) => {
+            const groupName = String(opt?.group_name ?? '').trim();
+            const vals = Array.isArray(opt?.values) ? opt.values : [];
+            if (vals.length === 0) return '';
+
+            const valuesText = vals.map((v) => {
+                const name = escapeHtml(v?.name ?? '');
+                const extra = v?.extra_price ?? 0;
+                return `${name}${formatExtraPrice(extra)}`;
+            }).join('، ');
+
+            if (!valuesText) return '';
+            return `<div class="item-option-line">- ${escapeHtml(groupName)}: ${valuesText}</div>`;
+        }).filter(Boolean).join('');
+
+        return optionLines ? `<div class="item-options">${optionLines}</div>` : '';
     }
 
     function normalizeStatusClass(status) {
@@ -299,7 +443,15 @@ document.addEventListener('DOMContentLoaded', function() {
         tbody.innerHTML = orders.map((order) => {
             const statusClass = normalizeStatusClass(order.status);
             const itemsHtml = (order.items || []).length
-                ? `<div class="items-list">${order.items.map((item) => `<div>${escapeHtml(item.quantity)} × ${escapeHtml(item.name)}${item.options_text ? `<div class="muted" style="margin-top:.15rem; line-height:1.35;">${escapeHtml(item.options_text)}</div>` : ''}</div>`).join('')}</div>`
+                ? `<div class="items-list">${order.items.map((item) => {
+                    const qty = escapeHtml(item.quantity);
+                    const name = escapeHtml(item.name);
+                    const basePriceLine = (item.base_price !== undefined && item.base_price !== null)
+                        ? `<div class="muted item-base-price">السعر الأساسي: <span dir="ltr">${formatPrice(item.base_price)}</span></div>`
+                        : '';
+                    const optionsHtml = renderItemOptions(item.options);
+                    return `<div>${qty} × ${name}${basePriceLine}${optionsHtml}</div>`;
+                }).join('')}</div>`
                 : '<span class="muted">لا توجد أصناف</span>';
             const pendingActions = order.status === 'payment_verified'
                 ? `<button type="button" class="action-btn primary quick-status-btn" data-url="${escapeHtml(order.status_update_url)}" data-status="accepted_by_restaurant">قبول الطلب</button>`

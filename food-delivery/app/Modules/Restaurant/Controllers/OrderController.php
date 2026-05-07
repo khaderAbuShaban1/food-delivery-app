@@ -60,27 +60,130 @@ class OrderController extends Controller
                 'order_number' => $order->order_number ?: $order->id,
                 'customer_name' => $order->customerUser?->name ?? $order->legacyUser?->name ?? 'عميل غير محدد',
                 'items' => $order->orderItems->map(function ($item) {
-                    $optionsText = '';
                     $opts = $item->optionValues ?? collect();
+
+                    // Serialize selected options as:
+                    // [ { group_name: 'Size', values: [ { name: 'Large', extra_price: 3.00 }, ... ] }, ... ]
+                    $options = [];
                     if ($opts->count() > 0) {
-                        $grouped = $opts->groupBy(fn ($o) => (string) ($o->group_name ?? ''));
-                        $parts = [];
+                        $grouped = $opts->groupBy(fn ($o) => trim((string) ($o->group_name ?? '')));
                         foreach ($grouped as $g => $rows) {
                             $g = trim((string) $g);
                             if ($g === '') {
                                 continue;
                             }
-                            $vals = $rows->pluck('value_name')->filter()->unique()->values()->all();
-                            if (!empty($vals)) {
-                                $parts[] = $g.': '.implode('، ', $vals);
+
+                            $values = [];
+                            $seen = [];
+                            foreach ($rows as $row) {
+                                $valueName = trim((string) ($row->value_name ?? ''));
+                                if ($valueName === '' || isset($seen[$valueName])) {
+                                    continue;
+                                }
+                                $seen[$valueName] = true;
+
+                                $values[] = [
+                                    'name' => $valueName,
+                                    'extra_price' => (float) ($row->extra_price ?? 0),
+                                ];
+                            }
+
+                            if (!empty($values)) {
+                                $options[] = [
+                                    'group_name' => $g,
+                                    'values' => $values,
+                                ];
                             }
                         }
-                        $optionsText = implode(' | ', $parts);
+                    } else {
+                        // Fallback: some older schemas may store options as JSON on the order_items row.
+                        $rawOptions = $item->options ?? null;
+                        $decoded = null;
+                        if (is_string($rawOptions)) {
+                            $decoded = json_decode($rawOptions, true);
+                        } elseif (is_array($rawOptions)) {
+                            $decoded = $rawOptions;
+                        }
+
+                        if (is_array($decoded) && !empty($decoded)) {
+                            $first = $decoded[0] ?? null;
+                            $isRowShape = is_array($first)
+                                && (array_key_exists('value_name', $first) || array_key_exists('value', $first) || array_key_exists('name', $first));
+
+                            if ($isRowShape) {
+                                $rows = collect($decoded);
+                                $grouped = $rows->groupBy(fn ($r) => trim((string) ($r['group_name'] ?? '')));
+                                foreach ($grouped as $g => $rowsGroup) {
+                                    $g = trim((string) $g);
+                                    if ($g === '') {
+                                        continue;
+                                    }
+
+                                    $values = [];
+                                    $seen = [];
+                                    foreach ($rowsGroup as $r) {
+                                        if (!is_array($r)) continue;
+                                        $valueName = trim((string) ($r['value_name'] ?? $r['name'] ?? $r['value'] ?? ''));
+                                        if ($valueName === '' || isset($seen[$valueName])) {
+                                            continue;
+                                        }
+                                        $seen[$valueName] = true;
+
+                                        $values[] = [
+                                            'name' => $valueName,
+                                            'extra_price' => (float) ($r['extra_price'] ?? 0),
+                                        ];
+                                    }
+
+                                    if (!empty($values)) {
+                                        $options[] = [
+                                            'group_name' => $g,
+                                            'values' => $values,
+                                        ];
+                                    }
+                                }
+                            } else {
+                                // Group shape: [ { group_name: 'Size', values: [ { name: 'Large', extra_price: 3 } ] } ]
+                                foreach ($decoded as $groupObj) {
+                                    if (!is_array($groupObj)) continue;
+                                    $g = trim((string) ($groupObj['group_name'] ?? $groupObj['name'] ?? ''));
+                                    if ($g === '') continue;
+
+                                    $groupValues = $groupObj['values'] ?? [];
+                                    if (!is_array($groupValues)) continue;
+
+                                    $values = [];
+                                    $seen = [];
+                                    foreach ($groupValues as $v) {
+                                        if (!is_array($v)) continue;
+                                        $valueName = trim((string) ($v['value_name'] ?? $v['name'] ?? $v['value'] ?? ''));
+                                        if ($valueName === '' || isset($seen[$valueName])) {
+                                            continue;
+                                        }
+                                        $seen[$valueName] = true;
+
+                                        $values[] = [
+                                            'name' => $valueName,
+                                            'extra_price' => (float) ($v['extra_price'] ?? 0),
+                                        ];
+                                    }
+
+                                    if (!empty($values)) {
+                                        $options[] = [
+                                            'group_name' => $g,
+                                            'values' => $values,
+                                        ];
+                                    }
+                                }
+                            }
+                        }
                     }
+
                     return [
                         'quantity' => (int) ($item->quantity ?? 1),
                         'name' => $item->name ?? $item->menuItem?->name ?? 'صنف',
-                        'options_text' => $optionsText,
+                        'base_price' => (float) ($item->price ?? 0),
+                        'options' => $options,
                     ];
                 })->values(),
                 'total_price' => (float) $order->total_price,
