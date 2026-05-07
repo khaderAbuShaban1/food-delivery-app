@@ -8,16 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('avatar')->nullable()->after('phone');
-            $table->boolean('is_active')->default(true)->after('avatar');
-        });
+        if (!Schema::hasColumn('users', 'is_active')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->boolean('is_active')->default(true);
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['avatar', 'is_active']);
-        });
+        if (Schema::hasColumn('users', 'is_active')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('is_active');
+            });
+        }
     }
 };

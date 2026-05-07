@@ -516,6 +516,39 @@ class OrderController extends Controller
         ]);
     }
 
+    public function assignDriver(Request $request, int $id): JsonResponse
+    {
+        $order = Order::find($id);
+
+        if (! $order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'driver_id' => 'required|exists:drivers,id',
+        ]);
+
+        $driver = \App\Models\Driver::find($validated['driver_id']);
+
+        if (! $driver) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Driver not found',
+            ], 404);
+        }
+
+        $order->update(['driver_id' => $validated['driver_id']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Driver assigned successfully',
+            'data' => $this->formatOrder($order->load('driver')),
+        ]);
+    }
+
     public function formatOrder($order): array
     {
         $buyer = $order->customer;

@@ -11,16 +11,23 @@ class AuthService {
   }
 
   static String? _extractToken(Map<String, dynamic> response) {
-    final token = response['token']?.toString();
-    if (token != null && token.isNotEmpty) return token;
+    final directToken = response['token']?.toString();
+    if (directToken != null && directToken.isNotEmpty) {
+      return directToken;
+    }
 
     final accessToken = response['access_token']?.toString();
-    if (accessToken != null && accessToken.isNotEmpty) return accessToken;
+    if (accessToken != null && accessToken.isNotEmpty) {
+      return accessToken;
+    }
 
     if (response['data'] is Map<String, dynamic>) {
       final data = response['data'] as Map<String, dynamic>;
-      final nested = data['token']?.toString() ?? data['access_token']?.toString();
-      if (nested != null && nested.isNotEmpty) return nested;
+      final nestedToken =
+          data['token']?.toString() ?? data['access_token']?.toString();
+      if (nestedToken != null && nestedToken.isNotEmpty) {
+        return nestedToken;
+      }
     }
 
     return null;
@@ -39,11 +46,15 @@ class AuthService {
   static Map<String, dynamic>? get currentUser => _currentUser;
   static Stream<Map<String, dynamic>?> watchCurrentUser() =>
       _userController.stream;
+
   static String get currentUserName =>
       _currentUser?['name']?.toString() ?? 'ضيف';
+
   static String get currentUserEmail =>
       _currentUser?['email']?.toString() ?? '';
-  static String? get currentUserImage => _currentUser?['profile_image']?.toString();
+
+  static String? get currentUserImage =>
+      _currentUser?['profile_image']?.toString();
 
   static void _emitUser() {
     _userController.add(
@@ -104,7 +115,6 @@ class AuthService {
 
       final message = response['message']?.toString() ?? 'حدث خطأ';
 
-      // Handle validation errors
       if (response['errors'] != null) {
         final errors = response['errors'];
         final firstError = errors.keys.first;
@@ -120,9 +130,8 @@ class AuthService {
   static Future<void> logout() async {
     try {
       await ApiClient.post('/logout', {});
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
+
     ApiClient.token = null;
     _currentUser = null;
     _emitUser();
@@ -134,12 +143,15 @@ class AuthService {
 
   static Future<Map<String, dynamic>?> fetchCurrentUser() async {
     if (!isLoggedIn()) return null;
+
     final response = await ApiClient.get('/me');
+
     if (_isSuccess(response) && response['data'] is Map<String, dynamic>) {
       _currentUser = response['data'] as Map<String, dynamic>;
       _emitUser();
       return _currentUser;
     }
+
     return _currentUser;
   }
 
@@ -161,6 +173,7 @@ class AuthService {
           _currentUser!['name'] = name;
           if (phone != null) _currentUser!['phone'] = phone;
         }
+
         _emitUser();
         return 'success';
       }
@@ -187,7 +200,8 @@ class AuthService {
         return 'success';
       }
 
-      final message = response['message']?.toString() ?? 'تعذر تغيير كلمة المرور';
+      final message =
+          response['message']?.toString() ?? 'تعذر تغيير كلمة المرور';
       return message;
     } catch (e) {
       return 'حدث خطأ في الاتصال';
@@ -196,7 +210,11 @@ class AuthService {
 
   static Future<String> uploadProfileImage(String imagePath) async {
     try {
-      final response = await ApiClient.uploadFile('/profile/image', imagePath, 'image');
+      final response = await ApiClient.uploadFile(
+        '/profile/image',
+        imagePath,
+        'image',
+      );
 
       if (_isSuccess(response)) {
         await fetchCurrentUser();

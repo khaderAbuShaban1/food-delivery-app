@@ -8,14 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'banned_at')) {
-                $table->timestamp('banned_at')->nullable()->after('is_active');
-            }
-            if (!Schema::hasColumn('users', 'ban_reason')) {
-                $table->text('ban_reason')->nullable()->after('banned_at');
-            }
-        });
+        if (Schema::hasColumn('users', 'is_active')) {
+            Schema::table('users', function (Blueprint $table) {
+                if (!Schema::hasColumn('users', 'banned_at')) {
+                    $table->timestamp('banned_at')->nullable()->after('is_active');
+                }
+                if (!Schema::hasColumn('users', 'ban_reason')) {
+                    $table->text('ban_reason')->nullable()->after('banned_at');
+                }
+            });
+        }
     }
 
     public function down(): void
