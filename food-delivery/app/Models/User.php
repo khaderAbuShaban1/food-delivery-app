@@ -20,17 +20,23 @@ class User extends Authenticatable
         'address',
         'profile_image',
         'password',
+        'email_verification_code_hash',
+        'email_verification_expires_at',
+        'email_verification_last_sent_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_code_hash',
     ];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_expires_at' => 'datetime',
+            'email_verification_last_sent_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

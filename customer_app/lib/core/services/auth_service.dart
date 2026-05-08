@@ -1,5 +1,20 @@
-import '../api/api_client.dart';
 import 'dart:async';
+
+import '../api/api_client.dart';
+
+class RegisterResult {
+  final bool success;
+  final bool needsEmailVerification;
+  final String message;
+  final String? email;
+
+  RegisterResult({
+    required this.success,
+    required this.needsEmailVerification,
+    required this.message,
+    this.email,
+  });
+}
 
 class AuthService {
   static Map<String, dynamic>? _currentUser;
@@ -80,14 +95,13 @@ class AuthService {
         return 'success';
       }
 
-      final message = response['message']?.toString() ?? 'حدث خطأ';
-      return message;
+      return response['message']?.toString() ?? 'حدث خطأ';
     } catch (e) {
       return 'حدث خطأ في الاتصال';
     }
   }
 
-  static Future<String> register(
+  static Future<RegisterResult> register(
     String name,
     String email,
     String password,
@@ -103,25 +117,86 @@ class AuthService {
       });
 
       if (_isSuccess(response)) {
+        final needsVerification = response['needs_email_verification'] == true;
+        if (needsVerification) {
+          final emailValue = response['email']?.toString() ?? email;
+          return RegisterResult(
+            success: true,
+            needsEmailVerification: true,
+            message:
+                response['message']?.toString() ??
+                'تم إنشاء الحساب. يرجى التحقق من البريد الإلكتروني أولاً',
+            email: emailValue,
+          );
+        }
+
         final token = _extractToken(response);
         if (token == null || token.isEmpty) {
-          return response['message']?.toString() ?? 'تعذر قراءة رمز الدخول';
+          return RegisterResult(
+            success: false,
+            needsEmailVerification: false,
+            message: response['message']?.toString() ?? 'تعذر قراءة رمز الدخول',
+          );
         }
         ApiClient.token = token;
         _currentUser = _extractUser(response);
         _emitUser();
-        return 'success';
+        return RegisterResult(
+          success: true,
+          needsEmailVerification: false,
+          message: 'success',
+        );
       }
 
       final message = response['message']?.toString() ?? 'حدث خطأ';
-
       if (response['errors'] != null) {
         final errors = response['errors'];
         final firstError = errors.keys.first;
-        return errors[firstError][0]?.toString() ?? message;
+        return RegisterResult(
+          success: false,
+          needsEmailVerification: false,
+          message: errors[firstError][0]?.toString() ?? message,
+        );
       }
 
-      return message;
+      return RegisterResult(
+        success: false,
+        needsEmailVerification: false,
+        message: message,
+      );
+    } catch (e) {
+      return RegisterResult(
+        success: false,
+        needsEmailVerification: false,
+        message: 'حدث خطأ في الاتصال',
+      );
+    }
+  }
+
+  static Future<String> verifyEmail(String email, String code) async {
+    try {
+      final response = await ApiClient.post('/user/verify-email', {
+        'email': email,
+        'code': code,
+      });
+      if (_isSuccess(response)) {
+        return 'success';
+      }
+      return response['message']?.toString() ?? 'تعذر التحقق من الرمز';
+    } catch (e) {
+      return 'حدث خطأ في الاتصال';
+    }
+  }
+
+  static Future<String> resendVerificationCode(String email) async {
+    try {
+      final response = await ApiClient.post('/user/resend-verification', {
+        'email': email,
+      });
+      if (_isSuccess(response)) {
+        return 'success';
+      }
+      return response['message']?.toString() ?? 'تعذر إعادة إرسال الرمز';
     } catch (e) {
       return 'حدث خطأ في الاتصال';
     }
@@ -130,7 +205,7 @@ class AuthService {
   static Future<void> logout() async {
     try {
       await ApiClient.post('/logout', {});
-    } catch (e) {}
+    } catch (_) {}
 
     ApiClient.token = null;
     _currentUser = null;
@@ -145,7 +220,6 @@ class AuthService {
     if (!isLoggedIn()) return null;
 
     final response = await ApiClient.get('/me');
-
     if (_isSuccess(response) && response['data'] is Map<String, dynamic>) {
       _currentUser = response['data'] as Map<String, dynamic>;
       _emitUser();
@@ -173,13 +247,11 @@ class AuthService {
           _currentUser!['name'] = name;
           if (phone != null) _currentUser!['phone'] = phone;
         }
-
         _emitUser();
         return 'success';
       }
 
-      final message = response['message']?.toString() ?? 'تعذر تحديث البيانات';
-      return message;
+      return response['message']?.toString() ?? 'تعذر تحديث البيانات';
     } catch (e) {
       return 'حدث خطأ في الاتصال';
     }
@@ -200,9 +272,7 @@ class AuthService {
         return 'success';
       }
 
-      final message =
-          response['message']?.toString() ?? 'تعذر تغيير كلمة المرور';
-      return message;
+      return response['message']?.toString() ?? 'تعذر تغيير كلمة المرور';
     } catch (e) {
       return 'حدث خطأ في الاتصال';
     }
@@ -222,8 +292,7 @@ class AuthService {
         return 'success';
       }
 
-      final message = response['message']?.toString() ?? 'تعذر رفع الصورة';
-      return message;
+      return response['message']?.toString() ?? 'تعذر رفع الصورة';
     } catch (e) {
       return 'حدث خطأ في الاتصال';
     }
