@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/widgets/widgets.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,11 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result == 'success' && mounted) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/main',
-        (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
     } else if (mounted) {
       setState(() => _errorMessage = result);
     }
@@ -88,10 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppSpacing.xs),
               const Text(
                 'سجل دخولك للطلب',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xxxl),
               AppTextField(
@@ -133,7 +127,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -155,6 +151,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
+                if ((_errorMessage ?? '').contains(
+                  'يرجى التحقق من البريد الإلكتروني',
+                )) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        final email = _emailController.text.trim();
+                        if (email.isEmpty) return;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EmailVerificationScreen(email: email),
+                          ),
+                        );
+                      },
+                      child: const Text('إدخال رمز التحقق'),
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: AppSpacing.xl),
               AppButton(
@@ -168,9 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Text(
                     'ليس لديك حساب؟ ',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                   GestureDetector(
                     onTap: () {

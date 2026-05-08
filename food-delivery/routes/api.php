@@ -18,6 +18,8 @@ Route::get('/user', function (Request $request) {
 // User auth routes (public) - for Flutter app
 Route::post('/user/register', [AuthController::class, 'register']);
 Route::post('/user/login', [AuthController::class, 'login']);
+Route::post('/user/verify-email', [AuthController::class, 'verifyEmail']);
+Route::post('/user/resend-verification', [AuthController::class, 'resendEmailVerification']);
 Route::post('/driver/register', [DriverAuthController::class, 'register']);
 Route::post('/driver/login', [DriverAuthController::class, 'login']);
 Route::post('/driver/verify-email', [DriverAuthController::class, 'verifyEmail']);

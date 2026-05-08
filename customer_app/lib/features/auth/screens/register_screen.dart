@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/widgets/widgets.dart';
+import 'email_verification_screen.dart';
 import '../../home/main_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -24,8 +25,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     // Validation
-    if (_nameController.text.isEmpty || 
-        _emailController.text.isEmpty || 
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
         _phoneController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
@@ -44,12 +45,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (_phoneController.text.length < 8) {
-      setState(() => _errorMessage = 'رقم الهاتف يجب أن يكون 8 أرقام على الأقل');
+      setState(
+        () => _errorMessage = 'رقم الهاتف يجب أن يكون 8 أرقام على الأقل',
+      );
       return;
     }
 
     if (_passwordController.text.length < 6) {
-      setState(() => _errorMessage = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      setState(
+        () => _errorMessage = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
+      );
       return;
     }
 
@@ -72,14 +77,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = false);
 
-    if (result == 'success' && mounted) {
+    if (result.success && result.needsEmailVerification && mounted) {
+      final email = result.email ?? _emailController.text;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EmailVerificationScreen(email: email),
+        ),
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      return;
+    }
+
+    if (result.success && mounted) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
       );
     } else if (mounted) {
-      setState(() => _errorMessage = result);
+      setState(() => _errorMessage = result.message);
     }
   }
 
@@ -123,10 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: AppSpacing.xs),
               const Text(
                 'املأ البيانات المطلوبة',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xxxl),
               // Name field
@@ -205,7 +220,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: AppColors.textHint,
                   ),
                   onPressed: () {
-                    setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                    setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                    );
                   },
                 ),
               ),
@@ -217,7 +234,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -254,9 +273,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   const Text(
                     'لديك حساب؟ ',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                   GestureDetector(
                     onTap: () {
