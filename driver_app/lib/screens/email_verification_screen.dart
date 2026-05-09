@@ -1,12 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String initialEmail;
+  final bool autoResendOnOpen;
 
-  const EmailVerificationScreen({super.key, required this.initialEmail});
+  const EmailVerificationScreen({
+    super.key,
+    required this.initialEmail,
+    this.autoResendOnOpen = false,
+  });
 
   @override
   State<EmailVerificationScreen> createState() =>
@@ -14,151 +23,353 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _emailController;
-  final _codeController = TextEditingController();
+  final _controllers = List.generate(6, (_) => TextEditingController());
+  final _focusNodes = List.generate(6, (_) => FocusNode());
+
+  bool _isVerifying = false;
+  bool _isResending = false;
+  int _cooldownSeconds = 0;
+  Timer? _timer;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(text: widget.initialEmail);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_focusNodes.isNotEmpty) {
+        _focusNodes.first.requestFocus();
+      }
+      if (widget.autoResendOnOpen) {
+        _resend();
+      }
+    });
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _codeController.dispose();
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
+    _timer?.cancel();
     super.dispose();
   }
 
-  String? _required(String? value, String message) {
-    if (value == null || value.trim().isEmpty) return message;
-    return null;
+  String get _otp => _controllers.map((c) => c.text.trim()).join();
+
+  void _setCellValue(int index, String value) {
+    _controllers[index].value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
   }
 
-  String? _emailValidator(String? value) {
-    final required = _required(value, 'البريد الإلكتروني مطلوب');
-    if (required != null) return required;
-    final email = value!.trim();
-    final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
-    return ok ? null : 'يرجى إدخال بريد إلكتروني صحيح';
+  void _handleOtpChanged(int index, String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length > 1) {
+      final end = (index + digits.length).clamp(0, _controllers.length);
+      for (var i = index; i < end; i++) {
+        _setCellValue(i, digits[i - index]);
+      }
+      _focusNodes[(end - 1).clamp(0, _focusNodes.length - 1)].requestFocus();
+      return;
+    }
+
+    if (digits.isEmpty) {
+      _setCellValue(index, '');
+      if (index > 0) {
+        _focusNodes[index - 1].requestFocus();
+      }
+      return;
+    }
+
+    if (_controllers[index].text != digits) {
+      _setCellValue(index, digits);
+    }
+
+    if (index < _focusNodes.length - 1) {
+      _focusNodes[index + 1].requestFocus();
+    } else {
+      _focusNodes[index].unfocus();
+    }
+  }
+
+  KeyEventResult _handleOtpKeyEvent(int index, KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.backspace ||
+        _controllers[index].text.isNotEmpty ||
+        index == 0) {
+      return KeyEventResult.ignored;
+    }
+
+    _setCellValue(index - 1, '');
+    _focusNodes[index - 1].requestFocus();
+    return KeyEventResult.handled;
+  }
+
+  void _startCooldown([int seconds = 60]) {
+    _timer?.cancel();
+    setState(() => _cooldownSeconds = seconds);
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() => _cooldownSeconds = 0);
+      } else {
+        setState(() => _cooldownSeconds -= 1);
+      }
+    });
   }
 
   Future<void> _verify() async {
-    if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthProvider>();
-    final messenger = ScaffoldMessenger.of(context);
+    if (_otp.length != 6) {
+      setState(() => _errorMessage = 'يرجى إدخال رمز التحقق كاملاً');
+      return;
+    }
 
-    final ok = await auth.verifyEmail(
-      email: _emailController.text.trim(),
-      code: _codeController.text.trim(),
-    );
+    setState(() {
+      _isVerifying = true;
+      _errorMessage = null;
+    });
+
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.verifyEmail(email: widget.initialEmail, code: _otp);
 
     if (!mounted) return;
+    setState(() => _isVerifying = false);
 
     if (ok) {
-      messenger.showSnackBar(
-        const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            'تم التحقق من البريد الإلكتروني. تم إرسال طلبك للإدارة',
+            auth.successMessage ??
+                'تم التحقق من البريد الإلكتروني. تم إرسال طلبك للإدارة',
           ),
         ),
       );
       Navigator.of(context).pop(true);
-    } else if (auth.error != null) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(auth.error!), backgroundColor: Colors.red),
-      );
+      return;
     }
+
+    setState(() => _errorMessage = auth.error ?? 'تعذر التحقق من الرمز');
   }
 
   Future<void> _resend() async {
-    final email = _emailController.text.trim();
-    final emailError = _emailValidator(email);
-    if (emailError != null) {
+    if (_cooldownSeconds > 0 || _isResending) return;
+
+    setState(() {
+      _isResending = true;
+      _errorMessage = null;
+    });
+
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.resendVerificationCode(email: widget.initialEmail);
+
+    if (!mounted) return;
+    setState(() => _isResending = false);
+
+    if (ok) {
+      _startCooldown();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(emailError), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(auth.successMessage ?? 'تم إعادة إرسال رمز التحقق'),
+        ),
       );
       return;
     }
 
-    final auth = context.read<AuthProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await auth.resendVerificationCode(email: email);
-    if (!mounted) return;
+    setState(() => _errorMessage = auth.error ?? 'تعذر إعادة إرسال الرمز');
+  }
 
-    if (ok) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(auth.successMessage ?? 'تم إرسال رمز التحقق')),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(auth.error ?? 'تعذر إعادة إرسال الرمز'),
-          backgroundColor: Colors.red,
+  Widget _otpCell(int index) {
+    return SizedBox(
+      width: 48,
+      height: 58,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Focus(
+          onKeyEvent: (_, event) => _handleOtpKeyEvent(index, event),
+          child: TextField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+            ],
+            textDirection: TextDirection.ltr,
+            textAlign: TextAlign.center,
+            textAlignVertical: TextAlignVertical.center,
+            textInputAction: TextInputAction.next,
+            strutStyle: const StrutStyle(
+              fontSize: 22,
+              height: 1.15,
+              forceStrutHeight: true,
+            ),
+            maxLength: 6,
+            style: const TextStyle(
+              fontSize: 22,
+              height: 1.0,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+              alignLabelWithHint: true,
+              constraints: const BoxConstraints(minHeight: 58),
+              counterText: '',
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.borderSubtle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.borderSubtle),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.accent),
+              ),
+            ),
+            onChanged: (value) => _handleOtpChanged(index, value),
+          ),
         ),
-      );
-    }
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-
     return Scaffold(
-      appBar: AppBar(title: const Text('تأكيد البريد الإلكتروني')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('تأكيد البريد الإلكتروني'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'أدخل رمز التحقق المرسل إلى بريدك الإلكتروني.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'أدخل رمز التحقق',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'أرسلنا رمزاً مكوناً من 6 أرقام إلى\n${widget.initialEmail}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.right,
+              ),
+              const SizedBox(height: 20),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const minSpacing = 4.0;
+                  const maxSpacing = 12.0;
+                  final cellWidth =
+                      ((constraints.maxWidth - (5 * minSpacing)) / 6).clamp(
+                        42.0,
+                        48.0,
+                      );
+                  final spacing = ((constraints.maxWidth - (6 * cellWidth)) / 5)
+                      .clamp(0.0, maxSpacing);
+                  return Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      textDirection: TextDirection.ltr,
+                      children: List.generate(6, (index) {
+                        return Padding(
+                          padding: EdgeInsetsDirectional.only(
+                            end: index == 5 ? 0 : spacing,
+                          ),
+                          child: SizedBox(
+                            width: cellWidth,
+                            child: _otpCell(index),
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                },
+              ),
+              if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'البريد الإلكتروني',
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.3),
+                    ),
                   ),
-                  validator: _emailValidator,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'رمز التحقق'),
-                  validator: (v) => _required(v, 'رمز التحقق مطلوب'),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: auth.isLoading ? null : _verify,
-                    child: auth.isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('تحقق'),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: auth.isLoading ? null : _resend,
-                  child: const Text('إعادة إرسال الرمز'),
                 ),
               ],
-            ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isVerifying ? null : _verify,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isVerifying
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('تأكيد الرمز'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: (_isResending || _cooldownSeconds > 0)
+                    ? null
+                    : _resend,
+                child: _isResending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _cooldownSeconds > 0
+                            ? 'إعادة الإرسال خلال $_cooldownSeconds ثانية'
+                            : 'إعادة إرسال الرمز',
+                      ),
+              ),
+            ],
           ),
         ),
       ),

@@ -164,8 +164,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                EmailVerificationScreen(email: email),
+                            builder: (_) => EmailVerificationScreen(
+                              email: email,
+                              autoResendOnOpen: true,
+                            ),
                           ),
                         );
                       },
