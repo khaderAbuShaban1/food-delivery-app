@@ -6,7 +6,7 @@ class OrderModel {
   final String displayOrderRef;
 
   final String restaurantName;
-  /// Pickup/contact line — e.g. restaurant phone when no street address exists in API.
+  /// Pickup/contact line - e.g. restaurant phone when no street address exists in API.
   final String restaurantAddress;
   final String customerName;
   final String customerPhone;
@@ -50,12 +50,12 @@ class OrderModel {
     required this.assignedAt,
   });
 
-  /// Single line "Name — Phone" for compact cards.
+  /// Single line "Name - Phone" for compact cards.
   String get customerInfoLine {
     final parts =
         [customerName.trim(), customerPhone.trim()].where((s) => s.isNotEmpty).toList(growable: false);
     if (parts.isEmpty) return '';
-    return parts.join(' — ');
+    return parts.join(' - ');
   }
 
   bool get isPending => _normStatus(status) == 'pending';
@@ -163,7 +163,7 @@ class OrderModel {
           final optionsText = _optionsLine(m['options']);
           final fullName = optionsText.isEmpty ? name : '$name ($optionsText)';
           if (name.isNotEmpty && qtyStr.isNotEmpty) {
-            itemsList.add('$fullName × $qtyStr');
+            itemsList.add('$fullName x $qtyStr');
           } else if (name.isNotEmpty) {
             itemsList.add(fullName);
           }
