@@ -1,13 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/address.dart';
 import '../models/restaurant.dart';
 import 'auth_service.dart';
 
-/// Mirrors **addresses** and **restaurants** to Firestore for local listeners (live UI polish).
+/// Listens to Firestore mirror collections for live UI updates.
 ///
-/// Order data **must never** live in Firestore; use [ApiClient] + Laravel `/orders` endpoints only.
+/// Firestore is only a lightweight mirror; Laravel + MySQL remain the source of truth.
 class RealtimeSyncService {
   static bool get _isReady => Firebase.apps.isNotEmpty;
 
@@ -32,8 +33,60 @@ class RealtimeSyncService {
     return 0;
   }
 
+  static Stream<List<Map<String, dynamic>>> watchCustomerOrders(String userId) {
+    if (!_isReady) return Stream.value(const <Map<String, dynamic>>[]);
+    if (kDebugMode) {
+      debugPrint('[RealtimeSync] watchCustomerOrders userId=$userId');
+    }
+    final parsedId = int.tryParse(userId);
+    final query = parsedId == null
+        ? _db.collection('orders').where('customer_id', isEqualTo: userId)
+        : _db.collection('orders').where('customer_id', isEqualTo: parsedId);
+
+    return query.snapshots().map((snapshot) {
+      if (kDebugMode) {
+        debugPrint(
+          '[RealtimeSync] customer orders snapshot docs=${snapshot.docs.length}',
+        );
+      }
+      final docs = [...snapshot.docs];
+      docs.sort((a, b) {
+        final aMillis = _toEpochMillis(a.data()['updated_at']);
+        final bMillis = _toEpochMillis(b.data()['updated_at']);
+        return bMillis.compareTo(aMillis);
+      });
+
+      return docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['id'] ??= int.tryParse(doc.id) ?? doc.id;
+        return data;
+      }).toList();
+    });
+  }
+
+  static Stream<Map<String, dynamic>?> watchOrder(String orderId) {
+    if (!_isReady) return Stream.value(null);
+    if (kDebugMode) {
+      debugPrint('[RealtimeSync] watchOrder orderId=$orderId');
+    }
+    return _db.collection('orders').doc(orderId).snapshots().map((doc) {
+      if (kDebugMode) {
+        debugPrint(
+          '[RealtimeSync] order document snapshot id=$orderId exists=${doc.exists}',
+        );
+      }
+      if (!doc.exists || doc.data() == null) return null;
+      final data = Map<String, dynamic>.from(doc.data()!);
+      data['id'] ??= int.tryParse(doc.id) ?? doc.id;
+      return data;
+    });
+  }
+
   static Stream<List<Address>> watchAddresses(String userId) {
     if (!_isReady) return Stream.value(const <Address>[]);
+    if (kDebugMode) {
+      debugPrint('[RealtimeSync] watchAddresses userId=$userId');
+    }
     return _db
         .collection('addresses')
         .where('user_id', isEqualTo: userId)
@@ -63,46 +116,26 @@ class RealtimeSyncService {
         });
   }
 
-  static Future<void> syncAddresses(String userId, List<Address> addresses) async {
-    if (!_isReady) return;
-    final batch = _db.batch();
-    for (final address in addresses) {
-      final ref = _db.collection('addresses').doc(address.id.toString());
-      batch.set(ref, {
-        'id': address.id,
-        'user_id': userId,
-        'title': address.title,
-        'city': address.city,
-        'street': address.street,
-        'details': address.details,
-        'is_default': address.isDefault,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-    await batch.commit();
+  static Future<void> syncAddresses(
+    String userId,
+    List<Address> addresses,
+  ) async {
+    return;
   }
 
   static Future<void> upsertAddress(String userId, Address address) async {
-    if (!_isReady) return;
-    await _db.collection('addresses').doc(address.id.toString()).set({
-      'id': address.id,
-      'user_id': userId,
-      'title': address.title,
-      'city': address.city,
-      'street': address.street,
-      'details': address.details,
-      'is_default': address.isDefault,
-      'updated_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    return;
   }
 
   static Future<void> removeAddress(int addressId) async {
-    if (!_isReady) return;
-    await _db.collection('addresses').doc(addressId.toString()).delete();
+    return;
   }
 
   static Stream<Restaurant?> watchRestaurant(String restaurantId) {
     if (!_isReady) return Stream.value(null);
+    if (kDebugMode) {
+      debugPrint('[RealtimeSync] watchRestaurant restaurantId=$restaurantId');
+    }
     return _db.collection('restaurants').doc(restaurantId).snapshots().map((
       doc,
     ) {
@@ -113,75 +146,47 @@ class RealtimeSyncService {
 
   static Stream<List<Restaurant>> watchRestaurants() {
     if (!_isReady) return Stream.value(const <Restaurant>[]);
-    return _db
-        .collection('restaurants')
-        .snapshots()
-        .map((snapshot) {
-          final docs = [...snapshot.docs];
-          docs.sort((a, b) {
-            final aData = a.data();
-            final bData = b.data();
-            final aMillis =
-                _toEpochMillis(aData['updated_at']) > 0
-                    ? _toEpochMillis(aData['updated_at'])
-                    : _toEpochMillis(aData['created_at']);
-            final bMillis =
-                _toEpochMillis(bData['updated_at']) > 0
-                    ? _toEpochMillis(bData['updated_at'])
-                    : _toEpochMillis(bData['created_at']);
-            return bMillis.compareTo(aMillis);
-          });
+    if (kDebugMode) {
+      debugPrint('[RealtimeSync] watchRestaurants');
+    }
+    return _db.collection('restaurants').snapshots().map((snapshot) {
+      if (kDebugMode) {
+        debugPrint(
+          '[RealtimeSync] restaurants snapshot docs=${snapshot.docs.length}',
+        );
+      }
+      final docs = [...snapshot.docs];
+      docs.sort((a, b) {
+        final aData = a.data();
+        final bData = b.data();
+        final aMillis = _toEpochMillis(aData['updated_at']) > 0
+            ? _toEpochMillis(aData['updated_at'])
+            : _toEpochMillis(aData['created_at']);
+        final bMillis = _toEpochMillis(bData['updated_at']) > 0
+            ? _toEpochMillis(bData['updated_at'])
+            : _toEpochMillis(bData['created_at']);
+        return bMillis.compareTo(aMillis);
+      });
 
-          final restaurants = <Restaurant>[];
-          for (final doc in docs) {
-            final data = Map<String, dynamic>.from(doc.data());
-            data['id'] ??= int.tryParse(doc.id) ?? doc.id;
-            try {
-              restaurants.add(Restaurant.fromJson(data));
-            } catch (_) {
-              // Ignore malformed docs and keep stream alive for valid updates.
-            }
-          }
-          return restaurants;
-        });
+      final restaurants = <Restaurant>[];
+      for (final doc in docs) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['id'] ??= int.tryParse(doc.id) ?? doc.id;
+        try {
+          restaurants.add(Restaurant.fromJson(data));
+        } catch (_) {
+          // Ignore malformed docs and keep stream alive for valid updates.
+        }
+      }
+      return restaurants;
+    });
   }
 
   static Future<void> syncRestaurants(List<Restaurant> restaurants) async {
-    if (!_isReady) return;
-    final batch = _db.batch();
-    for (final restaurant in restaurants) {
-      final ref = _db.collection('restaurants').doc(restaurant.id.toString());
-      batch.set(ref, {
-        'id': restaurant.id,
-        'name': restaurant.name,
-        'image': restaurant.image,
-        'category': restaurant.category,
-        'is_open': restaurant.isOpen,
-        'email': restaurant.email,
-        'phone': restaurant.phone,
-        'rating': restaurant.rating,
-        'ratings_count': restaurant.ratingsCount,
-        'my_rating': restaurant.myRating,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-    await batch.commit();
+    return;
   }
 
   static Future<void> syncRestaurant(Restaurant restaurant) async {
-    if (!_isReady) return;
-    await _db.collection('restaurants').doc(restaurant.id.toString()).set({
-      'id': restaurant.id,
-      'name': restaurant.name,
-      'image': restaurant.image,
-      'category': restaurant.category,
-      'is_open': restaurant.isOpen,
-      'email': restaurant.email,
-      'phone': restaurant.phone,
-      'rating': restaurant.rating,
-      'ratings_count': restaurant.ratingsCount,
-      'my_rating': restaurant.myRating,
-      'updated_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    return;
   }
 }

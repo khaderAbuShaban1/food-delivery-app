@@ -5,9 +5,17 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 use App\Services\SystemSettingsService;
+use App\Models\Address;
+use App\Models\Driver;
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\MenuItem;
+use App\Models\Restaurant;
+use App\Models\RestaurantRating;
+use App\Models\User;
+use App\Observers\FirestoreMirrorObserver;
 use App\Observers\OrderItemObserver;
 use App\Observers\MenuItemObserver;
 
@@ -20,7 +28,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        if (Schema::hasTable('system_settings')) {
+        $hasSystemSettings = false;
+        try {
+            $hasSystemSettings = Schema::hasTable('system_settings');
+        } catch (Throwable) {
+            $hasSystemSettings = false;
+        }
+
+        if ($hasSystemSettings) {
             /** @var SystemSettingsService $settings */
             $settings = app(SystemSettingsService::class);
             $language = (string) $settings->get('general', 'default_language', config('app.locale', 'ar'));
@@ -40,5 +55,11 @@ class AppServiceProvider extends ServiceProvider
 
         OrderItem::observe(OrderItemObserver::class);
         MenuItem::observe(MenuItemObserver::class);
+        Order::observe(FirestoreMirrorObserver::class);
+        Restaurant::observe(FirestoreMirrorObserver::class);
+        Address::observe(FirestoreMirrorObserver::class);
+        RestaurantRating::observe(FirestoreMirrorObserver::class);
+        User::observe(FirestoreMirrorObserver::class);
+        Driver::observe(FirestoreMirrorObserver::class);
     }
 }

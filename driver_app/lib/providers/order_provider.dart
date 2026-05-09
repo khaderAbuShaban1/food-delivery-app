@@ -7,16 +7,15 @@ import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../core/config/app_config.dart';
 import '../services/api_client.dart';
+import '../services/driver_realtime_sync_service.dart';
 
-/// All order data comes from **Laravel (MySQL)** via driver routes (`DriverApiPaths`). No Firestore.
-/// Polling simulates near-real-time updates.
+/// Full order data comes from Laravel/MySQL. Firestore only wakes the provider
+/// when lightweight mirror documents change, then Laravel is refreshed once.
 class OrderProvider extends ChangeNotifier {
   ApiClient? _api;
   DriverModel? _driver;
-  Timer? _pollTimer;
-
-  /// How often to re-fetch pool + active order while logged in.
-  static const Duration pollInterval = Duration(seconds: 5);
+  StreamSubscription<List<Map<String, dynamic>>>? _availableOrdersSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _driverOrdersSub;
 
   List<OrderModel> availableOrders = [];
   OrderModel? activeOrder;
@@ -51,7 +50,10 @@ class OrderProvider extends ChangeNotifier {
     if (res['success'] == true && res['data'] is List) {
       final list = res['data'] as List<dynamic>;
       availableOrders = list
-          .map((e) => OrderModel.fromLaravelApi(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) =>
+                OrderModel.fromLaravelApi(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
     } else if (res['success'] != true) {
       if (kDebugMode) {
@@ -72,7 +74,9 @@ class OrderProvider extends ChangeNotifier {
       if (data == null) {
         activeOrder = null;
       } else if (data is Map) {
-        activeOrder = OrderModel.fromLaravelApi(Map<String, dynamic>.from(data));
+        activeOrder = OrderModel.fromLaravelApi(
+          Map<String, dynamic>.from(data),
+        );
       } else {
         activeOrder = null;
       }
@@ -104,7 +108,7 @@ class OrderProvider extends ChangeNotifier {
   void setDriver(DriverModel? driver) {
     if (_driver?.id == driver?.id) return;
     _driver = driver;
-    _stopPolling();
+    _stopRealtimeListeners();
     availableOrders = [];
     activeOrder = null;
     hasSyncedAvailableOrders = false;
@@ -115,24 +119,63 @@ class OrderProvider extends ChangeNotifier {
       unawaited(_refreshAvailableFromApi());
       unawaited(_refreshActiveFromApi());
       unawaited(_refreshTodayStatsFromApi());
-      _startPolling();
+      _startRealtimeListeners();
     }
     notifyListeners();
   }
 
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(pollInterval, (_) {
-      if (_driver == null || _api?.token == null) return;
-      unawaited(_refreshAvailableFromApi());
-      unawaited(_refreshActiveFromApi());
-      unawaited(_refreshTodayStatsFromApi());
-    });
+  void _startRealtimeListeners() {
+    final driver = _driver;
+    if (driver == null) return;
+
+    _availableOrdersSub?.cancel();
+    _availableOrdersSub = DriverRealtimeSyncService.watchAvailableOrders().listen(
+      (mirrors) {
+        if (kDebugMode) {
+          debugPrint(
+            '[OrderProvider] available Firestore event count=${mirrors.length}',
+          );
+        }
+        if (_driver == null || _api?.token == null) return;
+        unawaited(_refreshAvailableFromApi());
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          debugPrint(
+            '[OrderProvider] available Firestore listener error: $error',
+          );
+        }
+      },
+    );
+
+    _driverOrdersSub?.cancel();
+    _driverOrdersSub = DriverRealtimeSyncService.watchDriverOrders(driver.id)
+        .listen(
+          (mirrors) {
+            if (kDebugMode) {
+              debugPrint(
+                '[OrderProvider] driver Firestore event count=${mirrors.length}',
+              );
+            }
+            if (_driver == null || _api?.token == null) return;
+            unawaited(_refreshActiveFromApi());
+            unawaited(_refreshTodayStatsFromApi());
+          },
+          onError: (error) {
+            if (kDebugMode) {
+              debugPrint(
+                '[OrderProvider] driver Firestore listener error: $error',
+              );
+            }
+          },
+        );
   }
 
-  void _stopPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
+  void _stopRealtimeListeners() {
+    _availableOrdersSub?.cancel();
+    _availableOrdersSub = null;
+    _driverOrdersSub?.cancel();
+    _driverOrdersSub = null;
   }
 
   Future<void> acceptOrder(OrderModel order) async {
@@ -162,7 +205,10 @@ class OrderProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final res = await api!.post(DriverApiPaths.driverAcceptOrder(oid), <String, dynamic>{});
+    final res = await api!.post(
+      DriverApiPaths.driverAcceptOrder(oid),
+      <String, dynamic>{},
+    );
     if (res['success'] != true) {
       error = res['message']?.toString() ?? 'تعذّر قبول الطلب';
       isBusy = false;
@@ -206,7 +252,9 @@ class OrderProvider extends ChangeNotifier {
     } else {
       final data = res['data'];
       if (data is Map) {
-        activeOrder = OrderModel.fromLaravelApi(Map<String, dynamic>.from(data));
+        activeOrder = OrderModel.fromLaravelApi(
+          Map<String, dynamic>.from(data),
+        );
       }
     }
 
@@ -218,7 +266,7 @@ class OrderProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _stopPolling();
+    _stopRealtimeListeners();
     super.dispose();
   }
 }

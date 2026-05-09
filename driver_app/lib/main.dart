@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
@@ -8,9 +9,11 @@ import 'providers/auth_provider.dart';
 import 'providers/order_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_nav_screen.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const DriverApp());
 }
 
@@ -57,7 +60,9 @@ class DriverApp extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator()),
               );
             }
-            return auth.isLoggedIn ? const MainNavScreen() : const LoginScreen();
+            return auth.isLoggedIn
+                ? const MainNavScreen()
+                : const LoginScreen();
           },
         ),
       ),

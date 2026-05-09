@@ -2,10 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Order data lives in Laravel (MySQL) only; no Firestore reads/writes for orders.
-    // Optional future: use Firebase Cloud Messaging (FCM) for push — not Firestore payloads.
+    // Laravel/MySQL is the source of truth. Firestore is a server-written,
+    // lightweight real-time mirror for Flutter clients.
     match /orders/{orderId} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /addresses/{addressId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
