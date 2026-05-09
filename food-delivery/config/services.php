@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'firestore' => [
+        'enabled' => env('FIRESTORE_SYNC_ENABLED', false),
+        'project_id' => env('FIRESTORE_PROJECT_ID'),
+        'database' => env('FIRESTORE_DATABASE', '(default)'),
+        'credentials_path' => env('FIRESTORE_CREDENTIALS_PATH', collect(glob(base_path('*firebase-adminsdk*.json')) ?: [])->first()),
+        'timeout' => env('FIRESTORE_TIMEOUT', 5),
+    ],
+
 ];

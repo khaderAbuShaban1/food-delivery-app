@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -61,7 +63,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   };
 
   late Map<String, dynamic> _order;
-  Timer? _pollTimer;
+  StreamSubscription<Map<String, dynamic>?>? _orderMirrorSub;
   bool _isRefreshing = false;
 
   @override
@@ -69,19 +71,64 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     super.initState();
     _order = Map<String, dynamic>.from(widget.order);
     _refreshFromApi();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _refreshFromApi());
+    _startOrderMirrorListener();
+  }
+
+  void _startOrderMirrorListener() {
+    final rawId = _order['id'];
+    final id = rawId is int ? rawId.toString() : rawId?.toString();
+    if (id == null || id.isEmpty) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OrderTracking] Firestore listener not started: invalid order id=$rawId',
+        );
+      }
+      return;
+    }
+
+    _orderMirrorSub?.cancel();
+    if (kDebugMode) {
+      debugPrint(
+        '[OrderTracking] Starting Firestore order listener orderId=$id',
+      );
+    }
+    _orderMirrorSub = RealtimeSyncService.watchOrder(id).listen(
+      (mirror) {
+        if (!mounted || mirror == null) return;
+        if (kDebugMode) {
+          debugPrint(
+            '[OrderTracking] Firestore order update id=$id status=${mirror['status']} driver=${mirror['driver_id']}',
+          );
+        }
+        setState(() {
+          _order = {
+            ..._order,
+            'status': mirror['status'] ?? _order['status'],
+            'driver_id': mirror['driver_id'],
+            'restaurant_id': mirror['restaurant_id'] ?? _order['restaurant_id'],
+            'total_price':
+                mirror['total_price'] ??
+                mirror['price'] ??
+                _order['total_price'],
+            'updated_at': mirror['updated_at'] ?? _order['updated_at'],
+          };
+        });
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          debugPrint('[OrderTracking] Firestore listener error: $error');
+        }
+      },
+    );
   }
 
   Future<void> _refreshFromApi() async {
     final rawId = _order['id'];
-    final id =
-        rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
     if (id == null || id <= 0) return;
 
     final status = (_order['status'] ?? '').toString();
     if (status == 'delivered' || status == 'payment_rejected') {
-      _pollTimer?.cancel();
-      _pollTimer = null;
       return;
     }
 
@@ -100,16 +147,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       _isRefreshing = false;
     }
     if (!mounted) return;
-    final s = (_order['status'] ?? '').toString();
-    if (s == 'delivered' || s == 'payment_rejected') {
-      _pollTimer?.cancel();
-      _pollTimer = null;
-    }
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _orderMirrorSub?.cancel();
     super.dispose();
   }
 
@@ -143,9 +185,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final statusLabel = _statusLabels[status] ?? status;
     final statusColor = _statusColors[status] ?? AppColors.textSecondary;
     final orderId = _order['id'];
-    final totalPrice = double.tryParse(_order['total_price']?.toString() ?? '0') ?? 0;
-    final restaurant = Map<String, dynamic>.from(_order['restaurant'] as Map? ?? {});
-    final items = (_order['items'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+    final totalPrice =
+        double.tryParse(_order['total_price']?.toString() ?? '0') ?? 0;
+    final restaurant = Map<String, dynamic>.from(
+      _order['restaurant'] as Map? ?? {},
+    );
+    final items =
+        (_order['items'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        [];
     final createdAt = _order['created_at'];
 
     return Scaffold(
@@ -160,7 +209,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(orderId, totalPrice, createdAt, status, statusLabel, statusColor),
+            _buildHeader(
+              orderId,
+              totalPrice,
+              createdAt,
+              status,
+              statusLabel,
+              statusColor,
+            ),
             const SizedBox(height: AppSpacing.xl),
             _buildTimelineSection(status),
             const SizedBox(height: AppSpacing.xl),
@@ -176,7 +232,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildHeader(int? orderId, double totalPrice, dynamic createdAt, String status, String statusLabel, Color statusColor) {
+  Widget _buildHeader(
+    int? orderId,
+    double totalPrice,
+    dynamic createdAt,
+    String status,
+    String statusLabel,
+    Color statusColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -253,10 +316,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             children: [
               const Text(
                 'المبلغ الإجمالي',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
               ),
               Text(
                 '₪${totalPrice.toStringAsFixed(2)}',
@@ -276,7 +336,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Widget _buildTimelineSection(String currentStatus) {
     final currentIndex = _statusFlow.indexOf(currentStatus);
     final adjustedIndex =
-        currentStatus == 'payment_rejected' || currentStatus == 'cancelled' ? -1 : currentIndex;
+        currentStatus == 'payment_rejected' || currentStatus == 'cancelled'
+        ? -1
+        : currentIndex;
 
     if (currentStatus == 'payment_rejected') {
       return Container(
@@ -376,9 +438,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: isPending ? 0.1 : 0.15),
                   shape: BoxShape.circle,
-                  border: isCurrent
-                      ? Border.all(color: color, width: 2)
-                      : null,
+                  border: isCurrent ? Border.all(color: color, width: 2) : null,
                 ),
                 child: Center(
                   child: isPending
@@ -415,7 +475,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
-                      color: isPending ? AppColors.textHint : AppColors.textPrimary,
+                      color: isPending
+                          ? AppColors.textHint
+                          : AppColors.textPrimary,
                     ),
                   ),
                   if (isCurrent)
@@ -502,10 +564,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ],
             ),
           ),
-          const Icon(
-            Icons.storefront_outlined,
-            color: AppColors.textHint,
-          ),
+          const Icon(Icons.storefront_outlined, color: AppColors.textHint),
         ],
       ),
     );
@@ -530,7 +589,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.receipt_long_outlined, color: AppColors.primary, size: 24),
+              Icon(
+                Icons.receipt_long_outlined,
+                color: AppColors.primary,
+                size: 24,
+              ),
               SizedBox(width: AppSpacing.sm),
               Text(
                 'تفاصيل الطلب',
@@ -546,8 +609,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ...items.map((item) {
             final name = item['name']?.toString() ?? 'عنصر';
             final quantity = item['quantity'] ?? 1;
-            final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0;
-            final options = (item['options'] as List?)
+            final price =
+                double.tryParse(item['price']?.toString() ?? '0') ?? 0;
+            final options =
+                (item['options'] as List?)
                     ?.map((e) => Map<String, dynamic>.from(e as Map))
                     .toList() ??
                 const <Map<String, dynamic>>[];

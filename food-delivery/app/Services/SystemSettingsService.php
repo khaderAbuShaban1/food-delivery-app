@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class SystemSettingsService
 {
@@ -18,6 +20,10 @@ class SystemSettingsService
 
     public function all(): array
     {
+        if (! $this->settingsTableExists()) {
+            return [];
+        }
+
         return Cache::rememberForever(self::CACHE_KEY, function () {
             $items = SystemSetting::query()->get(['group', 'key', 'value']);
             $settings = [];
@@ -32,6 +38,10 @@ class SystemSettingsService
 
     public function setGroup(string $group, array $values): void
     {
+        if (! $this->settingsTableExists()) {
+            return;
+        }
+
         foreach ($values as $key => $value) {
             SystemSetting::query()->updateOrCreate(
                 ['group' => $group, 'key' => $key],
@@ -49,6 +59,10 @@ class SystemSettingsService
 
     public function seedDefaults(): void
     {
+        if (! $this->settingsTableExists()) {
+            return;
+        }
+
         $this->setMissingDefaults('general', [
             'site_name' => 'Food Delivery',
             'logo' => null,
@@ -89,6 +103,10 @@ class SystemSettingsService
 
     private function setMissingDefaults(string $group, array $defaults): void
     {
+        if (! $this->settingsTableExists()) {
+            return;
+        }
+
         foreach ($defaults as $key => $value) {
             SystemSetting::query()->firstOrCreate(
                 ['group' => $group, 'key' => $key],
@@ -97,5 +115,14 @@ class SystemSettingsService
         }
 
         $this->clearCache();
+    }
+
+    private function settingsTableExists(): bool
+    {
+        try {
+            return Schema::hasTable('system_settings');
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

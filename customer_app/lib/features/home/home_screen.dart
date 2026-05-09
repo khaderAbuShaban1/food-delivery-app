@@ -34,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<Map<String, dynamic>?>? _userSub;
   StreamSubscription<List<Restaurant>>? _restaurantsSub;
   final _searchController = TextEditingController();
-  Timer? _realtimeBackfillTimer;
   String? _profileImage;
   int _imageCacheKey = 0;
   List<Address> _addresses = [];
@@ -52,14 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserProfile();
     _loadAddresses();
     _startRealtimeListeners();
-    _startRealtimeBackfillLoop();
-  }
-
-  void _startRealtimeBackfillLoop() {
-    _realtimeBackfillTimer?.cancel();
-    _realtimeBackfillTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _loadRestaurants(showLoading: false);
-    });
   }
 
   void _subscribeToUser() {
@@ -77,21 +68,24 @@ class _HomeScreenState extends State<HomeScreen> {
     await AuthService.fetchCurrentUser();
 
     _restaurantsSub?.cancel();
-    _restaurantsSub = RealtimeSyncService.watchRestaurants().listen((items) {
-      if (!mounted) return;
-      if (items.isEmpty && _restaurants.isNotEmpty) return;
-      setState(() {
-        _restaurants = items;
-        _isLoading = false;
-        _errorMessage = null;
-      });
-    }, onError: (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'تعذر مزامنة المطاعم مباشرة';
-        _isLoading = false;
-      });
-    });
+    _restaurantsSub = RealtimeSyncService.watchRestaurants().listen(
+      (items) {
+        if (!mounted) return;
+        if (items.isEmpty && _restaurants.isNotEmpty) return;
+        setState(() {
+          _restaurants = items;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = 'تعذر مزامنة المطاعم مباشرة';
+          _isLoading = false;
+        });
+      },
+    );
   }
 
   Future<void> _loadUserProfile() async {
@@ -298,9 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
               .toList();
           _selectedAddress = _resolveSelectedAddress(_addresses);
         });
-        context
-            .read<CartProvider>()
-            .setDeliveryAddressId(_selectedAddress?.id);
+        context.read<CartProvider>().setDeliveryAddressId(_selectedAddress?.id);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -317,7 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
-    _realtimeBackfillTimer?.cancel();
     _userSub?.cancel();
     _restaurantsSub?.cancel();
     _searchController.dispose();
@@ -346,7 +337,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (response['success'] == true && response['data'] != null) {
         final List data = response['data'];
-        final restaurants = data.map((json) => Restaurant.fromJson(json)).toList();
+        final restaurants = data
+            .map((json) => Restaurant.fromJson(json))
+            .toList();
         try {
           await RealtimeSyncService.syncRestaurants(restaurants);
         } catch (_) {
@@ -472,9 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   }, childCount: _filteredRestaurants.length),
                 ),
               // Bottom padding
-              const SliverToBoxAdapter(
-                child: SizedBox(height: AppSpacing.xxl),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
           ),
         ),
@@ -484,7 +475,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeader() {
     final addressTitle = _selectedAddress?.title ?? 'إضافة عنوان';
-    final addressDetails = _selectedAddress?.fullAddress ?? 'اختر عنوان التوصيل';
+    final addressDetails =
+        _selectedAddress?.fullAddress ?? 'اختر عنوان التوصيل';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -496,55 +488,31 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Row(
-        children: [
-          GestureDetector(
-            onTap: () async {
-              await AuthService.fetchCurrentUser();
-              if (!mounted) return;
-              setState(() {
-                _profileImage = AuthService.currentUserImage;
-                _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
-              });
-            },
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                image: _profileImage != null && _profileImage!.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(_getImageUrlWithCacheBuster(_profileImage)!),
-                        fit: BoxFit.cover,
-                        onError: (_, __) {},
-                      )
-                    : null,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.shadow,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: _profileImage == null || _profileImage!.isEmpty
-                  ? const Icon(Icons.person_rounded, color: AppColors.textHint)
-                  : null,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: InkWell(
-              onTap: _onAddressTap,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+          children: [
+            GestureDetector(
+              onTap: () async {
+                await AuthService.fetchCurrentUser();
+                if (!mounted) return;
+                setState(() {
+                  _profileImage = AuthService.currentUserImage;
+                  _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
+                });
+              },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  shape: BoxShape.circle,
+                  image: _profileImage != null && _profileImage!.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            _getImageUrlWithCacheBuster(_profileImage)!,
+                          ),
+                          fit: BoxFit.cover,
+                          onError: (_, __) {},
+                        )
+                      : null,
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.shadow,
@@ -553,85 +521,114 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                child: _profileImage == null || _profileImage!.isEmpty
+                    ? const Icon(
+                        Icons.person_rounded,
+                        color: AppColors.textHint,
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: InkWell(
+                onTap: _onAddressTap,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow,
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      child: _isAddressLoading
-                          ? const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: _isAddressLoading
+                            ? const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.keyboard_arrow_down_rounded,
                                 color: AppColors.primary,
                               ),
-                            )
-                          : const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: AppColors.primary,
-                            ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                'التوصيل إلى',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'التوصيل إلى',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
+                                SizedBox(width: 4),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              addressTitle,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
                               ),
-                              SizedBox(width: 4),
-                              Icon(
-                                Icons.location_on_outlined,
-                                size: 14,
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              addressDetails,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
                                 color: AppColors.textSecondary,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            addressTitle,
-                            textAlign: TextAlign.right,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
                             ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            addressDetails,
-                            textAlign: TextAlign.right,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

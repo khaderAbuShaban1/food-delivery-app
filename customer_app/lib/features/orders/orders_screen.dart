@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'order_tracking_screen.dart';
@@ -21,7 +23,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   StreamSubscription<dynamic>? _userSub;
-  Timer? _ordersPollTimer;
+  StreamSubscription<List<Map<String, dynamic>>>? _ordersMirrorSub;
 
   static const List<String> _statusFlow = [
     'pending_payment_verification',
@@ -63,7 +65,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     AuthService.fetchCurrentUser();
     _watchUserChanges();
-    _startOrdersPolling();
+    _startOrdersMirrorListener();
     _loadOrders();
   }
 
@@ -71,15 +73,93 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _userSub?.cancel();
     _userSub = AuthService.watchCurrentUser().listen((_) {
       if (!mounted) return;
+      _startOrdersMirrorListener();
       _loadOrders(showLoading: false);
     });
   }
 
-  void _startOrdersPolling() {
-    _ordersPollTimer?.cancel();
-    _ordersPollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
-      _loadOrders(showLoading: false);
+  void _startOrdersMirrorListener() {
+    final userId = RealtimeSyncService.currentUserId();
+    if (userId == null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OrdersScreen] Firestore listener not started: no current user id yet',
+        );
+      }
+      return;
+    }
+
+    _ordersMirrorSub?.cancel();
+    if (kDebugMode) {
+      debugPrint(
+        '[OrdersScreen] Starting Firestore customer orders listener userId=$userId',
+      );
+    }
+    _ordersMirrorSub = RealtimeSyncService.watchCustomerOrders(userId).listen(
+      (mirrors) {
+        if (!mounted) return;
+        if (kDebugMode) {
+          debugPrint(
+            '[OrdersScreen] Firestore mirrors received count=${mirrors.length}',
+          );
+        }
+        _mergeOrderMirrors(mirrors);
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          debugPrint('[OrdersScreen] Firestore listener error: $error');
+        }
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = 'تعذر استقبال تحديثات الطلبات المباشرة';
+          _isLoading = false;
+        });
+      },
+    );
+  }
+
+  void _mergeOrderMirrors(List<Map<String, dynamic>> mirrors) {
+    if (mirrors.isEmpty) return;
+
+    final byId = {
+      for (final order in _orders)
+        order['id']?.toString(): Map<String, dynamic>.from(order),
+    };
+    var needsFullRefresh = false;
+
+    for (final mirror in mirrors) {
+      final id = mirror['id']?.toString();
+      if (id == null || id.isEmpty) continue;
+      final existing = byId[id];
+      if (existing == null) {
+        if (kDebugMode) {
+          debugPrint(
+            '[OrdersScreen] Firestore mirror id=$id missing local REST payload; refreshing Laravel',
+          );
+        }
+        needsFullRefresh = true;
+        continue;
+      }
+      existing
+        ..['status'] = mirror['status'] ?? existing['status']
+        ..['driver_id'] = mirror['driver_id']
+        ..['restaurant_id'] =
+            mirror['restaurant_id'] ?? existing['restaurant_id']
+        ..['total_price'] =
+            mirror['total_price'] ?? mirror['price'] ?? existing['total_price']
+        ..['updated_at'] = mirror['updated_at'] ?? existing['updated_at'];
+      byId[id] = existing;
+    }
+
+    setState(() {
+      _orders = byId.values.where((order) => order['id'] != null).toList();
+      _errorMessage = null;
+      _isLoading = false;
     });
+
+    if (needsFullRefresh) {
+      _loadOrders(showLoading: false);
+    }
   }
 
   Future<void> _loadOrders({bool showLoading = true}) async {
@@ -113,7 +193,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     _userSub?.cancel();
-    _ordersPollTimer?.cancel();
+    _ordersMirrorSub?.cancel();
     super.dispose();
   }
 
@@ -129,21 +209,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
       body: _isLoading
           ? const LoadingShimmer(itemCount: 4)
           : _errorMessage != null
-              ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
-              : _orders.isEmpty
-                  ? const EmptyState(
-                      icon: Icons.receipt_long_outlined,
-                      title: 'لا توجد طلبات بعد',
-                      subtitle: 'عند إتمام أي طلب سيظهر هنا',
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      itemCount: _orders.length,
-                      itemBuilder: (context, index) {
-                        final order = _orders[index];
-                        return _buildOrderCard(order);
-                      },
-                    ),
+          ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
+          : _orders.isEmpty
+          ? const EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'لا توجد طلبات بعد',
+              subtitle: 'عند إتمام أي طلب سيظهر هنا',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              itemCount: _orders.length,
+              itemBuilder: (context, index) {
+                final order = _orders[index];
+                return _buildOrderCard(order);
+              },
+            ),
     );
   }
 
@@ -156,7 +236,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final items = (order['items'] as List?) ?? [];
     final isHighlighted =
         widget.highlightedOrderId != null && id == widget.highlightedOrderId;
-    final totalPrice = double.tryParse(order['total_price']?.toString() ?? '0') ?? 0;
+    final totalPrice =
+        double.tryParse(order['total_price']?.toString() ?? '0') ?? 0;
 
     return GestureDetector(
       onTap: () => _navigateToTracking(order),
@@ -236,9 +317,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           color: AppColors.secondary,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                         ),
-                        child: (restaurant['image'] as String?)?.isNotEmpty == true
+                        child:
+                            (restaurant['image'] as String?)?.isNotEmpty == true
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.lg,
+                                ),
                                 child: Image.network(
                                   restaurant['image']!,
                                   fit: BoxFit.cover,
@@ -309,7 +393,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ),
         child: const Text(
           'تم رفض الدفع لهذا الطلب',
-          style: TextStyle(fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.error,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       );
     }
@@ -365,7 +453,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       margin: const EdgeInsets.only(bottom: 1),
                       decoration: BoxDecoration(
                         color: (i + 1) <= adjustedIndex
-                            ? _statusColors[_statusFlow[i + 1]] ?? AppColors.primary
+                            ? _statusColors[_statusFlow[i + 1]] ??
+                                  AppColors.primary
                             : AppColors.divider,
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -386,8 +475,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       _statusLabels[_statusFlow[i]] ?? '',
                       style: TextStyle(
                         fontSize: 9,
-                        fontWeight: i == adjustedIndex ? FontWeight.bold : FontWeight.normal,
-                        color: i <= adjustedIndex ? AppColors.textPrimary : AppColors.textHint,
+                        fontWeight: i == adjustedIndex
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: i <= adjustedIndex
+                            ? AppColors.textPrimary
+                            : AppColors.textHint,
                         height: 1.2,
                       ),
                       textAlign: TextAlign.center,
@@ -396,7 +489,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                   ),
                 ),
-                if (i < _statusFlow.length - 1) const Expanded(child: SizedBox()),
+                if (i < _statusFlow.length - 1)
+                  const Expanded(child: SizedBox()),
               ],
             ],
           ),
@@ -408,9 +502,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void _navigateToTracking(Map<String, dynamic> order) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => OrderTrackingScreen(order: order),
-      ),
+      MaterialPageRoute(builder: (_) => OrderTrackingScreen(order: order)),
     );
   }
 }
