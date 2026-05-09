@@ -17,13 +17,16 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, this.onGoToActiveTab});
 
   Future<void> _openDetails(BuildContext context, OrderModel order) async {
-    final accepted =
-        await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)));
+    final accepted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
+    );
     if (!context.mounted) return;
     if (accepted == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم قبول الطلب. انتقل لتبويب «نشط».'),
+          content: Text(
+            'تم قبول الطلب. انتقل إلى تبويب «نشط».',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -53,166 +56,167 @@ class HomeScreen extends StatelessWidget {
         children: [
           Text(
             _driverFirstName(auth),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 2),
           Text(
-            occupied ? 'متفرغ للتوصيل؟ أكمل نشطاً' : 'لوحة الطلبات',
+            occupied
+                ? 'أكمل طلبك النشط'
+                : 'لوحة الطلبات',
             style: Theme.of(context).appBarTheme.titleTextStyle,
           ),
         ],
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsetsDirectional.only(end: 16),
-          child: IconButton.filledTonal(
-            style: IconButton.styleFrom(backgroundColor: AppColors.surfaceMuted),
-            onPressed: () => provider.refreshFromServer(),
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.accentDark),
-            tooltip: 'تحديث',
-          ),
-        ),
-      ],
     );
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: appBar,
-      body: RefreshIndicator.adaptive(
-        color: AppColors.accent,
-        edgeOffset: 8,
-        onRefresh: () => context.read<OrderProvider>().refreshFromServer(),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // DAILY SUMMARY: must always be visible (top)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              sliver: SliverToBoxAdapter(
-                child: _TodaySummaryStrip(
-                  readyCount: orders.length,
-                  deliveredTodayCount: provider.deliveredTodayCount,
-                ),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // DAILY SUMMARY: must always be visible (top)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            sliver: SliverToBoxAdapter(
+              child: _TodaySummaryStrip(
+                readyCount: orders.length,
+                deliveredTodayCount: provider.deliveredTodayCount,
               ),
             ),
-            if (occupied)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
-                sliver: SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppColors.borderSubtle),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accent.withValues(alpha: 0.08),
-                              blurRadius: 32,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
+          ),
+          if (occupied)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.borderSubtle),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accent.withValues(alpha: 0.08),
+                            blurRadius: 32,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 34,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child:
-                                    const Icon(Icons.delivery_dining_rounded, size: 52, color: AppColors.accentDark),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(height: 22),
-                              Text(
-                                'تركيز على الطلب النشط',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                              child: const Icon(
+                                Icons.delivery_dining_rounded,
+                                size: 52,
+                                color: AppColors.accentDark,
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'عند قبول طلب واحد لا يمكن ظهور طلبات أخرى. أكمل المرحلة الحالية أو انتقل لمتابعتها.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              if (onGoToActiveTab != null) ...[
-                                const SizedBox(height: 26),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 54,
-                                  child: FilledButton.icon(
-                                    onPressed: onGoToActiveTab,
-                                    icon: const Icon(Icons.arrow_back_rounded),
-                                    label: const Text('متابعة التوصيل'),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.accent,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            const SizedBox(height: 22),
+                            Text(
+                              'ركّز على الطلب النشط',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'عند قبول طلب واحد لن تظهر طلبات أخرى. أكمل المرحلة الحالية أو انتقل إلى متابعته.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            if (onGoToActiveTab != null) ...[
+                              const SizedBox(height: 26),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 54,
+                                child: FilledButton.icon(
+                                  onPressed: onGoToActiveTab,
+                                  icon: const Icon(Icons.arrow_back_rounded),
+                                  label: const Text(
+                                    'متابعة التوصيل',
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.accent,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
                                 ),
-                              ],
+                              ),
                             ],
-                          ),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ),
-              )
-            else if (!provider.hasSyncedAvailableOrders)
-              const SliverFillRemaining(
-                hasScrollBody: true,
-                child: OrderListSkeleton(),
-              )
-            else if (orders.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
-                  child: const OrderEmptyState(
-                    title: 'لا توجد طلبات متاحة حالياً',
-                    subtitle: 'يُحدَّث القائمة تلقائياً كل بضع ثوانٍ عند توفر طلبات جديدة.',
-                    icon: Icons.takeout_dining_rounded,
-                  ),
-                ),
-              )
-            else ...[
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverToBoxAdapter(
-                  child: _SectionHeader(
-                    icon: Icons.fiber_manual_record,
-                    iconColor: AppColors.accent,
-                    title: 'طلبات جديدة للقبول',
-                    badge: '${orders.length}',
-                  ),
+              ),
+            )
+          else if (!provider.hasSyncedAvailableOrders)
+            const SliverFillRemaining(
+              hasScrollBody: true,
+              child: OrderListSkeleton(),
+            )
+          else if (orders.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+                child: const OrderEmptyState(
+                  title: 'لا توجد طلبات متاحة حالياً',
+                  subtitle:
+                      'تُحدَّث القائمة تلقائياً عند توفر طلبات جديدة.',
+                  icon: Icons.takeout_dining_rounded,
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-                sliver: SliverList.separated(
-                  itemCount: orders.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 18),
-                  itemBuilder: (_, i) {
-                    final order = orders[i];
-                    return DriverOrderCard(
-                      order: order,
-                      highlightAsNew: i == 0,
-                      onTap: () => _openDetails(context, order),
-                    );
-                  },
+            )
+          else ...[
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverToBoxAdapter(
+                child: _SectionHeader(
+                  icon: Icons.fiber_manual_record,
+                  iconColor: AppColors.accent,
+                  title: 'طلبات جديدة للقبول',
+                  badge: '${orders.length}',
                 ),
               ),
-            ],
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+              sliver: SliverList.separated(
+                itemCount: orders.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 18),
+                itemBuilder: (_, i) {
+                  final order = orders[i];
+                  return DriverOrderCard(
+                    order: order,
+                    highlightAsNew: i == 0,
+                    onTap: () => _openDetails(context, order),
+                  );
+                },
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -258,7 +262,11 @@ class _TodaySummaryStrip extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.insights_rounded, size: 20, color: AppColors.accentDark.withValues(alpha: 0.9)),
+                Icon(
+                  Icons.insights_rounded,
+                  size: 20,
+                  color: AppColors.accentDark.withValues(alpha: 0.9),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'ملخص اليوم',
@@ -295,8 +303,10 @@ class _TodaySummaryStrip extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'آخر التحديثات من السيرفر، سحب للتحديث.',
-              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+              'آخر التحديثات من السيرفر، وتُسحب تلقائياً.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
           ],
         ),
@@ -347,7 +357,9 @@ class _SummaryTile extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 Text(label, style: theme.textTheme.bodySmall),
               ],
