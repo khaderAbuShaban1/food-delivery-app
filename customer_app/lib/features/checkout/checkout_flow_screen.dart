@@ -17,7 +17,7 @@ import '../home/main_screen.dart';
 
 /// Full manual checkout: saved address (+ add new), payment method selection, proof image, submit.
 class CheckoutFlowScreen extends StatefulWidget {
-  const CheckoutFlowScreen({super.key});
+  CheckoutFlowScreen({super.key});
 
   @override
   State<CheckoutFlowScreen> createState() => _CheckoutFlowScreenState();
@@ -130,7 +130,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     final createdAddressId = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
@@ -146,45 +146,45 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'إضافة عنوان جديد',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: AppSpacing.md),
                 TextField(
                   controller: titleCtl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'اسم العنوان (مثل المنزل)',
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
                 TextField(
                   controller: cityCtl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'المدينة',
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
                 TextField(
                   controller: streetCtl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'الشارع',
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
                 TextField(
                   controller: detailsCtl,
                   maxLines: 2,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'تفاصيل إضافية',
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: AppSpacing.lg),
                 FilledButton(
                   onPressed: () async {
                     final title = titleCtl.text.trim();
@@ -193,7 +193,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                     final detailsRaw = detailsCtl.text.trim();
                     if (title.isEmpty || city.isEmpty || street.isEmpty) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text('أكمل الحقول المطلوبة (الاسم، المدينة، الشارع)'),
                           backgroundColor: AppColors.error,
                         ),
@@ -220,7 +220,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                       );
                     }
                   },
-                  child: const Text('حفظ العنوان'),
+                  child: Text('حفظ العنوان'),
                 ),
               ],
             ),
@@ -243,7 +243,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     final cart = Provider.of<CartProvider>(context, listen: false);
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('السلة فارغة')),
+        SnackBar(content: Text('السلة فارغة')),
       );
       return;
     }
@@ -251,7 +251,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     final restaurantIds = cart.items.map((e) => e.menuItem.restaurantId).toSet();
     if (restaurantIds.length != 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن الطلب من أكثر من مطعم')),
+        SnackBar(content: Text('لا يمكن الطلب من أكثر من مطعم')),
       );
       return;
     }
@@ -300,7 +300,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
             content: Text(
               'تم إرسال طلبك وهو قيد تحقّق الإدارة من الدفع.\n'
               'Your order has been submitted and is pending admin payment verification.',
-              style: const TextStyle(height: 1.35),
+              style: TextStyle(height: 1.35),
             ),
             backgroundColor: AppColors.success,
           ),
@@ -332,7 +332,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('حدث خطأ أثناء الإرسال'),
           backgroundColor: AppColors.error,
         ),
@@ -342,13 +342,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
   Widget _sectionTitle(String t) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm, top: AppSpacing.sm),
+      padding: EdgeInsets.only(bottom: AppSpacing.sm, top: AppSpacing.sm),
       child: Text(
         t,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w800,
-          color: AppColors.textPrimary,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );
@@ -356,24 +356,26 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('العنوان وطريقة الدفع'),
-        backgroundColor: AppColors.surface,
+        title: Text('العنوان وطريقة الدفع'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
       ),
       body: _loadingBootstrap
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _bootstrapError != null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: EdgeInsets.all(AppSpacing.lg),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(_bootstrapError!, textAlign: TextAlign.center),
-                        TextButton(onPressed: _bootstrap, child: const Text('إعادة المحاولة')),
+                        TextButton(onPressed: _bootstrap, child: Text('إعادة المحاولة')),
                       ],
                     ),
                   ),
@@ -381,20 +383,20 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
               : Stack(
                   children: [
                     ListView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: EdgeInsets.all(AppSpacing.lg),
                       children: [
                         _sectionTitle('عنوان التوصيل'),
                         if (_addresses.isEmpty)
                           Card(
                             child: Padding(
-                              padding: const EdgeInsets.all(AppSpacing.md),
+                              padding: EdgeInsets.all(AppSpacing.md),
                               child: Column(
                                 children: [
-                                  const Text('لا توجد عناوين محفوظة. أضف عنواناً للمتابعة.'),
+                                  Text('لا توجد عناوين محفوظة. أضف عنواناً للمتابعة.'),
                                   TextButton.icon(
                                     onPressed: _showAddAddressSheet,
-                                    icon: const Icon(Icons.add_location_alt_outlined),
-                                    label: const Text('إضافة عنوان جديد'),
+                                    icon: Icon(Icons.add_location_alt_outlined),
+                                    label: Text('إضافة عنوان جديد'),
                                   ),
                                 ],
                               ),
@@ -403,19 +405,21 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                         ..._addresses.map((a) {
                           final sel = _selectedAddressId == a.id;
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            padding: EdgeInsets.only(bottom: AppSpacing.sm),
                             child: Material(
-                              color: sel ? AppColors.secondary : AppColors.surface,
+                              color: sel
+                                  ? (isDark ? scheme.surfaceContainerHighest : AppColors.secondary)
+                                  : scheme.surface,
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               child: InkWell(
                                 onTap: () => setState(() => _selectedAddressId = a.id),
                                 borderRadius: BorderRadius.circular(AppRadius.lg),
                                 child: Container(
-                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  padding: EdgeInsets.all(AppSpacing.md),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(AppRadius.lg),
                                     border: Border.all(
-                                      color: sel ? AppColors.primary : AppColors.border,
+                                      color: sel ? AppColors.primary : Theme.of(context).dividerColor,
                                       width: sel ? 2 : 1,
                                     ),
                                   ),
@@ -426,13 +430,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                         children: [
                                           Icon(
                                             sel ? Icons.radio_button_checked : Icons.radio_button_off,
-                                            color: sel ? AppColors.primary : AppColors.textHint,
+                                            color: sel ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
-                                          const SizedBox(width: AppSpacing.sm),
+                                          SizedBox(width: AppSpacing.sm),
                                           Expanded(
                                             child: Text(
                                               a.title,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 16,
                                               ),
@@ -440,11 +444,11 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 6),
+                                      SizedBox(height: 6),
                                       Text(
                                         a.fullAddress,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
+                                        style: TextStyle(
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           height: 1.35,
                                         ),
                                       ),
@@ -457,17 +461,17 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                         }),
                         if (_addresses.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                            padding: EdgeInsets.only(bottom: AppSpacing.md),
                             child: TextButton.icon(
                               onPressed: _showAddAddressSheet,
-                              icon: const Icon(Icons.add),
-                              label: const Text('إضافة عنوان جديد'),
+                              icon: Icon(Icons.add),
+                              label: Text('إضافة عنوان جديد'),
                             ),
                           ),
-                        const Divider(),
+                        Divider(),
                         _sectionTitle('طرق الدفع المتاحة'),
                         if (_methods.isEmpty)
-                          const Card(
+                          Card(
                             child: Padding(
                               padding: EdgeInsets.all(AppSpacing.md),
                               child: Text('لا توجد طرق دفع مفعّلة حالياً. تواصل مع الدعم.'),
@@ -476,19 +480,21 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                         ..._methods.map((m) {
                           final sel = _selectedPaymentMethodId == m.id;
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            padding: EdgeInsets.only(bottom: AppSpacing.sm),
                             child: Material(
-                              color: sel ? AppColors.secondary : AppColors.surface,
+                              color: sel
+                                  ? (isDark ? scheme.surfaceContainerHighest : AppColors.secondary)
+                                  : scheme.surface,
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               child: InkWell(
                                 onTap: () => setState(() => _selectedPaymentMethodId = m.id),
                                 borderRadius: BorderRadius.circular(AppRadius.lg),
                                 child: Container(
-                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  padding: EdgeInsets.all(AppSpacing.md),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(AppRadius.lg),
                                     border: Border.all(
-                                      color: sel ? AppColors.primary : AppColors.border,
+                                      color: sel ? AppColors.primary : Theme.of(context).dividerColor,
                                       width: sel ? 2 : 1,
                                     ),
                                   ),
@@ -503,7 +509,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                             width: 56,
                                             height: 56,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, _, _) => const SizedBox(
+                                            errorBuilder: (_, _, _) => SizedBox(
                                               width: 56,
                                               height: 56,
                                               child: Icon(Icons.account_balance),
@@ -511,40 +517,40 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                           ),
                                         )
                                       else
-                                        const SizedBox(
+                                        SizedBox(
                                           width: 56,
                                           height: 56,
                                           child: Icon(Icons.payment, size: 36),
                                         ),
-                                      const SizedBox(width: AppSpacing.md),
+                                      SizedBox(width: AppSpacing.md),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               m.typeLabel,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
-                                                color: AppColors.textSecondary,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             Text(
                                               m.subtypeName,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 15,
                                               ),
                                             ),
                                             Text(
                                               m.accountHolderName,
-                                              style: const TextStyle(fontSize: 13),
+                                              style: TextStyle(fontSize: 13),
                                             ),
                                           ],
                                         ),
                                       ),
                                       Icon(
                                         sel ? Icons.radio_button_checked : Icons.radio_button_off,
-                                        color: sel ? AppColors.primary : AppColors.textHint,
+                                        color: sel ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                     ],
                                   ),
@@ -554,20 +560,20 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                           );
                         }),
                         if (_selectedMethod != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
+                          SizedBox(height: AppSpacing.sm),
                           Card(
                             child: Padding(
-                              padding: const EdgeInsets.all(AppSpacing.md),
+                              padding: EdgeInsets.all(AppSpacing.md),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'تفاصيل الدفع',
                                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                                   ),
-                                  const SizedBox(height: AppSpacing.sm),
+                                  SizedBox(height: AppSpacing.sm),
                                   Text('${ _selectedMethod!.typeLabel } — ${_selectedMethod!.subtypeName}'),
-                                  const SizedBox(height: 6),
+                                  SizedBox(height: 6),
                                   Text('صاحب الحساب: ${_selectedMethod!.accountHolderName}'),
                                   if (_selectedMethod!.accountNumber != null &&
                                       _selectedMethod!.accountNumber!.isNotEmpty)
@@ -575,7 +581,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                   Text('الهاتف: ${_selectedMethod!.phoneNumber}'),
                                   if (_selectedMethod!.staticImageUrl != null &&
                                       _selectedMethod!.staticImageUrl!.isNotEmpty) ...[
-                                    const SizedBox(height: AppSpacing.sm),
+                                    SizedBox(height: AppSpacing.sm),
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
                                       child: Image.network(
@@ -583,7 +589,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                         height: 140,
                                         width: double.infinity,
                                         fit: BoxFit.contain,
-                                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                                        errorBuilder: (_, _, _) => SizedBox.shrink(),
                                       ),
                                     ),
                                   ],
@@ -592,15 +598,15 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                             ),
                           ),
                         ],
-                        const Divider(height: AppSpacing.xl),
+                        Divider(height: AppSpacing.xl),
                         _sectionTitle('إثبات الدفع (صورة إلزامية)'),
                         OutlinedButton.icon(
                           onPressed: _submitting ? null : _pickProof,
-                          icon: const Icon(Icons.upload_file),
+                          icon: Icon(Icons.upload_file),
                           label: Text(_proofImagePath == null ? 'اختر صورة الإيصال' : 'تغيير الصورة'),
                         ),
                         if (_proofImagePath != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
+                          SizedBox(height: AppSpacing.sm),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.file(
@@ -611,7 +617,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 100),
+                        SizedBox(height: 100),
                       ],
                     ),
                     Positioned(
@@ -619,14 +625,14 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                       right: 0,
                       bottom: 0,
                       child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        padding: EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: Theme.of(context).colorScheme.surface,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.06),
                               blurRadius: 12,
-                              offset: const Offset(0, -4),
+                              offset: Offset(0, -4),
                             ),
                           ],
                         ),
@@ -635,13 +641,13 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                             onPressed: _canSubmit ? _submit : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(AppRadius.lg),
                               ),
                             ),
                             child: _submitting
-                                ? const SizedBox(
+                                ? SizedBox(
                                     height: 22,
                                     width: 22,
                                     child: CircularProgressIndicator(
@@ -649,7 +655,7 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text(
+                                : Text(
                                     'لقد دفعت',
                                     style: TextStyle(
                                       fontSize: 16,
@@ -665,3 +671,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     );
   }
 }
+
+
+

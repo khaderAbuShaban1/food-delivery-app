@@ -9,7 +9,7 @@ class AppButton extends StatelessWidget {
   final AppButtonVariant variant;
   final IconData? icon;
 
-  const AppButton({
+  AppButton({
     super.key,
     required this.text,
     this.onPressed,
@@ -54,6 +54,7 @@ class AppButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
           ),
           child: _buildContent(),
         );
@@ -62,7 +63,7 @@ class AppButton extends StatelessWidget {
 
   Widget _buildContent() {
     if (isLoading) {
-      return const SizedBox(
+      return SizedBox(
         height: 20,
         width: 20,
         child: CircularProgressIndicator(
@@ -78,7 +79,7 @@ class AppButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 20),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(text),
         ],
       );
@@ -94,3 +95,6 @@ enum AppButtonVariant {
   text,
   danger,
 }
+
+
+

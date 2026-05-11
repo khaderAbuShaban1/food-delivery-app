@@ -12,8 +12,7 @@ class DriverOrderHistoryScreen extends StatefulWidget {
   const DriverOrderHistoryScreen({super.key});
 
   @override
-  State<DriverOrderHistoryScreen> createState() =>
-      _DriverOrderHistoryScreenState();
+  State<DriverOrderHistoryScreen> createState() => _DriverOrderHistoryScreenState();
 }
 
 class _DriverOrderHistoryScreenState extends State<DriverOrderHistoryScreen> {
@@ -43,9 +42,7 @@ class _DriverOrderHistoryScreenState extends State<DriverOrderHistoryScreen> {
       final parsed = <OrderModel>[];
       for (final e in list) {
         if (e is Map) {
-          parsed.add(
-            OrderModel.fromLaravelApi(Map<String, dynamic>.from(e as Map)),
-          );
+          parsed.add(OrderModel.fromLaravelApi(Map<String, dynamic>.from(e as Map)));
         }
       }
       setState(() {
@@ -56,9 +53,7 @@ class _DriverOrderHistoryScreenState extends State<DriverOrderHistoryScreen> {
     }
 
     setState(() {
-      _error =
-          res['message']?.toString() ??
-          'تعذر تحميل سجل الطلبات';
+      _error = res['message']?.toString() ?? 'تعذر تحميل سجل الطلبات';
       _loading = false;
     });
   }
@@ -66,36 +61,50 @@ class _DriverOrderHistoryScreenState extends State<DriverOrderHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('سجل الطلبات')),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('سجل الطلبات'),
+        actions: [
+          IconButton(
+            tooltip: 'تحديث',
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: _loading
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(color: AppColors.accent),
-                ),
-              )
-            : _error != null
-            ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [_ErrorCard(message: _error!, onRetry: _load)],
-              )
-            : _orders.isEmpty
-            ? const OrderEmptyState(
-                title: 'لا توجد طلبات مكتملة',
-                subtitle:
-                    'ستظهر هنا الطلبات التي تم تسليمها بعد اكتمالها.',
-                icon: Icons.history_rounded,
-              )
-            : ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                itemCount: _orders.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (_, i) => _HistoryOrderCard(order: _orders[i]),
-              ),
+        child: RefreshIndicator.adaptive(
+          color: Theme.of(context).colorScheme.primary,
+          onRefresh: _load,
+          child: _loading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  ),
+                )
+              : _error != null
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [
+                        _ErrorCard(message: _error!, onRetry: _load),
+                      ],
+                    )
+                  : _orders.isEmpty
+                      ? const OrderEmptyState(
+                          title: 'لا توجد طلبات مكتملة',
+                          subtitle: 'ستظهر هنا الطلبات التي تم تسليمها بعد اكتمالها.',
+                          icon: Icons.history_rounded,
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          itemCount: _orders.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 14),
+                          itemBuilder: (_, i) => _HistoryOrderCard(order: _orders[i]),
+                        ),
+        ),
       ),
     );
   }
@@ -108,7 +117,7 @@ class _HistoryOrderCard extends StatelessWidget {
 
   String _dateText() {
     final dt = order.updatedAt ?? order.createdAt;
-    if (dt == null) return '-';
+    if (dt == null) return '—';
     final y = dt.year.toString().padLeft(4, '0');
     final m = dt.month.toString().padLeft(2, '0');
     final d = dt.day.toString().padLeft(2, '0');
@@ -121,15 +130,13 @@ class _HistoryOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final statusLabel = StatusBadge.labelAr(
-      StatusBadge.normalize(order.status),
-    );
+    final statusLabel = StatusBadge.labelAr(StatusBadge.normalize(order.status));
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -154,15 +161,13 @@ class _HistoryOrderCard extends StatelessWidget {
                         order.restaurantName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         _dateText(),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textMuted,
+                          color: theme.colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -181,10 +186,7 @@ class _HistoryOrderCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    StatusBadge(
-                      status: order.status,
-                      labelOverride: statusLabel,
-                    ),
+                    StatusBadge(status: order.status, labelOverride: statusLabel),
                   ],
                 ),
               ],
@@ -206,9 +208,9 @@ class _ErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -225,9 +227,7 @@ class _ErrorCard extends StatelessWidget {
               height: 48,
               child: FilledButton.icon(
                 onPressed: onRetry,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('إعادة المحاولة'),
               ),
@@ -238,3 +238,4 @@ class _ErrorCard extends StatelessWidget {
     );
   }
 }
+

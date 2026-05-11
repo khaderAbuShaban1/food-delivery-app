@@ -5,7 +5,7 @@ import '../../../core/widgets/widgets.dart';
 import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -53,13 +53,13 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: EdgeInsets.all(AppSpacing.xl),
           child: Column(
             children: [
-              const SizedBox(height: AppSpacing.xxxl),
+              SizedBox(height: AppSpacing.xxxl),
               Container(
                 width: 100,
                 height: 100,
@@ -67,53 +67,53 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(AppRadius.xl),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.restaurant_menu,
                   size: 50,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl),
-              const Text(
+              SizedBox(height: AppSpacing.xl),
+              Text(
                 'توصيل الطعام',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
+              SizedBox(height: AppSpacing.xs),
+              Text(
                 'سجل دخولك للطلب',
-                style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: AppSpacing.xxxl),
+              SizedBox(height: AppSpacing.xxxl),
               AppTextField(
                 controller: _emailController,
                 labelText: 'البريد الإلكتروني',
                 hintText: 'ادخل البريد الإلكتروني',
                 keyboardType: TextInputType.emailAddress,
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.email_outlined,
-                  color: AppColors.textHint,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
               AppTextField(
                 controller: _passwordController,
                 labelText: 'كلمة المرور',
                 hintText: 'ادخل كلمة المرور',
                 obscureText: _obscurePassword,
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.lock_outline,
-                  color: AppColors.textHint,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword
                         ? Icons.visibility_outlined
                         : Icons.visibility_off_outlined,
-                    color: AppColors.textHint,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   onPressed: () {
                     setState(() => _obscurePassword = !_obscurePassword);
@@ -121,9 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               if (_errorMessage != null) ...[
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: AppSpacing.lg),
                 Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.md),
@@ -133,16 +133,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.error_outline,
                         color: AppColors.error,
                         size: 20,
                       ),
-                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.error,
                             fontSize: 14,
                           ),
@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 if ((_errorMessage ?? '').contains(
                   'يرجى التحقق من البريد الإلكتروني',
                 )) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: AppSpacing.sm),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -171,30 +171,30 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text('إدخال رمز التحقق'),
+                      child: Text('إدخال رمز التحقق'),
                     ),
                   ),
                 ],
               ],
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: AppSpacing.xl),
               AppButton(
                 text: 'تسجيل الدخول',
                 onPressed: _login,
                 isLoading: _isLoading,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'ليس لديك حساب؟ ',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   GestureDetector(
                     onTap: () {
                       Navigator.pushNamed(context, '/register');
                     },
-                    child: const Text(
+                    child: Text(
                       'إنشاء حساب',
                       style: TextStyle(
                         color: AppColors.primary,
@@ -211,3 +211,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+
+

@@ -49,9 +49,13 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final normalized = normalize(status);
-    final bg = AppColors.statusSurface(normalized);
-    final fg = AppColors.statusForeground(normalized);
+    final baseFg = AppColors.statusForeground(normalized);
+    final bg = isDark
+        ? baseFg.withValues(alpha: 0.16)
+        : AppColors.statusSurface(normalized);
+    final fg = isDark ? baseFg : AppColors.statusForeground(normalized);
 
     final o = labelOverride?.trim();
     final labelText = (o != null && o.isNotEmpty) ? o : labelAr(normalized);
@@ -61,6 +65,9 @@ class StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isDark ? baseFg.withValues(alpha: 0.42) : Colors.transparent,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

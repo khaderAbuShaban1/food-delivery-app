@@ -49,7 +49,7 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
+  static FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBgAqN4YO1qVnp6_YTMbjdPzk5-Hh6apg4',
     appId: '1:885023315229:android:b3edadf1a040de68d77df4',
     messagingSenderId: '885023315229',
@@ -57,7 +57,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'food-delivery-app-7ee8d.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
+  static FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBLRLiR3KCo0yv0NzFZDZZC7EXq2-EW1eo',
     appId: '1:885023315229:ios:7f1a04b634f8ef3bd77df4',
     messagingSenderId: '885023315229',
@@ -67,3 +67,5 @@ class DefaultFirebaseOptions {
   );
 
 }
+
+

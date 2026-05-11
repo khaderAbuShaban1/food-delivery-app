@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/cart_provider.dart';
@@ -11,7 +11,7 @@ class MainScreen extends StatefulWidget {
   final int initialIndex;
   final int? highlightedOrderId;
 
-  const MainScreen({super.key, this.initialIndex = 0, this.highlightedOrderId});
+  MainScreen({super.key, this.initialIndex = 0, this.highlightedOrderId});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -21,15 +21,15 @@ class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
 
   late final List<Widget> _screens;
-  static const double _navBarHeight = 74;
+  static double _navBarHeight = 74;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _screens = [
-      const HomeScreen(),
-      const CartScreen(),
+      HomeScreen(),
+      CartScreen(),
       OrdersScreen(highlightedOrderId: widget.highlightedOrderId),
       _ProfileScreenWrapper(),
     ];
@@ -46,20 +46,20 @@ class _MainScreenState extends State<MainScreen> {
             child: Container(
               height: _navBarHeight,
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: const BorderRadius.vertical(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.vertical(
                   top: Radius.circular(28),
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 18,
-                    offset: const Offset(0, -6),
+                    offset: Offset(0, -6),
                   ),
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
                   vertical: 10,
                 ),
@@ -129,7 +129,7 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   Icon(
                     isSelected ? activeIcon : icon,
-                    color: isSelected ? AppColors.primary : AppColors.textHint,
+                    color: isSelected ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                     size: 26,
                   ),
                   if (badgeCount > 0)
@@ -137,7 +137,7 @@ class _MainScreenState extends State<MainScreen> {
                       end: -10,
                       top: -8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 2,
                         ),
@@ -145,10 +145,10 @@ class _MainScreenState extends State<MainScreen> {
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
-                        constraints: const BoxConstraints(minWidth: 18),
+                        constraints: BoxConstraints(minWidth: 18),
                         child: Text(
                           badgeCount > 99 ? '99+' : badgeCount.toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.w900,
@@ -160,9 +160,9 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+                duration: Duration(milliseconds: 180),
                 height: 3,
                 width: isSelected ? 18 : 0,
                 decoration: BoxDecoration(
@@ -170,7 +170,7 @@ class _MainScreenState extends State<MainScreen> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 label,
                 maxLines: 1,
@@ -178,8 +178,7 @@ class _MainScreenState extends State<MainScreen> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color:
-                      isSelected ? AppColors.primary : AppColors.textSecondary,
+                  color: isSelected ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

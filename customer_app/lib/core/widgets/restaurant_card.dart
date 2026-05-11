@@ -7,7 +7,7 @@ class RestaurantCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRateTap;
 
-  const RestaurantCard({
+  RestaurantCard({
     super.key,
     required this.restaurant,
     this.onTap,
@@ -16,29 +16,32 @@ class RestaurantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.xl),
       child: Container(
-        margin: const EdgeInsets.symmetric(
+        margin: EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.xl),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 18,
-              offset: const Offset(0, 10),
+              offset: Offset(0, 10),
             ),
           ],
         ),
         child: Column(
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(
+              borderRadius: BorderRadius.vertical(
                 top: Radius.circular(AppRadius.xl),
               ),
               child: SizedBox(
@@ -51,9 +54,9 @@ class RestaurantCard extends StatelessWidget {
                         ? Image.network(
                             restaurant.image!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(),
+                            errorBuilder: (_, _, _) => _buildPlaceholder(context),
                           )
-                        : _buildPlaceholder(),
+                        : _buildPlaceholder(context),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -76,22 +79,22 @@ class RestaurantCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: EdgeInsets.all(AppSpacing.md),
               child: Row(
                 children: [
                   Container(
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: AppColors.secondary,
+                      color: isDark ? scheme.surfaceContainerHighest : AppColors.secondary,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back_rounded,
-                      color: AppColors.primary,
+                      color: isDark ? scheme.primary : AppColors.primary,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -99,24 +102,24 @@ class RestaurantCard extends StatelessWidget {
                         Text(
                           restaurant.name,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           restaurant.category,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.sm),
+                        SizedBox(height: AppSpacing.sm),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -126,37 +129,39 @@ class RestaurantCard extends StatelessWidget {
                                 AppRadius.pill,
                               ),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
+                                padding: EdgeInsets.symmetric(
                                   horizontal: AppSpacing.sm,
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary,
+                                  color: isDark
+                                      ? scheme.surfaceContainerHighest
+                                      : AppColors.secondary,
                                   borderRadius: BorderRadius.circular(
                                     AppRadius.pill,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.star_rounded,
                                       color: AppColors.warning,
                                       size: 17,
                                     ),
-                                    const SizedBox(width: 3),
+                                    SizedBox(width: 3),
                                     Text(
                                       restaurant.rating.toStringAsFixed(1),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
+                                    SizedBox(width: 4),
                                     Text(
                                       '(${restaurant.ratingsCount})',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.textSecondary,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ],
@@ -164,12 +169,12 @@ class RestaurantCard extends StatelessWidget {
                               ),
                             ),
                             if (restaurant.ratingsCount == 0) ...[
-                              const SizedBox(width: AppSpacing.sm),
-                              const Text(
+                              SizedBox(width: AppSpacing.sm),
+                              Text(
                                 'لا توجد تقييمات بعد',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -187,14 +192,14 @@ class RestaurantCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(BuildContext context) {
     return Container(
       color: AppColors.secondary,
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.restaurant_outlined,
           size: 28,
-          color: AppColors.textHint,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -203,7 +208,7 @@ class RestaurantCard extends StatelessWidget {
   Widget _buildStatusBadge() {
     final isOpen = restaurant.isOpen;
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: 4,
       ),
@@ -224,3 +229,6 @@ class RestaurantCard extends StatelessWidget {
     );
   }
 }
+
+
+

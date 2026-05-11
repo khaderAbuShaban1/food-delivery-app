@@ -43,20 +43,22 @@ class _MainNavScreenState extends State<MainNavScreen> {
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           height: 68,
-          indicatorColor: AppColors.accent.withValues(alpha: 0.12),
+          indicatorColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             final selected = states.contains(WidgetState.selected);
             return TextStyle(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-              color: selected ? AppColors.accentDark : AppColors.textMuted,
+              color: selected
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             );
           }),
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: const Border(top: BorderSide(color: AppColors.borderSubtle)),
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -66,7 +68,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
             ],
           ),
           child: NavigationBar(
-            backgroundColor: AppColors.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             shadowColor: Colors.transparent,
@@ -90,9 +92,9 @@ class _MainNavScreenState extends State<MainNavScreen> {
                 selectedIcon: _NavActiveIcon(showDot: hasActive, selected: true),
                 label: 'نشط',
               ),
-              const NavigationDestination(
+              NavigationDestination(
                 icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded, color: AppColors.accentDark),
+                selectedIcon: Icon(Icons.person_rounded, color: Theme.of(context).colorScheme.secondary),
                 label: 'حسابي',
               ),
             ],
@@ -120,14 +122,16 @@ class _NavPoolIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = Icon(
       Icons.grid_view_rounded,
-      color: dimmed ? AppColors.textMuted : (selected ? AppColors.accentDark : null),
+      color: dimmed
+          ? Theme.of(context).colorScheme.onSurfaceVariant
+          : (selected ? Theme.of(context).colorScheme.secondary : null),
     );
 
     if (!showCount || count <= 0) return icon;
 
     return Badge.count(
       count: count > 99 ? 99 : count,
-      backgroundColor: AppColors.accent,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       textColor: Colors.white,
       child: icon,
     );
@@ -144,7 +148,7 @@ class _NavActiveIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = Icon(
       Icons.local_shipping_rounded,
-      color: selected ? AppColors.accentDark : null,
+      color: selected ? Theme.of(context).colorScheme.secondary : null,
     );
 
     if (!showDot) return icon;
@@ -161,9 +165,9 @@ class _NavActiveIcon extends StatelessWidget {
             width: 10,
             height: 10,
             decoration: BoxDecoration(
-              color: AppColors.accent,
+              color: Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.surface, width: 2),
+              border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
             ),
           ),
         ),

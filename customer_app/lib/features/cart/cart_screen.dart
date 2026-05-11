@@ -7,28 +7,28 @@ import '../../core/widgets/widgets.dart';
 import '../checkout/checkout_flow_screen.dart';
 
 class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
+  CartScreen({super.key});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
 }
 
 class _CartScreenState extends State<CartScreen> {
-  static const double _deliveryFee = 15.0;
+  static double _deliveryFee = 15.0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('السلة'),
-        backgroundColor: AppColors.background,
+        title: Text('السلة'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Consumer<CartProvider>(
         builder: (context, cart, child) {
           if (cart.items.isEmpty) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.shopping_cart_outlined,
               title: 'السلة فارغة',
               subtitle: 'أضف عناصر من المطاعم',
@@ -39,7 +39,7 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
@@ -67,7 +67,7 @@ class _CartScreenState extends State<CartScreen> {
     
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.95, end: 1.0),
-      duration: const Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 200),
       builder: (context, scale, child) {
         return Transform.scale(
           scale: scale,
@@ -75,15 +75,15 @@ class _CartScreenState extends State<CartScreen> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+        margin: EdgeInsets.only(bottom: AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: [
             BoxShadow(
               color: AppColors.shadow,
               blurRadius: 8,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),
@@ -92,7 +92,7 @@ class _CartScreenState extends State<CartScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.horizontal(
+                borderRadius: BorderRadius.horizontal(
                   right: Radius.circular(AppRadius.lg),
                   left: Radius.circular(0),
                 ),
@@ -110,51 +110,51 @@ class _CartScreenState extends State<CartScreen> {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         item.menuItem.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           height: 1.3,
                         ),
                         textAlign: TextAlign.right,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         '₪${item.unitPriceWithOptions.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       if (item.selectedOptionValueIdsByGroup.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           _selectedOptionsLine(item),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textHint,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             height: 1.35,
                           ),
                         ),
                       ],
-                      const Spacer(),
+                      Spacer(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Flexible(
                             child: Text(
                               '₪${itemTotal.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -179,11 +179,11 @@ class _CartScreenState extends State<CartScreen> {
   Widget _buildPlaceholder() {
     return Container(
       color: AppColors.secondary,
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.fastfood_outlined,
           size: 32,
-          color: AppColors.textHint,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -194,9 +194,11 @@ class _CartScreenState extends State<CartScreen> {
     CartProvider cart,
     CartItem item,
   ) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.secondary,
+        color: isDark ? scheme.surfaceContainerHighest : AppColors.secondary,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
@@ -218,10 +220,10 @@ class _CartScreenState extends State<CartScreen> {
             alignment: Alignment.center,
             child: Text(
               item.quantity.toString(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: isDark ? scheme.onSurface : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -237,7 +239,7 @@ class _CartScreenState extends State<CartScreen> {
   String _selectedOptionsLine(CartItem item) {
     final parts = <String>[];
     for (final group in item.menuItem.optionGroups) {
-      final selectedIds = item.selectedOptionValueIdsByGroup[group.id] ?? const <int>[];
+      final selectedIds = item.selectedOptionValueIdsByGroup[group.id] ?? <int>[];
       if (selectedIds.isEmpty) continue;
       final names = group.values
           .where((v) => selectedIds.contains(v.id))
@@ -261,7 +263,7 @@ class _CartScreenState extends State<CartScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
+          padding: EdgeInsets.all(AppSpacing.sm),
           child: Icon(
             icon,
             color: isDelete ? AppColors.error : AppColors.primary,
@@ -278,22 +280,22 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     final totalStr = '₪${total.toStringAsFixed(2)}';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.lg,
         AppSpacing.lg,
         AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.vertical(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppRadius.xl),
         ),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 16,
-            offset: const Offset(0, -4),
+            offset: Offset(0, -4),
           ),
         ],
       ),
@@ -304,18 +306,18 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
             Container(
               width: 36,
               height: 3,
-              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              margin: EdgeInsets.only(bottom: AppSpacing.md),
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: Theme.of(context).dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             _buildSummaryRow('المجموع', '₪${subtotal.toStringAsFixed(2)}'),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             _buildSummaryRow('التوصيل', '₪${_deliveryFee.toStringAsFixed(2)}'),
-            const SizedBox(height: AppSpacing.sm),
-            Divider(color: AppColors.divider, height: 1),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
+            Divider(color: Theme.of(context).dividerColor, height: 1),
+            SizedBox(height: AppSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -324,7 +326,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 Text(
@@ -337,7 +339,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             SizedBox(
               width: double.infinity,
               height: 42,
@@ -356,7 +358,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.payments_outlined, size: 18),
-                    const SizedBox(width: AppSpacing.sm),
+                    SizedBox(width: AppSpacing.sm),
                     Text(
                       'متابعة للدفع',
                       style: TextStyle(
@@ -382,7 +384,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
           label,
           style: TextStyle(
             fontSize: 13,
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         Text(
@@ -390,7 +392,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -401,7 +403,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     if (cart.items.isEmpty) return;
     if (!AuthService.isLoggedIn()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('يرجى تسجيل الدخول أولاً'),
           backgroundColor: AppColors.error,
         ),
@@ -412,7 +414,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     final restaurantIds = cart.items.map((item) => item.menuItem.restaurantId).toSet();
     if (restaurantIds.length != 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('لا يمكن الطلب من أكثر من مطعم'),
           backgroundColor: AppColors.error,
         ),
@@ -423,7 +425,7 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     final restaurantId = restaurantIds.first;
     if (restaurantId <= 0 || cart.items.any((e) => e.menuItem.id <= 0 || e.quantity < 1)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('بيانات الطلب غير صالحة'),
           backgroundColor: AppColors.error,
         ),
@@ -432,7 +434,9 @@ Widget _buildOrderSummary(BuildContext context, CartProvider cart) {
     }
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const CheckoutFlowScreen()),
+      MaterialPageRoute<void>(builder: (_) => CheckoutFlowScreen()),
     );
   }
 }
+
+

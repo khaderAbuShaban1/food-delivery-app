@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/theme/app_colors.dart';
@@ -33,11 +33,11 @@ class ActiveOrderScreen extends StatelessWidget {
 
     if (!provider.hasSyncedActiveOrder) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           elevation: 0,
           scrolledUnderElevation: 0,
-          backgroundColor: AppColors.background,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: const Text('الطلب النشط'),
         ),
         body: const Padding(
@@ -50,11 +50,11 @@ class ActiveOrderScreen extends StatelessWidget {
     final order = provider.activeOrder;
     if (order == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           elevation: 0,
           scrolledUnderElevation: 0,
-          backgroundColor: AppColors.background,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           title: const Text('الطلب النشط'),
         ),
         body: const OrderEmptyState(
@@ -68,11 +68,11 @@ class ActiveOrderScreen extends StatelessWidget {
     final normalized = order.driverStageStatus;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         title: const Text('التوصيل'),
         actions: [
           Padding(
@@ -106,7 +106,7 @@ class ActiveOrderScreen extends StatelessWidget {
             ),
           ),
           if (provider.isBusy)
-            const Positioned.fill(
+            Positioned.fill(
               child: AbsorbPointer(
                 child: ColoredBox(
                   color: Color(0x33000000),
@@ -114,7 +114,7 @@ class ActiveOrderScreen extends StatelessWidget {
                     child: SizedBox(
                       width: 40,
                       height: 40,
-                      child: CircularProgressIndicator(color: AppColors.surface, strokeWidth: 3),
+                      child: CircularProgressIndicator(color: Theme.of(context).colorScheme.surface, strokeWidth: 3),
                     ),
                   ),
                 ),
@@ -140,8 +140,8 @@ class _HeroOrderHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.borderSubtle),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -180,9 +180,9 @@ class _HeroOrderHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderSubtle),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Column(
                   children: [
@@ -236,9 +236,9 @@ class _HorizontalDeliveryTimeline extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
@@ -310,10 +310,16 @@ class _TimelineNode extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: done ? AppColors.accent : AppColors.surfaceMuted,
+            color: done
+                ? AppColors.accent
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
             shape: BoxShape.circle,
             border: Border.all(
-              color: done ? AppColors.accent : active ? AppColors.accent : AppColors.borderSubtle,
+              color: done
+                  ? AppColors.accent
+                  : active
+                      ? AppColors.accent
+                      : Theme.of(context).dividerColor,
               width: active ? 2.4 : 1.6,
             ),
           ),
@@ -361,7 +367,7 @@ class _TimelineConnector extends StatelessWidget {
           height: 3,
           margin: const EdgeInsets.only(bottom: 22),
           decoration: BoxDecoration(
-            color: filled ? AppColors.accent : AppColors.borderSubtle,
+            color: filled ? AppColors.accent : Theme.of(context).dividerColor,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -381,9 +387,9 @@ class _DetailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -406,21 +412,21 @@ class _DetailCard extends StatelessWidget {
               subtitle: 'المطعم / الاستلام',
               maxLines: 3,
             ),
-            const Divider(height: 22, color: AppColors.borderSubtle),
+            Divider(height: 22, color: Theme.of(context).dividerColor),
             OrderInfoRow(
               icon: Icons.person_outline_rounded,
               iconColor: AppColors.accepted,
               title: order.customerName.trim().isEmpty ? '—' : order.customerName.trim(),
               subtitle: 'العميل',
             ),
-            const Divider(height: 22, color: AppColors.borderSubtle),
+            Divider(height: 22, color: Theme.of(context).dividerColor),
             OrderInfoRow(
               icon: Icons.phone_outlined,
               iconColor: AppColors.accepted,
               title: order.customerPhone.trim().isEmpty ? '—' : order.customerPhone.trim(),
               subtitle: 'الهاتف',
             ),
-            const Divider(height: 22, color: AppColors.borderSubtle),
+            Divider(height: 22, color: Theme.of(context).dividerColor),
             OrderInfoRow(
               icon: Icons.location_on_rounded,
               iconColor: AppColors.delivering,
@@ -428,7 +434,7 @@ class _DetailCard extends StatelessWidget {
               subtitle: 'عنوان التسليم',
               maxLines: 4,
             ),
-            const Divider(height: 22, color: AppColors.borderSubtle),
+            Divider(height: 22, color: Theme.of(context).dividerColor),
             OrderInfoRow(
               icon: Icons.shopping_bag_outlined,
               iconColor: AppColors.accepted,
@@ -535,9 +541,9 @@ class _ActiveActionDock extends StatelessWidget {
       shadowColor: Colors.black.withValues(alpha: 0.12),
       child: ClipRRect(
         child: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
           ),
           child: SafeArea(
             top: false,
@@ -578,9 +584,9 @@ class _ActiveActionDock extends StatelessWidget {
       color: Colors.transparent,
       shadowColor: Colors.black.withValues(alpha: 0.1),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
         ),
         child: SafeArea(
           top: false,
@@ -636,7 +642,7 @@ class _ActiveActionDock extends StatelessWidget {
         label: 'تم الاستلام',
         subtitle: 'بدء التوصيل (In Transit)',
         icon: Icons.inventory_2_outlined,
-        color: AppColors.pickedUp,
+        color: Theme.of(context).colorScheme.primary,
         onPressed: busy ? null : () => onAction('picked_up'),
       );
     }
@@ -647,7 +653,7 @@ class _ActiveActionDock extends StatelessWidget {
         label: 'تأكيد التسليم',
         subtitle: 'بعد تسليم الطلب للعميل',
         icon: Icons.task_alt_rounded,
-        color: AppColors.accentDark,
+        color: Theme.of(context).colorScheme.primary,
         onPressed: busy ? null : () => onAction('delivered'),
       );
     }
@@ -655,3 +661,4 @@ class _ActiveActionDock extends StatelessWidget {
     return _infoSheet(context, 'لا إجراء', 'لا يمكن تحديث الحالة لهذه المرحلة من هذا الشاشة.');
   }
 }
+

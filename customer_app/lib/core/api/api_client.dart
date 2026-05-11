@@ -28,7 +28,7 @@ class ApiClient {
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -53,7 +53,7 @@ class ApiClient {
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: jsonEncode(data),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -78,7 +78,7 @@ class ApiClient {
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
         body: jsonEncode(data),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -102,7 +102,7 @@ class ApiClient {
       final response = await http.delete(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -137,7 +137,7 @@ class ApiClient {
       request.fields.addAll(fields);
       request.files.addAll(files);
 
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
+      final streamedResponse = await request.send().timeout(Duration(seconds: 45));
       final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } on TimeoutException {
@@ -231,3 +231,5 @@ class ApiClient {
     baseUrl = 'http://$ip:8000/api';
   }
 }
+
+

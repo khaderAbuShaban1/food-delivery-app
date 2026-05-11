@@ -9,7 +9,7 @@ import '../../core/theme/app_theme.dart';
 class MealDetailsScreen extends StatefulWidget {
   final MenuItem menuItem;
 
-  const MealDetailsScreen({super.key, required this.menuItem});
+  MealDetailsScreen({super.key, required this.menuItem});
 
   @override
   State<MealDetailsScreen> createState() => _MealDetailsScreenState();
@@ -37,7 +37,7 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
   double _selectedExtrasPerUnit() {
     double total = 0;
     for (final group in _groupsWithValues) {
-      final selected = _selectedValueIdsByGroup[group.id] ?? const <int>{};
+      final selected = _selectedValueIdsByGroup[group.id] ?? <int>{};
       for (final value in group.values) {
         if (selected.contains(value.id)) total += value.extraPrice;
       }
@@ -96,7 +96,7 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
       SnackBar(
         content: Text('تمت إضافة ${widget.menuItem.name} للسلة'),
         backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 1),
+        duration: Duration(seconds: 1),
       ),
     );
   }
@@ -104,21 +104,23 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final item = widget.menuItem;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          title: const Text('تفاصيل الوجبة'),
-          backgroundColor: AppColors.background,
+          title: Text('تفاصيل الوجبة'),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         ),
         body: SafeArea(
           child: Column(
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -136,30 +138,30 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                               : _imagePlaceholder(),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      SizedBox(height: AppSpacing.lg),
                       Text(
                         item.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         textAlign: TextAlign.right,
                       ),
                       if (item.description != null &&
                           item.description!.trim().isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.sm),
+                        SizedBox(height: AppSpacing.sm),
                         Text(
                           item.description!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           textAlign: TextAlign.right,
                         ),
                       ],
-                      const SizedBox(height: AppSpacing.lg),
+                      SizedBox(height: AppSpacing.lg),
                       if (_groupsWithValues.isNotEmpty) ...[
                         _OptionsSection(
                           groups: _groupsWithValues,
@@ -168,14 +170,14 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                           onToggleMulti: _toggleMulti,
                           priceTag: _priceTag,
                         ),
-                        const SizedBox(height: AppSpacing.lg),
+                        SizedBox(height: AppSpacing.lg),
                       ],
                       Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
+                        padding: EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(AppRadius.xl),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                         ),
                         child: Row(
                           children: [
@@ -184,38 +186,40 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                               onTap: _dec,
                               enabled: _quantity > 1,
                             ),
-                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(width: AppSpacing.sm),
                             Container(
-                              padding: const EdgeInsets.symmetric(
+                              padding: EdgeInsets.symmetric(
                                 horizontal: AppSpacing.lg,
                                 vertical: AppSpacing.sm,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary,
+                                color: isDark
+                                    ? scheme.surfaceContainerHighest
+                                    : AppColors.secondary,
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.pill),
                               ),
                               child: Text(
                                 _quantity.toString(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
-                                  color: AppColors.textPrimary,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(width: AppSpacing.sm),
                             _qtyButton(
                               icon: Icons.add_rounded,
                               onTap: _inc,
                               enabled: true,
                             ),
-                            const Spacer(),
+                            Spacer(),
                             Directionality(
                               textDirection: TextDirection.ltr,
                               child: Text(
                                 _priceTag(_totalPrice),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w900,
                                   color: AppColors.primary,
@@ -230,19 +234,19 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.sm,
                   AppSpacing.lg,
                   AppSpacing.lg,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 18,
-                      offset: const Offset(0, -10),
+                      offset: Offset(0, -10),
                     ),
                   ],
                 ),
@@ -267,17 +271,17 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
     required bool enabled,
   }) {
     return Material(
-      color: enabled ? AppColors.primary : AppColors.border,
+      color: enabled ? AppColors.primary : Theme.of(context).dividerColor,
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(10),
           child: Icon(
             icon,
             size: 18,
-            color: enabled ? Colors.white : AppColors.textHint,
+            color: enabled ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -287,11 +291,11 @@ class _MealDetailsScreenState extends State<MealDetailsScreen> {
   Widget _imagePlaceholder() {
     return Container(
       color: AppColors.secondary,
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.fastfood_outlined,
           size: 42,
-          color: AppColors.textHint,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -305,7 +309,7 @@ class _OptionsSection extends StatelessWidget {
   final void Function(int groupId, int valueId, bool selected) onToggleMulti;
   final String Function(double) priceTag;
 
-  const _OptionsSection({
+  _OptionsSection({
     required this.groups,
     required this.selectedValueIdsByGroup,
     required this.onSelectSingle,
@@ -316,29 +320,29 @@ class _OptionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'التخصيصات',
             textAlign: TextAlign.right,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
           ...groups.map((group) {
-            final selected = selectedValueIdsByGroup[group.id] ?? const <int>{};
+            final selected = selectedValueIdsByGroup[group.id] ?? <int>{};
             return Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              padding: EdgeInsets.only(bottom: AppSpacing.md),
               child: _OptionGroupCard(
                 group: group,
                 selected: selected,
@@ -361,7 +365,7 @@ class _OptionGroupCard extends StatelessWidget {
   final void Function(int groupId, int valueId, bool selected) onToggleMulti;
   final String Function(double) priceTag;
 
-  const _OptionGroupCard({
+  _OptionGroupCard({
     required this.group,
     required this.selected,
     required this.onSelectSingle,
@@ -371,14 +375,16 @@ class _OptionGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -388,45 +394,47 @@ class _OptionGroupCard extends StatelessWidget {
                   child: Text(
                     group.name,
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                     vertical: AppSpacing.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary,
+                    color: isDark ? scheme.surfaceContainerHighest : AppColors.secondary,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: Text(
                     group.isMulti ? 'متعدد' : 'اختيار واحد',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             ...group.values.map((value) {
               final isSelected = selected.contains(value.id);
               final priceSuffix = value.extraPrice > 0 ? ' +${priceTag(value.extraPrice)}' : '';
               return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                padding: EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.secondary : Colors.white,
+                    color: isSelected
+                        ? (isDark ? scheme.surfaceContainerHighest : AppColors.secondary)
+                        : (isDark ? scheme.surface : Colors.white),
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.border,
+                      color: isSelected ? AppColors.primary : Theme.of(context).dividerColor,
                     ),
                   ),
                   child: group.isMulti
@@ -438,9 +446,9 @@ class _OptionGroupCard extends StatelessWidget {
                           title: Text(
                             '${value.name}$priceSuffix',
                             textAlign: TextAlign.right,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         )
@@ -456,9 +464,9 @@ class _OptionGroupCard extends StatelessWidget {
                           title: Text(
                             '${value.name}$priceSuffix',
                             textAlign: TextAlign.right,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -471,4 +479,7 @@ class _OptionGroupCard extends StatelessWidget {
     );
   }
 }
+
+
+
 

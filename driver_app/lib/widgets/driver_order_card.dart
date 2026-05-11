@@ -31,6 +31,7 @@ class DriverOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final address = shortDeliveryAddress(order.deliveryAddress);
     final distanceText =
         order.distanceKm == null ? null : 'تقريباً ${order.distanceKm!.toStringAsFixed(1)} كم';
@@ -44,14 +45,20 @@ class DriverOrderCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        splashColor: AppColors.accent.withValues(alpha: 0.08),
-        highlightColor: AppColors.accent.withValues(alpha: 0.04),
+        splashColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+        highlightColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.04),
         child: Ink(
           decoration: BoxDecoration(
-            color: highlightAsNew ? AppColors.incomingGlow : AppColors.surface,
+            color: highlightAsNew
+                ? (isDark
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                    : AppColors.incomingGlow)
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: highlightAsNew ? AppColors.accent.withValues(alpha: 0.35) : AppColors.borderSubtle,
+              color: highlightAsNew
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.35)
+                  : Theme.of(context).dividerColor,
               width: highlightAsNew ? 1.5 : 1,
             ),
             boxShadow: [
@@ -76,11 +83,14 @@ class DriverOrderCard extends StatelessWidget {
                   if (highlightAsNew)
                     Container(
                       width: 5,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [AppColors.accent, AppColors.accentDark],
+                          colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.secondary,
+                          ],
                         ),
                       ),
                     ),
@@ -108,7 +118,7 @@ class DriverOrderCard extends StatelessWidget {
                                       child: Text(
                                         'جديد',
                                         style: theme.textTheme.labelSmall?.copyWith(
-                                          color: AppColors.accentDark,
+                                          color: Theme.of(context).colorScheme.secondary,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: 0.2,
                                         ),
@@ -132,7 +142,7 @@ class DriverOrderCard extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: theme.textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textMuted,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         fontWeight: FontWeight.w700,
                                         height: 1.1,
                                       ),
@@ -149,7 +159,7 @@ class DriverOrderCard extends StatelessWidget {
                                   '₪ $priceText',
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w900,
-                                    color: AppColors.accentDark,
+                                    color: Theme.of(context).colorScheme.secondary,
                                   ),
                                 ),
                               ],
@@ -180,7 +190,7 @@ class DriverOrderCard extends StatelessWidget {
                           const SizedBox(height: 8),
                           _CompactInfoRow(
                             icon: Icons.schedule_rounded,
-                            iconColor: AppColors.textMuted,
+                            iconColor: Theme.of(context).colorScheme.onSurfaceVariant,
                             text: distanceText,
                           ),
                         ],
@@ -193,7 +203,7 @@ class DriverOrderCard extends StatelessWidget {
                           child: FilledButton.icon(
                             onPressed: onTap,
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.accent,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -239,9 +249,9 @@ class _CompactInfoRow extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: AppColors.surfaceMuted,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.9)),
+            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.9)),
           ),
           child: Icon(icon, size: 18, color: iconColor),
         ),
@@ -252,7 +262,7 @@ class _CompactInfoRow extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w700,
               height: 1.2,
             ),

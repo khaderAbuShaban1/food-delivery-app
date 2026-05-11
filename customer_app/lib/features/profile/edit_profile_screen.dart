@@ -5,7 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  EditProfileScreen({super.key});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -137,7 +137,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('تم تحديث الملف الشخصي بنجاح'),
           backgroundColor: AppColors.success,
         ),
@@ -160,7 +160,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     
     if (newPassword != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('كلمات المرور غير متطابقة'),
           backgroundColor: AppColors.error,
         ),
@@ -170,7 +170,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     
     if (newPassword.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
           backgroundColor: AppColors.error,
         ),
@@ -191,7 +191,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     
     if (result == 'success') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('تم تغيير كلمة المرور بنجاح'),
           backgroundColor: AppColors.success,
         ),
@@ -223,16 +223,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('تعديل الملف الشخصي'),
-        backgroundColor: AppColors.background,
+        title: Text('تعديل الملف الشخصي'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -265,10 +265,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         : null,
                               ),
                               child: (_selectedImage == null && _currentImageUrl == null)
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.person_outline,
                                       size: 50,
-                                      color: AppColors.textHint,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     )
                                   : null,
                             ),
@@ -280,13 +280,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             child: GestureDetector(
                               onTap: _isUploadingImage ? null : _pickImage,
                               child: Container(
-                                padding: const EdgeInsets.all(AppSpacing.sm),
+                                padding: EdgeInsets.all(AppSpacing.sm),
                                 decoration: BoxDecoration(
                                   color: AppColors.primary,
                                   shape: BoxShape.circle,
                                 ),
                                 child: _isUploadingImage
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 16,
                                         height: 16,
                                         child: CircularProgressIndicator(
@@ -294,7 +294,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : const Icon(
+                                    : Icon(
                                         Icons.camera_alt,
                                         size: 16,
                                         color: Colors.white,
@@ -305,39 +305,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: AppSpacing.sm),
                     Center(
                       child: Text(
                         'اضغط لتغيير الصورة',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textHint,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    const Text(
+                    SizedBox(height: AppSpacing.xxl),
+                    Text(
                       'الاسم',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: AppSpacing.sm),
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
                         hintText: 'أدخل اسمك',
                         filled: true,
-                        fillColor: AppColors.surface,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -354,30 +354,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const Text(
+                    SizedBox(height: AppSpacing.lg),
+                    Text(
                       'رقم الهاتف',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: AppSpacing.sm),
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         hintText: 'أدخل رقم الهاتف',
                         filled: true,
-                        fillColor: AppColors.surface,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -385,23 +385,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const Text(
+                    SizedBox(height: AppSpacing.lg),
+                    Text(
                       'البريد الإلكتروني',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: AppSpacing.sm),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(AppSpacing.md),
+                      padding: EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.5),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Theme.of(context).colorScheme.surfaceContainerHighest
+                            : AppColors.secondary.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: Theme.of(context).dividerColor),
                       ),
                       child: Row(
                         children: [
@@ -410,27 +412,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               _email ?? 'غير متوفر',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
                           Icon(
                             Icons.lock_outline,
                             size: 18,
-                            color: AppColors.textHint,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(height: AppSpacing.xs),
                     Text(
                       'للتغيير، يرجى التواصل مع الدعم',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textHint,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    SizedBox(height: AppSpacing.xl),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -445,7 +447,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           elevation: 0,
                         ),
                         child: _isSaving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -453,7 +455,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'حفظ التغييرات',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -462,9 +464,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    Divider(color: AppColors.divider),
-                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(height: AppSpacing.xxl),
+                    Divider(color: Theme.of(context).dividerColor),
+                    SizedBox(height: AppSpacing.lg),
                     InkWell(
                       onTap: () {
                         setState(() {
@@ -472,9 +474,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
+                        padding: EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Row(
@@ -483,14 +485,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               Icons.lock_outline,
                               color: AppColors.primary,
                             ),
-                            const SizedBox(width: AppSpacing.md),
+                            SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: Text(
                                 'تغيير كلمة المرور',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                             ),
@@ -498,37 +500,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               _showPasswordSection
                                   ? Icons.keyboard_arrow_up
                                   : Icons.keyboard_arrow_down,
-                              color: AppColors.textHint,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ],
                         ),
                       ),
                     ),
                     if (_showPasswordSection) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      const Text(
+                      SizedBox(height: AppSpacing.lg),
+                      Text(
                         'كلمة المرور الحالية',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(height: AppSpacing.sm),
                       TextFormField(
                         controller: _currentPasswordController,
                         obscureText: true,
                         decoration: InputDecoration(
                           hintText: 'أدخل كلمة المرور الحالية',
                           filled: true,
-                          fillColor: AppColors.surface,
+                          fillColor: Theme.of(context).colorScheme.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -536,30 +538,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      const Text(
+                      SizedBox(height: AppSpacing.lg),
+                      Text(
                         'كلمة المرور الجديدة',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(height: AppSpacing.sm),
                       TextFormField(
                         controller: _newPasswordController,
                         obscureText: true,
                         decoration: InputDecoration(
                           hintText: 'أدخل كلمة المرور الجديدة',
                           filled: true,
-                          fillColor: AppColors.surface,
+                          fillColor: Theme.of(context).colorScheme.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -567,30 +569,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      const Text(
+                      SizedBox(height: AppSpacing.lg),
+                      Text(
                         'تأكيد كلمة المرور',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(height: AppSpacing.sm),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: true,
                         decoration: InputDecoration(
                           hintText: 'أدخل كلمة المرور مرة أخرى',
                           filled: true,
-                          fillColor: AppColors.surface,
+                          fillColor: Theme.of(context).colorScheme.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -598,7 +600,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      SizedBox(height: AppSpacing.lg),
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -613,7 +615,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             elevation: 0,
                           ),
                           child: _isChangingPassword
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
@@ -621,7 +623,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   'تغيير كلمة المرور',
                                   style: TextStyle(
                                     fontSize: 16,
@@ -631,7 +633,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: AppSpacing.xxl),
+                    SizedBox(height: AppSpacing.xxl),
                   ],
                 ),
               ),
@@ -639,3 +641,5 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 }
+
+

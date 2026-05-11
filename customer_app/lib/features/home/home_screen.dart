@@ -15,7 +15,7 @@ import '../../core/widgets/widgets.dart';
 import '../restaurant/restaurant_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<Map<String, dynamic>?>? _userSub;
   StreamSubscription<List<Restaurant>>? _restaurantsSub;
   final _searchController = TextEditingController();
+  Timer? _realtimeBackfillTimer;
   String? _profileImage;
   int _imageCacheKey = 0;
   List<Address> _addresses = [];
@@ -41,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isAddressLoading = true;
 
   // Removed per design request.
-  final List<String> _quickFilters = const [];
+  final List<String> _quickFilters = [];
 
   @override
   void initState() {
@@ -51,6 +52,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserProfile();
     _loadAddresses();
     _startRealtimeListeners();
+    _startRealtimeBackfillLoop();
+  }
+
+  void _startRealtimeBackfillLoop() {
+    _realtimeBackfillTimer?.cancel();
+    _realtimeBackfillTimer = Timer.periodic(Duration(seconds: 10), (_) {
+      _loadRestaurants(showLoading: false);
+    });
   }
 
   void _subscribeToUser() {
@@ -68,24 +77,21 @@ class _HomeScreenState extends State<HomeScreen> {
     await AuthService.fetchCurrentUser();
 
     _restaurantsSub?.cancel();
-    _restaurantsSub = RealtimeSyncService.watchRestaurants().listen(
-      (items) {
-        if (!mounted) return;
-        if (items.isEmpty && _restaurants.isNotEmpty) return;
-        setState(() {
-          _restaurants = items;
-          _isLoading = false;
-          _errorMessage = null;
-        });
-      },
-      onError: (_) {
-        if (!mounted) return;
-        setState(() {
-          _errorMessage = 'تعذر مزامنة المطاعم مباشرة';
-          _isLoading = false;
-        });
-      },
-    );
+    _restaurantsSub = RealtimeSyncService.watchRestaurants().listen((items) {
+      if (!mounted) return;
+      if (items.isEmpty && _restaurants.isNotEmpty) return;
+      setState(() {
+        _restaurants = items;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    }, onError: (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'تعذر مزامنة المطاعم مباشرة';
+        _isLoading = false;
+      });
+    });
   }
 
   Future<void> _loadUserProfile() async {
@@ -152,26 +158,26 @@ class _HomeScreenState extends State<HomeScreen> {
     final selected = await showModalBottomSheet<Address>(
       context: context,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       builder: (ctx) {
         return SafeArea(
           child: ListView.separated(
             shrinkWrap: true,
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: EdgeInsets.all(AppSpacing.lg),
             itemCount: _addresses.length + 1,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (_, __) => SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) {
               if (index == 0) {
-                return const Text(
+                return Text(
                   'اختر عنوان التوصيل',
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 );
               }
@@ -182,21 +188,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 onTap: () => Navigator.pop(ctx, address),
                 child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primary.withValues(alpha: 0.08)
-                        : AppColors.background,
+                        : Theme.of(context).scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.border,
+                      color: isSelected ? AppColors.primary : Theme.of(context).dividerColor,
                     ),
                   ),
                   child: Row(
                     children: [
                       if (address.isDefault)
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
                             vertical: AppSpacing.xs,
                           ),
@@ -204,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: AppColors.primary.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(AppRadius.pill),
                           ),
-                          child: const Text(
+                          child: Text(
                             'الافتراضي',
                             style: TextStyle(
                               fontSize: 11,
@@ -213,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
-                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -221,21 +227,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               address.title,
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            SizedBox(height: 2),
                             Text(
                               address.fullAddress,
                               textAlign: TextAlign.right,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -247,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : Icons.radio_button_off,
                         color: isSelected
                             ? AppColors.primary
-                            : AppColors.textHint,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                         size: 20,
                       ),
                     ],
@@ -292,7 +298,9 @@ class _HomeScreenState extends State<HomeScreen> {
               .toList();
           _selectedAddress = _resolveSelectedAddress(_addresses);
         });
-        context.read<CartProvider>().setDeliveryAddressId(_selectedAddress?.id);
+        context
+            .read<CartProvider>()
+            .setDeliveryAddressId(_selectedAddress?.id);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -309,6 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _realtimeBackfillTimer?.cancel();
     _userSub?.cancel();
     _restaurantsSub?.cancel();
     _searchController.dispose();
@@ -337,9 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (response['success'] == true && response['data'] != null) {
         final List data = response['data'];
-        final restaurants = data
-            .map((json) => Restaurant.fromJson(json))
-            .toList();
+        final restaurants = data.map((json) => Restaurant.fromJson(json)).toList();
         try {
           await RealtimeSyncService.syncRestaurants(restaurants);
         } catch (_) {
@@ -408,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 180), () {
+    _searchDebounce = Timer(Duration(milliseconds: 180), () {
       if (!mounted) return;
       setState(() => _searchQuery = value);
     });
@@ -419,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
           child: CustomScrollView(
             slivers: [
@@ -437,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(child: _buildSectionHeader()),
               // Content
               if (_isLoading)
-                const SliverToBoxAdapter(child: LoadingShimmer(itemCount: 5))
+                SliverToBoxAdapter(child: LoadingShimmer(itemCount: 5))
               else if (_errorMessage != null)
                 SliverToBoxAdapter(
                   child: ErrorState(
@@ -446,7 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
               else if (_filteredRestaurants.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: EmptyState(
                     icon: Icons.restaurant_outlined,
                     title: 'لا توجد مطاعم',
@@ -465,7 +472,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   }, childCount: _filteredRestaurants.length),
                 ),
               // Bottom padding
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+              SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.xxl),
+              ),
             ],
           ),
         ),
@@ -474,12 +483,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final addressTitle = _selectedAddress?.title ?? 'إضافة عنوان';
-    final addressDetails =
-        _selectedAddress?.fullAddress ?? 'اختر عنوان التوصيل';
+    final addressDetails = _selectedAddress?.fullAddress ?? 'اختر عنوان التوصيل';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.lg,
         AppSpacing.lg,
@@ -488,186 +498,183 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Row(
-          children: [
-            GestureDetector(
-              onTap: () async {
-                await AuthService.fetchCurrentUser();
-                if (!mounted) return;
-                setState(() {
-                  _profileImage = AuthService.currentUserImage;
-                  _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
-                });
-              },
+        children: [
+          GestureDetector(
+            onTap: () async {
+              await AuthService.fetchCurrentUser();
+              if (!mounted) return;
+              setState(() {
+                _profileImage = AuthService.currentUserImage;
+                _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
+              });
+            },
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                shape: BoxShape.circle,
+                image: _profileImage != null && _profileImage!.isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(_getImageUrlWithCacheBuster(_profileImage)!),
+                        fit: BoxFit.cover,
+                        onError: (_, __) {},
+                      )
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: _profileImage == null || _profileImage!.isEmpty
+                  ? Icon(Icons.person_rounded, color: Theme.of(context).colorScheme.onSurfaceVariant)
+                  : null,
+            ),
+          ),
+          SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: InkWell(
+              onTap: _onAddressTap,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               child: Container(
-                width: 46,
-                height: 46,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  shape: BoxShape.circle,
-                  image: _profileImage != null && _profileImage!.isNotEmpty
-                      ? DecorationImage(
-                          image: NetworkImage(
-                            _getImageUrlWithCacheBuster(_profileImage)!,
-                          ),
-                          fit: BoxFit.cover,
-                          onError: (_, __) {},
-                        )
-                      : null,
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.shadow,
                       blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
-                child: _profileImage == null || _profileImage!.isEmpty
-                    ? const Icon(
-                        Icons.person_rounded,
-                        color: AppColors.textHint,
-                      )
-                    : null,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: InkWell(
-                onTap: _onAddressTap,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.shadow,
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: isDark ? scheme.surfaceContainerHighest : AppColors.secondary,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: _isAddressLoading
-                            ? const Padding(
-                                padding: EdgeInsets.all(8),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                color: AppColors.primary,
+                      child: _isAddressLoading
+                          ? Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: isDark ? scheme.primary : AppColors.primary,
                               ),
+                            )
+                          : Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: isDark ? scheme.primary : AppColors.primary,
+                            ),
+                    ),
+                    SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'التوصيل إلى',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            addressTitle,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          SizedBox(height: 1),
+                          Text(
+                            addressDetails,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'التوصيل إلى',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: 4),
-                                Icon(
-                                  Icons.location_on_outlined,
-                                  size: 14,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              addressTitle,
-                              textAlign: TextAlign.right,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              addressDetails,
-                              textAlign: TextAlign.right,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
       ),
     );
   }
 
   Widget _buildSearch() {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Row(
         children: [
           Container(
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: isDark ? scheme.surfaceContainerHighest : scheme.surface,
               borderRadius: BorderRadius.circular(AppRadius.xl),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.shadow,
                   blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
             child: IconButton(
               onPressed: _showFiltersSheet,
-              icon: const Icon(Icons.tune_rounded, color: AppColors.primary),
+              icon: Icon(Icons.tune_rounded, color: AppColors.primary),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(AppRadius.xl),
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.shadow,
                     blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    offset: Offset(0, 4),
                   ),
                 ],
               ),
@@ -678,15 +685,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 textDirection: TextDirection.rtl,
                 decoration: InputDecoration(
                   hintText: 'ابحث عن مطعم أو وجبة...',
-                  hintStyle: const TextStyle(color: AppColors.textHint),
-                  suffixIcon: const Icon(
+                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  suffixIcon: Icon(
                     Icons.search_rounded,
-                    color: AppColors.textHint,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
+                  contentPadding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
@@ -700,8 +707,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeaturedBanner() {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.lg,
         AppSpacing.lg,
@@ -710,20 +720,20 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.xl),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             colors: [Color(0xFF1B1D27), Color(0xFF2D3142)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'خصم حتى 30%',
                       style: TextStyle(
@@ -743,13 +753,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 width: 42,
                 height: 42,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: isDark ? scheme.surfaceContainerHighest : Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_forward_rounded,
-                  color: AppColors.textPrimary,
+                  color: isDark ? scheme.primary : scheme.onSurface,
                 ),
               ),
             ],
@@ -764,7 +774,7 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 88,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: _availableCategories.length,
         itemBuilder: (context, index) {
           final category = _availableCategories[index];
@@ -788,38 +798,38 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsetsDirectional.only(
+        duration: Duration(milliseconds: 200),
+        margin: EdgeInsetsDirectional.only(
           start: AppSpacing.sm,
           top: AppSpacing.xs,
           bottom: AppSpacing.xs,
         ),
-        padding: const EdgeInsets.symmetric(
+        padding: EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected ? AppColors.primary : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.xl),
           boxShadow: [
             BoxShadow(
               color: AppColors.shadow,
               blurRadius: 8,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 24)),
-            const SizedBox(height: 4),
+            Text(icon, style: TextStyle(fontSize: 24)),
+            SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+                color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -829,18 +839,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickFilters() {
-    if (_quickFilters.isEmpty) return const SizedBox.shrink();
+    if (_quickFilters.isEmpty) return SizedBox.shrink();
     return SizedBox(
       height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: _quickFilters.length,
         itemBuilder: (context, index) {
           final icon = _quickFilters[index];
           return Container(
-            margin: const EdgeInsetsDirectional.only(start: AppSpacing.sm),
-            padding: const EdgeInsets.symmetric(
+            margin: EdgeInsetsDirectional.only(start: AppSpacing.sm),
+            padding: EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.sm,
             ),
@@ -848,7 +858,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: AppColors.secondary,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
-            child: Text(icon, style: const TextStyle(fontSize: 14)),
+            child: Text(icon, style: TextStyle(fontSize: 14)),
           );
         },
       ),
@@ -857,7 +867,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSectionHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.md,
         AppSpacing.lg,
@@ -865,16 +875,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
-          const Text(
+          Text(
             'أفضل المطاعم',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          const Spacer(),
-          const Text(
+          Spacer(),
+          Text(
             'عرض الكل',
             style: TextStyle(
               fontSize: 13,
@@ -884,9 +894,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Text(
             '${_filteredRestaurants.length} مطعم',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -913,19 +923,19 @@ class _HomeScreenState extends State<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setBottomState) {
             return Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     'قيّم ${restaurant.name}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
@@ -939,18 +949,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               : Icons.star_border_rounded,
                           color: active
                               ? AppColors.warning
-                              : AppColors.textHint,
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           size: 34,
                         ),
                       );
                     }),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context, selected),
-                      child: const Text('حفظ التقييم'),
+                      child: Text('حفظ التقييم'),
                     ),
                   ),
                 ],
@@ -978,7 +988,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .toList();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('تم حفظ التقييم'),
           backgroundColor: AppColors.success,
         ),
@@ -1006,7 +1016,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -1019,29 +1029,29 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             return Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text(
+                  Text(
                     'الفلاتر',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   SwitchListTile(
                     value: onlyOpen,
                     onChanged: (value) => setSheetState(() => onlyOpen = value),
-                    title: const Text('المطاعم المفتوحة فقط'),
+                    title: Text('المطاعم المفتوحة فقط'),
                     activeThumbColor: AppColors.primary,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const Text(
+                  SizedBox(height: AppSpacing.sm),
+                  Text(
                     'الحد الأدنى للتقييم',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: AppSpacing.sm,
                     children: [0.0, 3.5, 4.0, 4.5].map((value) {
@@ -1053,12 +1063,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  const Text(
+                  SizedBox(height: AppSpacing.md),
+                  Text(
                     'مستوى السعر',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: AppSpacing.sm,
                     children: [
@@ -1068,20 +1078,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       priceChip('premium', 'فاخر'),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.lg),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('إلغاء'),
+                          child: Text('إلغاء'),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('تطبيق'),
+                          child: Text('تطبيق'),
                         ),
                       ),
                     ],
@@ -1103,3 +1113,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 }
+
+
+
+

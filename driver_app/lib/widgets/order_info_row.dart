@@ -26,7 +26,7 @@ class OrderInfoRow extends StatelessWidget {
     final theme = Theme.of(context);
     final titleStyle = emphasizeTitle
         ? theme.textTheme.titleMedium?.copyWith(
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           )
@@ -40,9 +40,11 @@ class OrderInfoRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.borderSubtle),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.28),
+            ),
           ),
           child: Icon(icon, size: 20, color: iconColor),
         ),

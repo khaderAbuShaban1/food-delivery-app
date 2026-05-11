@@ -6,7 +6,7 @@ import '../../core/widgets/widgets.dart';
 import 'address_form_screen.dart';
 
 class MyAddressesScreen extends StatefulWidget {
-  const MyAddressesScreen({super.key});
+  MyAddressesScreen({super.key});
 
   @override
   State<MyAddressesScreen> createState() => _MyAddressesScreenState();
@@ -60,16 +60,16 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذف العنوان'),
-        content: const Text('هل أنت متأكد من حذف هذا العنوان؟'),
+        title: Text('حذف العنوان'),
+        content: Text('هل أنت متأكد من حذف هذا العنوان؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
+            child: Text('إلغاء'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
+            child: Text(
               'حذف',
               style: TextStyle(color: AppColors.error),
             ),
@@ -116,26 +116,26 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
 
   Widget _buildAddressCard(Address address) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      margin: EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
           color: address.isDefault
               ? AppColors.primary.withValues(alpha: 0.45)
-              : AppColors.border,
+              : Theme.of(context).dividerColor,
           width: address.isDefault ? 1.6 : 1,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 14,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           AppSpacing.md,
           AppSpacing.md,
           AppSpacing.md,
@@ -152,13 +152,13 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                   tooltip: 'حذف',
                   onTap: () => _deleteAddress(address),
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                SizedBox(width: AppSpacing.xs),
                 _buildActionIcon(
                   icon: Icons.edit_outlined,
                   tooltip: 'تعديل',
                   onTap: () => _openForm(address: address),
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -169,28 +169,28 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                           textAlign: TextAlign.right,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.xs),
+                      SizedBox(width: AppSpacing.xs),
                       Icon(
                         Icons.location_on_outlined,
                         size: 18,
                         color: address.isDefault
                             ? AppColors.primary
-                            : AppColors.textSecondary,
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ],
                   ),
                 ),
                 if (address.isDefault) ...[
-                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(width: AppSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
                       vertical: AppSpacing.xs,
                     ),
@@ -198,7 +198,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
-                    child: const Text(
+                    child: Text(
                       'الافتراضي',
                       style: TextStyle(
                         color: AppColors.primaryDark,
@@ -210,42 +210,42 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                 ],
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             Text(
               address.fullAddress,
               textAlign: TextAlign.right,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             Divider(
-              color: AppColors.border.withValues(alpha: 0.7),
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.7),
               height: 1,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            SizedBox(height: AppSpacing.xs),
             Row(
               children: [
                 if (!address.isDefault)
                   TextButton.icon(
                     onPressed: () => _setDefault(address),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: AppSpacing.sm,
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.star_outline_rounded,
                       size: 17,
                       color: AppColors.primary,
                     ),
-                    label: const Text(
+                    label: Text(
                       'تعيين افتراضي',
                       style: TextStyle(
                         fontSize: 12,
@@ -255,7 +255,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                     ),
                   )
                 else
-                  const Text(
+                  Text(
                     'العنوان الافتراضي الحالي',
                     style: TextStyle(
                       fontSize: 12,
@@ -263,11 +263,11 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                       color: AppColors.primaryDark,
                     ),
                   ),
-                const Spacer(),
-                const Icon(
+                Spacer(),
+                Icon(
                   Icons.chevron_left_rounded,
                   size: 20,
-                  color: AppColors.textHint,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -281,7 +281,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
     required IconData icon,
     required VoidCallback onTap,
     required String tooltip,
-    Color color = AppColors.textSecondary,
+    Color? color,
   }) {
     return Tooltip(
       message: tooltip,
@@ -292,11 +292,15 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: AppColors.background,
+            color: Theme.of(context).scaffoldBackgroundColor,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
-          child: Icon(icon, size: 17, color: color),
+          child: Icon(
+            icon,
+            size: 17,
+            color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -305,25 +309,25 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('عناويني'),
+        title: Text('عناويني'),
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadAddresses(showLoading: false),
         child: _isLoading
             ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: AlwaysScrollableScrollPhysics(),
                 children: [
                   SizedBox(
                     height: MediaQuery.of(context).size.height * 0.75,
-                    child: const Center(child: CircularProgressIndicator()),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
                 ],
               )
             : _addresses.isEmpty
                 ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: AlwaysScrollableScrollPhysics(),
                     children: [
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.7,
@@ -342,8 +346,8 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                     ],
                   )
                 : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
                       AppSpacing.lg,
                       AppSpacing.lg,
                       AppSpacing.lg,
@@ -359,10 +363,13 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 4,
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة عنوان'),
+        icon: Icon(Icons.add),
+        label: Text('إضافة عنوان'),
       ),
     );
   }
 
 }
+
+
+

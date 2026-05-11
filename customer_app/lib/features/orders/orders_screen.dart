@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'order_tracking_screen.dart';
@@ -12,7 +10,7 @@ import 'order_tracking_screen.dart';
 class OrdersScreen extends StatefulWidget {
   final int? highlightedOrderId;
 
-  const OrdersScreen({super.key, this.highlightedOrderId});
+  OrdersScreen({super.key, this.highlightedOrderId});
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -23,9 +21,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   StreamSubscription<dynamic>? _userSub;
-  StreamSubscription<List<Map<String, dynamic>>>? _ordersMirrorSub;
+  Timer? _ordersPollTimer;
 
-  static const List<String> _statusFlow = [
+  static List<String> _statusFlow = [
     'pending_payment_verification',
     'payment_verified',
     'accepted_by_restaurant',
@@ -34,7 +32,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     'delivered',
   ];
 
-  static const Map<String, String> _statusLabels = {
+  static Map<String, String> _statusLabels = {
     'pending_payment_verification': 'بانتظار تحقق الدفع',
     'payment_verified': 'تم التحقق من الدفع',
     'payment_rejected': 'رفض الدفع',
@@ -47,7 +45,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     'cancelled': 'ملغى',
   };
 
-  static const Map<String, Color> _statusColors = {
+  static Map<String, Color> _statusColors = {
     'pending_payment_verification': AppColors.textSecondary,
     'payment_verified': Color(0xFF3498DB),
     'payment_rejected': AppColors.error,
@@ -65,7 +63,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     AuthService.fetchCurrentUser();
     _watchUserChanges();
-    _startOrdersMirrorListener();
+    _startOrdersPolling();
     _loadOrders();
   }
 
@@ -73,93 +71,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _userSub?.cancel();
     _userSub = AuthService.watchCurrentUser().listen((_) {
       if (!mounted) return;
-      _startOrdersMirrorListener();
       _loadOrders(showLoading: false);
     });
   }
 
-  void _startOrdersMirrorListener() {
-    final userId = RealtimeSyncService.currentUserId();
-    if (userId == null) {
-      if (kDebugMode) {
-        debugPrint(
-          '[OrdersScreen] Firestore listener not started: no current user id yet',
-        );
-      }
-      return;
-    }
-
-    _ordersMirrorSub?.cancel();
-    if (kDebugMode) {
-      debugPrint(
-        '[OrdersScreen] Starting Firestore customer orders listener userId=$userId',
-      );
-    }
-    _ordersMirrorSub = RealtimeSyncService.watchCustomerOrders(userId).listen(
-      (mirrors) {
-        if (!mounted) return;
-        if (kDebugMode) {
-          debugPrint(
-            '[OrdersScreen] Firestore mirrors received count=${mirrors.length}',
-          );
-        }
-        _mergeOrderMirrors(mirrors);
-      },
-      onError: (error) {
-        if (kDebugMode) {
-          debugPrint('[OrdersScreen] Firestore listener error: $error');
-        }
-        if (!mounted) return;
-        setState(() {
-          _errorMessage = 'تعذر استقبال تحديثات الطلبات المباشرة';
-          _isLoading = false;
-        });
-      },
-    );
-  }
-
-  void _mergeOrderMirrors(List<Map<String, dynamic>> mirrors) {
-    if (mirrors.isEmpty) return;
-
-    final byId = {
-      for (final order in _orders)
-        order['id']?.toString(): Map<String, dynamic>.from(order),
-    };
-    var needsFullRefresh = false;
-
-    for (final mirror in mirrors) {
-      final id = mirror['id']?.toString();
-      if (id == null || id.isEmpty) continue;
-      final existing = byId[id];
-      if (existing == null) {
-        if (kDebugMode) {
-          debugPrint(
-            '[OrdersScreen] Firestore mirror id=$id missing local REST payload; refreshing Laravel',
-          );
-        }
-        needsFullRefresh = true;
-        continue;
-      }
-      existing
-        ..['status'] = mirror['status'] ?? existing['status']
-        ..['driver_id'] = mirror['driver_id']
-        ..['restaurant_id'] =
-            mirror['restaurant_id'] ?? existing['restaurant_id']
-        ..['total_price'] =
-            mirror['total_price'] ?? mirror['price'] ?? existing['total_price']
-        ..['updated_at'] = mirror['updated_at'] ?? existing['updated_at'];
-      byId[id] = existing;
-    }
-
-    setState(() {
-      _orders = byId.values.where((order) => order['id'] != null).toList();
-      _errorMessage = null;
-      _isLoading = false;
-    });
-
-    if (needsFullRefresh) {
+  void _startOrdersPolling() {
+    _ordersPollTimer?.cancel();
+    _ordersPollTimer = Timer.periodic(Duration(seconds: 8), (_) {
       _loadOrders(showLoading: false);
-    }
+    });
   }
 
   Future<void> _loadOrders({bool showLoading = true}) async {
@@ -193,58 +113,59 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     _userSub?.cancel();
-    _ordersMirrorSub?.cancel();
+    _ordersPollTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('طلباتي'),
-        backgroundColor: AppColors.background,
+        title: Text('طلباتي'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: _isLoading
-          ? const LoadingShimmer(itemCount: 4)
+          ? LoadingShimmer(itemCount: 4)
           : _errorMessage != null
-          ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
-          : _orders.isEmpty
-          ? const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'لا توجد طلبات بعد',
-              subtitle: 'عند إتمام أي طلب سيظهر هنا',
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              itemCount: _orders.length,
-              itemBuilder: (context, index) {
-                final order = _orders[index];
-                return _buildOrderCard(order);
-              },
-            ),
+              ? ErrorState(message: _errorMessage!, onRetry: _loadOrders)
+              : _orders.isEmpty
+                  ? EmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'لا توجد طلبات بعد',
+                      subtitle: 'عند إتمام أي طلب سيظهر هنا',
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      itemCount: _orders.length,
+                      itemBuilder: (context, index) {
+                        final order = _orders[index];
+                        return _buildOrderCard(order);
+                      },
+                    ),
     );
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = order['status']?.toString() ?? 'pending';
     final statusLabel = _statusLabels[status] ?? status;
-    final statusColor = _statusColors[status] ?? AppColors.textSecondary;
+    final statusColor = _statusColors[status] ?? Theme.of(context).colorScheme.onSurfaceVariant;
     final id = order['id'];
     final restaurant = (order['restaurant'] as Map?) ?? {};
     final items = (order['items'] as List?) ?? [];
     final isHighlighted =
         widget.highlightedOrderId != null && id == widget.highlightedOrderId;
-    final totalPrice =
-        double.tryParse(order['total_price']?.toString() ?? '0') ?? 0;
+    final totalPrice = double.tryParse(order['total_price']?.toString() ?? '0') ?? 0;
 
     return GestureDetector(
       onTap: () => _navigateToTracking(order),
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+        margin: EdgeInsets.only(bottom: AppSpacing.xl),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.xl),
           border: isHighlighted
               ? Border.all(color: AppColors.primary, width: 2)
@@ -253,7 +174,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             BoxShadow(
               color: AppColors.shadow,
               blurRadius: 12,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -261,7 +182,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -269,12 +190,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: AppSpacing.md,
                           vertical: AppSpacing.xs,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
+                          color: isDark
+                              ? scheme.surfaceContainerHighest
+                              : statusColor.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: isDark
+                                ? statusColor.withValues(alpha: 0.35)
+                                : Colors.transparent,
+                          ),
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Text(
@@ -292,22 +220,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             'طلب #',
                             style: TextStyle(
                               fontSize: 14,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           Text(
                             '$id',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.lg),
                   Row(
                     children: [
                       Container(
@@ -317,45 +245,42 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           color: AppColors.secondary,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                         ),
-                        child:
-                            (restaurant['image'] as String?)?.isNotEmpty == true
+                        child: (restaurant['image'] as String?)?.isNotEmpty == true
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.lg,
-                                ),
+                                borderRadius: BorderRadius.circular(AppRadius.lg),
                                 child: Image.network(
                                   restaurant['image']!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => const Icon(
+                                  errorBuilder: (_, _, _) => Icon(
                                     Icons.restaurant_outlined,
-                                    color: AppColors.textHint,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               )
-                            : const Icon(
+                            : Icon(
                                 Icons.restaurant_outlined,
-                                color: AppColors.textHint,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                       ),
-                      const SizedBox(width: AppSpacing.md),
+                      SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               restaurant['name']?.toString() ?? 'مطعم',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.xs),
+                            SizedBox(height: AppSpacing.xs),
                             Text(
                               '${items.length} عنصر',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -363,7 +288,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       ),
                       Text(
                         '₪${totalPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
@@ -382,22 +307,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Widget _buildStatusTimeline(String currentStatus) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (currentStatus == 'payment_rejected') {
       return Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.error.withValues(alpha: 0.08),
-          borderRadius: const BorderRadius.vertical(
+          borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(AppRadius.xl),
           ),
         ),
-        child: const Text(
+        child: Text(
           'تم رفض الدفع لهذا الطلب',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.error,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600),
         ),
       );
     }
@@ -408,15 +331,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
         : (currentIndex >= 0 ? currentIndex : 0);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.sm,
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withValues(alpha: 0.3),
-        borderRadius: const BorderRadius.vertical(
+        color: isDark
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.55)
+            : AppColors.secondary.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.vertical(
           bottom: Radius.circular(AppRadius.xl),
         ),
       ),
@@ -433,11 +358,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       decoration: BoxDecoration(
                         color: i <= adjustedIndex
                             ? _statusColors[_statusFlow[i]] ?? AppColors.primary
-                            : AppColors.divider,
+                            : Theme.of(context).dividerColor,
                         shape: BoxShape.circle,
                       ),
                       child: i <= adjustedIndex
-                          ? const Icon(
+                          ? Icon(
                               Icons.check,
                               color: Colors.white,
                               size: 13,
@@ -450,12 +375,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   Expanded(
                     child: Container(
                       height: 3,
-                      margin: const EdgeInsets.only(bottom: 1),
+                      margin: EdgeInsets.only(bottom: 1),
                       decoration: BoxDecoration(
                         color: (i + 1) <= adjustedIndex
-                            ? _statusColors[_statusFlow[i + 1]] ??
-                                  AppColors.primary
-                            : AppColors.divider,
+                            ? _statusColors[_statusFlow[i + 1]] ?? AppColors.primary
+                            : Theme.of(context).dividerColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -463,24 +387,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ],
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: AppSpacing.xs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (int i = 0; i < _statusFlow.length; i++) ...[
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: EdgeInsets.symmetric(horizontal: 2),
                     child: Text(
                       _statusLabels[_statusFlow[i]] ?? '',
                       style: TextStyle(
                         fontSize: 9,
-                        fontWeight: i == adjustedIndex
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: i <= adjustedIndex
-                            ? AppColors.textPrimary
-                            : AppColors.textHint,
+                        fontWeight: i == adjustedIndex ? FontWeight.bold : FontWeight.normal,
+                        color: i <= adjustedIndex ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.2,
                       ),
                       textAlign: TextAlign.center,
@@ -489,8 +409,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                   ),
                 ),
-                if (i < _statusFlow.length - 1)
-                  const Expanded(child: SizedBox()),
+                if (i < _statusFlow.length - 1) Expanded(child: SizedBox()),
               ],
             ],
           ),
@@ -502,7 +421,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void _navigateToTracking(Map<String, dynamic> order) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => OrderTrackingScreen(order: order)),
+      MaterialPageRoute(
+        builder: (_) => OrderTrackingScreen(order: order),
+      ),
     );
   }
 }
+
+
+

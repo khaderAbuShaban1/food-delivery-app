@@ -4,7 +4,7 @@ class MenuItemOptionValue {
   final double extraPrice;
   final int sortOrder;
 
-  const MenuItemOptionValue({
+  MenuItemOptionValue({
     required this.id,
     required this.name,
     required this.extraPrice,
@@ -43,7 +43,7 @@ class MenuItemOptionGroup {
   final int sortOrder;
   final List<MenuItemOptionValue> values;
 
-  const MenuItemOptionGroup({
+  MenuItemOptionGroup({
     required this.id,
     required this.name,
     required this.selectionType,
@@ -81,4 +81,7 @@ class MenuItemOptionGroup {
     );
   }
 }
+
+
+
 

@@ -29,7 +29,7 @@ class OrderEmptyState extends StatelessWidget {
               width: 112,
               height: 112,
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: theme.colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(

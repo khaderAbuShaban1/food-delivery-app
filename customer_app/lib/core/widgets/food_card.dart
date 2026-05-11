@@ -13,7 +13,7 @@ class FoodCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onAddToCart;
 
-  const FoodCard({
+  FoodCard({
     super.key,
     required this.title,
     this.image,
@@ -31,18 +31,18 @@ class FoodCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(
+        margin: EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: [
             BoxShadow(
               color: AppColors.shadow,
               blurRadius: 12,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -53,7 +53,7 @@ class FoodCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
+                  borderRadius: BorderRadius.vertical(
                     top: Radius.circular(AppRadius.lg),
                   ),
                   child: AspectRatio(
@@ -62,9 +62,9 @@ class FoodCard extends StatelessWidget {
                         ? Image.network(
                             image!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(),
+                            errorBuilder: (_, _, _) => _buildPlaceholder(context),
                           )
-                        : _buildPlaceholder(),
+                        : _buildPlaceholder(context),
                   ),
                 ),
                 // Tag
@@ -73,7 +73,7 @@ class FoodCard extends StatelessWidget {
                     top: AppSpacing.sm,
                     right: AppSpacing.sm,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: AppSpacing.sm,
                         vertical: AppSpacing.xs,
                       ),
@@ -83,7 +83,7 @@ class FoodCard extends StatelessWidget {
                       ),
                       child: Text(
                         tag!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -95,7 +95,7 @@ class FoodCard extends StatelessWidget {
             ),
             // Content
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -111,10 +111,10 @@ class FoodCard extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   title,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -122,18 +122,18 @@ class FoodCard extends StatelessWidget {
                               ),
                               Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.star,
                                     color: AppColors.warning,
                                     size: 18,
                                   ),
-                                  const SizedBox(width: 2),
+                                  SizedBox(width: 2),
                                   Text(
                                     rating!.toStringAsFixed(1),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: AppColors.textPrimary,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                     ),
                                   ),
                                 ],
@@ -143,33 +143,33 @@ class FoodCard extends StatelessWidget {
                         else
                           Text(
                             title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        const SizedBox(height: AppSpacing.xs),
+                        SizedBox(height: AppSpacing.xs),
                         // Subtitle
                         Text(
                           subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: AppSpacing.sm),
+                        SizedBox(height: AppSpacing.sm),
                         // Price & Status
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
                               price,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -183,7 +183,7 @@ class FoodCard extends StatelessWidget {
                   ),
                   // Add button (for menu items)
                   if (onAddToCart != null) ...[
-                    const SizedBox(width: AppSpacing.md),
+                    SizedBox(width: AppSpacing.md),
                     _buildAddButton(),
                   ],
                 ],
@@ -195,14 +195,14 @@ class FoodCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(BuildContext context) {
     return Container(
       color: AppColors.secondary,
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.restaurant_outlined,
           size: 48,
-          color: AppColors.textHint,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -210,7 +210,7 @@ class FoodCard extends StatelessWidget {
 
   Widget _buildStatusBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
@@ -235,12 +235,12 @@ class FoodCard extends StatelessWidget {
     return GestureDetector(
       onTap: onAddToCart,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.primary,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: const Icon(Icons.add, color: Colors.white, size: 24),
+        child: Icon(Icons.add, color: Colors.white, size: 24),
       ),
     );
   }
@@ -264,7 +264,7 @@ class MenuItemCard extends StatelessWidget {
     decimalDigits: 2,
   );
 
-  const MenuItemCard({
+  MenuItemCard({
     super.key,
     required this.title,
     this.image,
@@ -281,18 +281,18 @@ class MenuItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(
+      margin: EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 14,
-            offset: const Offset(0, 8),
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -300,7 +300,7 @@ class MenuItemCard extends StatelessWidget {
         children: [
           // Image
           ClipRRect(
-            borderRadius: const BorderRadius.horizontal(
+            borderRadius: BorderRadius.horizontal(
               right: Radius.circular(AppRadius.xl),
             ),
             child: SizedBox(
@@ -310,41 +310,41 @@ class MenuItemCard extends StatelessWidget {
                   ? Image.network(
                       image!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _buildPlaceholder(),
+                      errorBuilder: (_, _, _) => _buildPlaceholder(context),
                     )
-                  : _buildPlaceholder(),
+                  : _buildPlaceholder(context),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           // Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (description != null && description!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   Text(
                     description!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -352,7 +352,7 @@ class MenuItemCard extends StatelessWidget {
                       textDirection: TextDirection.ltr,
                       child: Text(
                         _currencyFormatter.format(price),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primary,
@@ -360,29 +360,29 @@ class MenuItemCard extends StatelessWidget {
                       ),
                     ),
                     if (!showCartControls)
-                      const SizedBox(width: 72, height: 36)
+                      SizedBox(width: 72, height: 36)
                     else
-                      quantity > 0 ? _buildQuantityControls() : _buildAddButton(),
+                      quantity > 0 ? _buildQuantityControls(context) : _buildAddButton(),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
         ],
       ),
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(BuildContext context) {
     return Container(
       color: AppColors.secondary,
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.fastfood_outlined,
           size: 32,
-          color: AppColors.textHint,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -392,7 +392,7 @@ class MenuItemCard extends StatelessWidget {
     return GestureDetector(
       onTap: onAddToCart,
       child: Container(
-        padding: const EdgeInsets.symmetric(
+        padding: EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
@@ -400,7 +400,7 @@ class MenuItemCard extends StatelessWidget {
           color: AppColors.primary,
           borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Icon(Icons.add_rounded, color: Colors.white, size: 18),
             SizedBox(width: 4),
@@ -418,7 +418,7 @@ class MenuItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildQuantityControls() {
+  Widget _buildQuantityControls(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.secondary,
@@ -430,7 +430,7 @@ class MenuItemCard extends StatelessWidget {
           GestureDetector(
             onTap: onDecrease,
             child: Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: EdgeInsets.all(AppSpacing.sm),
               child: Icon(
                 quantity > 1 ? Icons.remove : Icons.delete_outline,
                 color: AppColors.primary,
@@ -439,21 +439,21 @@ class MenuItemCard extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: Text(
               quantity.toString(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
           GestureDetector(
             onTap: onIncrease,
             child: Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: const Icon(Icons.add, color: AppColors.primary, size: 20),
+              padding: EdgeInsets.all(AppSpacing.sm),
+              child: Icon(Icons.add, color: AppColors.primary, size: 20),
             ),
           ),
         ],
@@ -461,3 +461,7 @@ class MenuItemCard extends StatelessWidget {
     );
   }
 }
+
+
+
+

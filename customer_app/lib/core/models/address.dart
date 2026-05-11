@@ -6,7 +6,7 @@ class Address {
   final String? details;
   final bool isDefault;
 
-  const Address({
+  Address({
     required this.id,
     required this.title,
     required this.city,
@@ -40,3 +40,6 @@ class Address {
     );
   }
 }
+
+
+

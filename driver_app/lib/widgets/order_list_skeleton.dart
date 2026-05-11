@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
-
 /// Shimmer-style skeleton placeholders for order cards / detail rows.
 class OrderListSkeleton extends StatefulWidget {
   final int rowCount;
@@ -36,7 +34,11 @@ class _OrderListSkeletonState extends State<OrderListSkeleton> with SingleTicker
       animation: _ctrl,
       builder: (context, _) {
         final t = (math.sin(_ctrl.value * math.pi * 2) + 1) / 2;
-        final fade = Color.lerp(AppColors.borderSubtle, AppColors.surface, 0.45 + t * 0.35)!;
+        final fade = Color.lerp(
+          Theme.of(context).dividerColor,
+          Theme.of(context).colorScheme.surfaceContainerHighest,
+          0.45 + t * 0.35,
+        )!;
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           itemCount: widget.rowCount,
@@ -60,7 +62,7 @@ class _SkeletonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

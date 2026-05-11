@@ -70,9 +70,9 @@ class OrderDetailsScreen extends StatelessWidget {
               const SizedBox(height: 16),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderSubtle),
+                  border: Border.all(color: theme.dividerColor),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),
@@ -93,21 +93,21 @@ class OrderDetailsScreen extends StatelessWidget {
                         subtitle: 'جهة الاستلام / المطعم',
                         maxLines: 4,
                       ),
-                      const Divider(height: 22, color: AppColors.borderSubtle),
+                      Divider(height: 22, color: theme.dividerColor),
                       OrderInfoRow(
                         icon: Icons.person_outline_rounded,
                         iconColor: AppColors.pending,
                         title: order.customerName.trim().isEmpty ? '—' : order.customerName.trim(),
                         subtitle: 'اسم العميل',
                       ),
-                      const Divider(height: 22, color: AppColors.borderSubtle),
+                      Divider(height: 22, color: theme.dividerColor),
                       OrderInfoRow(
                         icon: Icons.phone_outlined,
                         iconColor: AppColors.accepted,
                         title: order.customerPhone.trim().isEmpty ? '—' : order.customerPhone.trim(),
                         subtitle: 'هاتف العميل',
                       ),
-                      const Divider(height: 22, color: AppColors.borderSubtle),
+                      Divider(height: 22, color: theme.dividerColor),
                       OrderInfoRow(
                         icon: Icons.location_on_rounded,
                         iconColor: AppColors.delivering,
@@ -116,7 +116,7 @@ class OrderDetailsScreen extends StatelessWidget {
                         subtitle: 'عنوان التسليم',
                         maxLines: 4,
                       ),
-                      const Divider(height: 22, color: AppColors.borderSubtle),
+                      Divider(height: 22, color: theme.dividerColor),
                       OrderInfoRow(
                         icon: Icons.payments_rounded,
                         iconColor: AppColors.accentDark,
@@ -124,7 +124,7 @@ class OrderDetailsScreen extends StatelessWidget {
                         subtitle: 'إجمالي الطلب',
                         emphasizeTitle: true,
                       ),
-                      const Divider(height: 22, color: AppColors.borderSubtle),
+                      Divider(height: 22, color: theme.dividerColor),
                       OrderInfoRow(
                         icon: Icons.shopping_bag_outlined,
                         iconColor: AppColors.accepted,
@@ -143,9 +143,9 @@ class OrderDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderSubtle),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(14),
@@ -159,7 +159,7 @@ class OrderDetailsScreen extends StatelessWidget {
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
-                                  child: Icon(Icons.fiber_manual_record, size: 8, color: AppColors.textMuted),
+                                  child: Icon(Icons.fiber_manual_record, size: 8, color: theme.colorScheme.onSurfaceVariant),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(child: Text(line, style: theme.textTheme.bodyMedium)),
@@ -177,7 +177,7 @@ class OrderDetailsScreen extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: Material(
               elevation: 10,
-              color: AppColors.surface,
+              color: theme.colorScheme.surface,
               child: SafeArea(
                 top: false,
                 child: Padding(

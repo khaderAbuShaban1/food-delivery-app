@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/providers/theme_provider.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/order_provider.dart';
@@ -26,7 +27,7 @@ class ProfileScreen extends StatelessWidget {
         : (driver?.isAvailable == true ? 'متاح للتوصيل' : 'غير متاح حالياً');
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('حسابي'),
       ),
@@ -122,6 +123,8 @@ class ProfileScreen extends StatelessWidget {
                       },
                     ),
                     const _CardDivider(),
+                    const _ThemeToggleRow(),
+                    const _CardDivider(),
                     _ActionRow(
                       icon: Icons.notifications_outlined,
                       title: 'الإشعارات',
@@ -162,9 +165,9 @@ class ProfileScreen extends StatelessWidget {
                   icon: const Icon(Icons.logout_rounded),
                   label: const Text('تسجيل الخروج'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.borderSubtle),
-                    backgroundColor: AppColors.surface,
+                    foregroundColor: Theme.of(context).colorScheme.onSurface,
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                    backgroundColor: Theme.of(context).colorScheme.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -241,7 +244,7 @@ class _ProfileHeaderCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: theme.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -252,11 +255,11 @@ class _ProfileHeaderCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.surfaceMuted,
+                color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: theme.dividerColor),
               ),
-              child: const Icon(Icons.qr_code_rounded, color: AppColors.textMuted),
+              child: Icon(Icons.qr_code_rounded, color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -275,7 +278,7 @@ class _SectionTitle extends StatelessWidget {
       text,
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w900,
-            color: AppColors.textSecondary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
     );
   }
@@ -289,9 +292,9 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -310,7 +313,7 @@ class _CardDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(height: 1, thickness: 1, color: AppColors.borderSubtle);
+    return Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor);
   }
 }
 
@@ -349,7 +352,7 @@ class _InfoRow extends StatelessWidget {
                 Text(
                   title,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -358,7 +361,7 @@ class _InfoRow extends StatelessWidget {
                   value,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: theme.colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -401,10 +404,10 @@ class _ActionRow extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, size: 20, color: AppColors.textSecondary),
+                child: Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -429,11 +432,49 @@ class _ActionRow extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_left_rounded,
-                color: AppColors.textMuted.withValues(alpha: 0.9),
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ThemeToggleRow extends StatelessWidget {
+  const _ThemeToggleRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.dark_mode_outlined, size: 20, color: theme.colorScheme.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'الوضع الداكن',
+              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Switch.adaptive(
+            value: themeProvider.isDarkMode,
+            onChanged: (_) => themeProvider.toggleTheme(),
+          ),
+        ],
       ),
     );
   }

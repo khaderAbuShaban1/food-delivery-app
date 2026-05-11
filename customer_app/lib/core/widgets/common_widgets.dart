@@ -6,7 +6,7 @@ class AppSearchBar extends StatelessWidget {
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
 
-  const AppSearchBar({
+  AppSearchBar({
     super.key,
     this.hintText,
     this.controller,
@@ -16,15 +16,15 @@ class AppSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      margin: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -33,14 +33,14 @@ class AppSearchBar extends StatelessWidget {
         onChanged: onChanged,
         decoration: InputDecoration(
           hintText: hintText ?? 'ابحث...',
-          prefixIcon: const Icon(
+          prefixIcon: Icon(
             Icons.search,
-            color: AppColors.textHint,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
+          contentPadding: EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
           ),
@@ -61,7 +61,7 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final int maxLines;
 
-  const AppTextField({
+  AppTextField({
     super.key,
     this.controller,
     this.hintText,
@@ -82,13 +82,13 @@ class AppTextField extends StatelessWidget {
         if (labelText != null) ...[
           Text(
             labelText!,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
         ],
         TextFormField(
           controller: controller,
@@ -111,7 +111,7 @@ class SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onSeeAll;
 
-  const SectionHeader({
+  SectionHeader({
     super.key,
     required this.title,
     this.onSeeAll,
@@ -120,7 +120,7 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
@@ -129,16 +129,16 @@ class SectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           if (onSeeAll != null)
             GestureDetector(
               onTap: onSeeAll,
-              child: const Text(
+              child: Text(
                 'عرض الكل',
                 style: TextStyle(
                   fontSize: 14,
@@ -158,7 +158,7 @@ class CategoryChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
 
-  const CategoryChip({
+  CategoryChip({
     super.key,
     required this.label,
     this.isSelected = false,
@@ -170,16 +170,16 @@ class CategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(right: AppSpacing.sm),
-        padding: const EdgeInsets.symmetric(
+        margin: EdgeInsets.only(right: AppSpacing.sm),
+        padding: EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected ? AppColors.primary : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? AppColors.primary : Theme.of(context).dividerColor,
           ),
         ),
         child: Text(
@@ -187,7 +187,7 @@ class CategoryChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : AppColors.textSecondary,
+            color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -199,7 +199,7 @@ class StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
 
-  const StatusBadge({
+  StatusBadge({
     super.key,
     required this.label,
     required this.color,
@@ -208,7 +208,7 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
@@ -234,7 +234,7 @@ class EmptyState extends StatelessWidget {
   final String? subtitle;
   final Widget? action;
 
-  const EmptyState({
+  EmptyState({
     super.key,
     required this.icon,
     required this.title,
@@ -246,38 +246,38 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
+        padding: EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
               size: 64,
-              color: AppColors.textHint,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: AppSpacing.sm),
               Text(
                 subtitle!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
             ],
             if (action != null) ...[
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: AppSpacing.xl),
               action!,
             ],
           ],
@@ -292,7 +292,7 @@ class LoadingSkeleton extends StatelessWidget {
   final double height;
   final double borderRadius;
 
-  const LoadingSkeleton({
+  LoadingSkeleton({
     super.key,
     this.width = double.infinity,
     this.height = 100,
@@ -305,7 +305,7 @@ class LoadingSkeleton extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.divider,
+        color: Theme.of(context).dividerColor,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
     );
@@ -316,7 +316,7 @@ class ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const ErrorState({
+  ErrorState({
     super.key,
     required this.message,
     this.onRetry,
@@ -326,29 +326,29 @@ class ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
+        padding: EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 64,
               color: AppColors.error,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
               ElevatedButton(
                 onPressed: onRetry,
-                child: const Text('إعادة المحاولة'),
+                child: Text('إعادة المحاولة'),
               ),
             ],
           ],
@@ -360,43 +360,43 @@ class ErrorState extends StatelessWidget {
 
 class LoadingShimmer extends StatelessWidget {
   final int itemCount;
-  const LoadingShimmer({super.key, this.itemCount = 5});
+  LoadingShimmer({super.key, this.itemCount = 5});
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      physics: NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
       itemCount: itemCount,
       itemBuilder: (context, index) {
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-          padding: const EdgeInsets.all(AppSpacing.md),
+          margin: EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+          padding: EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 4))],
           ),
           child: Row(
             children: [
-              Container(width: 120, height: 100, decoration: BoxDecoration(color: AppColors.divider, borderRadius: const BorderRadius.horizontal(right: Radius.circular(AppRadius.lg), left: Radius.circular(0)))),
+              Container(width: 120, height: 100, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.horizontal(right: Radius.circular(AppRadius.lg), left: Radius.circular(0)))),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Container(height: 16, width: double.infinity, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
-                      const SizedBox(height: AppSpacing.sm),
-                      Container(height: 12, width: 100, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
-                      const SizedBox(height: AppSpacing.md),
+                      Container(height: 16, width: double.infinity, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(4))),
+                      SizedBox(height: AppSpacing.sm),
+                      Container(height: 12, width: 100, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(4))),
+                      SizedBox(height: AppSpacing.md),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Container(height: 12, width: 40, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
-                          const SizedBox(width: AppSpacing.sm),
-                          Container(height: 20, width: 50, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
+                          Container(height: 12, width: 40, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(4))),
+                          SizedBox(width: AppSpacing.sm),
+                          Container(height: 20, width: 50, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(4))),
                         ],
                       ),
                     ],
@@ -410,3 +410,5 @@ class LoadingShimmer extends StatelessWidget {
     );
   }
 }
+
+

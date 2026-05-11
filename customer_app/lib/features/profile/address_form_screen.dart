@@ -7,7 +7,7 @@ import '../../core/widgets/widgets.dart';
 class AddressFormScreen extends StatefulWidget {
   final Address? address;
 
-  const AddressFormScreen({super.key, this.address});
+  AddressFormScreen({super.key, this.address});
 
   @override
   State<AddressFormScreen> createState() => _AddressFormScreenState();
@@ -82,14 +82,14 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(_isEdit ? 'تعديل العنوان' : 'إضافة عنوان جديد'),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(AppSpacing.lg),
           children: [
             AppTextField(
               controller: _titleController,
@@ -102,7 +102,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: _cityController,
               labelText: 'المدينة',
@@ -114,7 +114,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: _streetController,
               labelText: 'الشارع',
@@ -126,29 +126,29 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: _detailsController,
               labelText: 'تفاصيل إضافية (اختياري)',
               hintText: 'رقم المبنى، الشقة، معلم قريب...',
               maxLines: 3,
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: SwitchListTile(
                 value: _isDefault,
-                title: const Text('تعيين كعنوان افتراضي'),
-                subtitle: const Text('سيُستخدم هذا العنوان بشكل افتراضي عند الطلب'),
+                title: Text('تعيين كعنوان افتراضي'),
+                subtitle: Text('سيُستخدم هذا العنوان بشكل افتراضي عند الطلب'),
                 onChanged: (value) => setState(() => _isDefault = value),
                 activeColor: AppColors.primary,
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: AppSpacing.xl),
             AppButton(
               text: _isEdit ? 'حفظ التعديلات' : 'إضافة العنوان',
               isLoading: _isSaving,
@@ -160,3 +160,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     );
   }
 }
+
+
+

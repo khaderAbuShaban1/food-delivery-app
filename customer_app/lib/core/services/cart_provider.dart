@@ -17,7 +17,7 @@ class CartItem {
   double get selectedExtrasPerUnit {
     double total = 0;
     for (final group in menuItem.optionGroups) {
-      final selectedIds = selectedOptionValueIdsByGroup[group.id] ?? const <int>[];
+      final selectedIds = selectedOptionValueIdsByGroup[group.id] ?? <int>[];
       for (final value in group.values) {
         if (selectedIds.contains(value.id)) {
           total += value.extraPrice;
@@ -60,7 +60,7 @@ class CartProvider extends ChangeNotifier {
     final nb = normalizeSelections(b);
     if (na.length != nb.length) return false;
     for (final gid in na.keys) {
-      final av = na[gid] ?? const <int>[];
+      final av = na[gid] ?? <int>[];
       final bv = nb[gid];
       if (bv == null || av.length != bv.length) return false;
       for (var i = 0; i < av.length; i++) {
@@ -83,7 +83,7 @@ class CartProvider extends ChangeNotifier {
     addOrReplaceItemWithOptions(
       menuItem,
       quantity: 1,
-      selections: const <int, List<int>>{},
+      selections: <int, List<int>>{},
     );
   }
 
@@ -173,3 +173,5 @@ class CartProvider extends ChangeNotifier {
     return item?.quantity ?? 0;
   }
 }
+
+

@@ -15,7 +15,7 @@ import '../meal/meal_details_screen.dart';
 class RestaurantScreen extends StatefulWidget {
   final Restaurant restaurant;
 
-  const RestaurantScreen({super.key, required this.restaurant});
+  RestaurantScreen({super.key, required this.restaurant});
 
   @override
   State<RestaurantScreen> createState() => _RestaurantScreenState();
@@ -126,7 +126,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     if (!AuthService.isLoggedIn()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('يرجى تسجيل الدخول لتقييم المطعم'),
           backgroundColor: AppColors.error,
         ),
@@ -139,24 +139,26 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     final rating = await showModalBottomSheet<int>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
         return StatefulBuilder(
           builder: (context, setBottomState) {
             return Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     'قيّم ${_restaurant.name}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
@@ -168,18 +170,18 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           active
                               ? Icons.star_rounded
                               : Icons.star_border_rounded,
-                          color: active ? AppColors.warning : AppColors.textHint,
+                          color: active ? AppColors.warning : Theme.of(context).colorScheme.onSurfaceVariant,
                           size: 34,
                         ),
                       );
                     }),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context, selected),
-                      child: const Text('حفظ التقييم'),
+                      child: Text('حفظ التقييم'),
                     ),
                   ),
                 ],
@@ -207,7 +209,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       });
       await RealtimeSyncService.syncRestaurant(_restaurant);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('تم حفظ التقييم'),
           backgroundColor: AppColors.success,
         ),
@@ -227,7 +229,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   Widget _buildRatingSummary() {
     if (_restaurant.ratingsCount == 0) {
-      return const Text(
+      return Text(
         'لا توجد تقييمات بعد',
         style: TextStyle(
           fontSize: 13,
@@ -242,18 +244,18 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       children: [
         Text(
           _restaurant.rating.toStringAsFixed(1),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(width: 4),
-        const Icon(Icons.star_rounded, color: AppColors.warning, size: 16),
-        const SizedBox(width: 6),
+        SizedBox(width: 4),
+        Icon(Icons.star_rounded, color: AppColors.warning, size: 16),
+        SizedBox(width: 6),
         Text(
           '(${_restaurant.ratingsCount} تقييم)',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             color: Colors.white70,
             fontWeight: FontWeight.w600,
@@ -266,7 +268,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           CustomScrollView(
@@ -277,13 +279,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 leading: Container(
-                  margin: const EdgeInsets.all(8),
+                  margin: EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_forward),
+                    icon: Icon(Icons.arrow_forward),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -321,13 +323,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           children: [
                             Text(
                               _restaurant.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Row(
                               children: [
                                 Text(
@@ -337,9 +339,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     color: Colors.white.withValues(alpha: 0.9),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                SizedBox(width: 16),
                                 _buildRatingSummary(),
-                                const SizedBox(width: 12),
+                                SizedBox(width: 12),
                                 StatusBadge(
                                   label: _restaurant.isOpen
                                       ? 'مفتوح'
@@ -350,7 +352,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: AppSpacing.sm),
+                            SizedBox(height: AppSpacing.sm),
                             SizedBox(
                               height: 34,
                               child: OutlinedButton.icon(
@@ -358,19 +360,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     ? null
                                     : _submitRating,
                                 icon: _isSubmittingRating
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 14,
                                         height: 14,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Icon(Icons.star_outline_rounded, size: 18),
+                                    : Icon(Icons.star_outline_rounded, size: 18),
                                 label: Text(
                                   _restaurant.myRating != null
                                       ? 'تعديل تقييمي (${_restaurant.myRating})'
                                       : 'قيّم المطعم',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -380,7 +382,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   side: BorderSide(
                                     color: Colors.white.withValues(alpha: 0.65),
                                   ),
-                                  padding: const EdgeInsets.symmetric(
+                                  padding: EdgeInsets.symmetric(
                                     horizontal: AppSpacing.md,
                                   ),
                                 ),
@@ -397,10 +399,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 SliverToBoxAdapter(
                   child: Container(
                     height: 50,
-                    margin: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    margin: EdgeInsets.symmetric(vertical: AppSpacing.md),
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: AppSpacing.lg,
                       ),
                       itemCount: _categories.length,
@@ -427,7 +429,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   ),
                 )
               else if (_filteredItems.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: EmptyState(
                     icon: Icons.restaurant_outlined,
                     title: 'لا توجد أصناف',
@@ -453,20 +455,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     );
                   }, childCount: _filteredItems.length),
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
           Consumer<CartProvider>(
             builder: (context, cart, _) {
               final visible = cart.itemCount > 0;
               return AnimatedPositioned(
-                duration: const Duration(milliseconds: 250),
+                duration: Duration(milliseconds: 250),
                 curve: Curves.easeOut,
                 left: AppSpacing.lg,
                 right: AppSpacing.lg,
                 bottom: visible ? AppSpacing.lg : -140,
                 child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 220),
+                  duration: Duration(milliseconds: 220),
                   opacity: visible ? 1 : 0,
                   child: IgnorePointer(
                     ignoring: !visible,
@@ -484,7 +486,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   Widget _buildHeaderPlaceholder() {
     return Container(
       color: AppColors.primary,
-      child: const Center(
+      child: Center(
         child: Icon(Icons.restaurant_outlined, size: 60, color: Colors.white54),
       ),
     );
@@ -493,20 +495,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   Widget _buildLoading() {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: NeverScrollableScrollPhysics(),
       itemCount: 4,
       itemBuilder: (context, index) {
         return Container(
-          margin: const EdgeInsets.symmetric(
+          margin: EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.sm,
           ),
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
-          child: const LoadingSkeleton(height: 100, borderRadius: AppRadius.md),
+          child: LoadingSkeleton(height: 100, borderRadius: AppRadius.md),
         );
       },
     );
@@ -521,7 +523,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (_) => const MainScreen(initialIndex: 1),
+                builder: (_) => MainScreen(initialIndex: 1),
               ),
               (route) => false,
             );
@@ -535,20 +537,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.35),
                   blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  offset: Offset(0, 8),
                 ),
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
                 vertical: AppSpacing.md,
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Expanded(
+                  Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(
                     child: Text(
                       'اذهب إلى السلة',
                       textAlign: TextAlign.center,
@@ -561,7 +563,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   ),
                   Text(
                     '${cart.itemCount} • ₪${cart.totalPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -582,3 +584,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     super.dispose();
   }
 }
+
+
+
