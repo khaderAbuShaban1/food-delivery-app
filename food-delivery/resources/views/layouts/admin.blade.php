@@ -283,6 +283,10 @@
                     <i class="fas fa-gift"></i>
                     <span>إدارة العروض</span>
                 </a>
+                <a href="{{ route('admin.restaurant-invoices.index') }}" class="nav-item {{ request()->routeIs('admin.restaurant-invoices.*') ? 'active' : '' }}">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>فواتير المطاعم</span>
+                </a>
                 <div class="nav-section-title">الحسابات</div>
                 <a href="{{ route('admin.users') }}" class="nav-item {{ request()->routeIs('admin.users') ? 'active' : '' }}">
                     <i class="fas fa-users"></i>

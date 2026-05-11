@@ -2,6 +2,7 @@
 
 use App\Modules\Restaurant\Controllers\AuthController;
 use App\Modules\Restaurant\Controllers\DashboardController;
+use App\Modules\Restaurant\Controllers\InvoiceController;
 use App\Modules\Restaurant\Controllers\MenuController;
 use App\Modules\Restaurant\Controllers\OrderController;
 use App\Modules\Restaurant\Controllers\SettingsController;
@@ -25,6 +26,8 @@ Route::prefix('restaurant')->name('restaurant.')->group(function () {
         Route::get('/orders', [OrderController::class, 'index'])->name('orders');
         Route::get('/orders/realtime', [OrderController::class, 'realtime'])->name('orders.realtime');
         Route::put('/orders/{orderId}', [OrderController::class, 'updateStatus'])->name('orders.status');
+        Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices');
+        Route::get('/invoices/{invoiceId}', [InvoiceController::class, 'show'])->name('invoices.show');
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
         Route::put('/settings/general', [SettingsController::class, 'updateGeneral'])->name('settings.general');

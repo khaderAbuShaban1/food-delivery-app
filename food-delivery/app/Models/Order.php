@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends \Illuminate\Database\Eloquent\Model
@@ -74,6 +75,12 @@ class Order extends \Illuminate\Database\Eloquent\Model
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function invoices(): BelongsToMany
+    {
+        return $this->belongsToMany(RestaurantInvoice::class, 'restaurant_invoice_orders', 'order_id', 'restaurant_invoice_id')
+            ->withTimestamps();
     }
 
     public static function generateOrderNumber(): string

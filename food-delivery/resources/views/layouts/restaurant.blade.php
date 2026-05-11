@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -269,6 +269,11 @@
                     <i class="bi bi-bag-check"></i>
                     <span>الطلبات</span>
                 </a>
+                <a href="{{ route('restaurant.invoices') }}" class="sidebar-link {{ request()->routeIs('restaurant.invoices*') ? 'active' : '' }}">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>الفواتير</span>
+                </a>
+
 
                 <a href="{{ route('restaurant.settings') }}" class="sidebar-link {{ request()->routeIs('restaurant.settings*') ? 'active' : '' }}">
                     <i class="bi bi-gear"></i>

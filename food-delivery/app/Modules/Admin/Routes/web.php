@@ -4,6 +4,7 @@ use App\Modules\Admin\Controllers\AuthController;
 use App\Modules\Admin\Controllers\DashboardController;
 use App\Modules\Admin\Controllers\DebugMailController;
 use App\Modules\Admin\Controllers\PaymentMethodController;
+use App\Modules\Admin\Controllers\RestaurantInvoiceController;
 use App\Modules\Admin\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/orders/{id}/verify-payment', [DashboardController::class, 'verifyOrderPayment'])->name('orders.verify-payment');
         Route::patch('/orders/{id}/reject-payment', [DashboardController::class, 'rejectOrderPayment'])->name('orders.reject-payment');
         Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
+        Route::get('/restaurant-invoices', [RestaurantInvoiceController::class, 'index'])->name('restaurant-invoices.index');
+        Route::post('/restaurant-invoices', [RestaurantInvoiceController::class, 'store'])->name('restaurant-invoices.store');
+        Route::get('/restaurant-invoices/{invoice}', [RestaurantInvoiceController::class, 'show'])->name('restaurant-invoices.show');
+        Route::patch('/restaurant-invoices/{invoice}', [RestaurantInvoiceController::class, 'update'])->name('restaurant-invoices.update');
+        Route::patch('/restaurant-invoices/{invoice}/payment-proof', [RestaurantInvoiceController::class, 'updatePaymentProof'])->name('restaurant-invoices.payment-proof');
+        Route::delete('/restaurant-invoices/{invoice}', [RestaurantInvoiceController::class, 'destroy'])->name('restaurant-invoices.destroy');
+        Route::patch('/restaurant-invoices/{invoice}/status', [RestaurantInvoiceController::class, 'updateStatus'])->name('restaurant-invoices.status');
 
         Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
         Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
