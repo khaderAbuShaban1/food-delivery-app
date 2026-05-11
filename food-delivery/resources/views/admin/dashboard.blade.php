@@ -142,8 +142,6 @@
 
 @section('scripts')
 <script>
-let adminDashboardRealtimeTimer = null;
-
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -229,7 +227,9 @@ async function fetchAdminDashboardRealtime() {
     }
 }
 
-adminDashboardRealtimeTimer = setInterval(fetchAdminDashboardRealtime, 5000);
+document.addEventListener('food:admin-orders', fetchAdminDashboardRealtime);
+document.addEventListener('food:admin-users', fetchAdminDashboardRealtime);
+document.addEventListener('food:admin-restaurants', fetchAdminDashboardRealtime);
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) fetchAdminDashboardRealtime();
 });

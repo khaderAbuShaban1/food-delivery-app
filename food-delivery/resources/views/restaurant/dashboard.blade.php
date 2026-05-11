@@ -249,7 +249,6 @@ const statusErrEl = document.getElementById('statusToggleError');
 const statusConfirmBtn = document.getElementById('statusToggleConfirm');
 const sidebarStatusBadge = document.getElementById('sidebarRestaurantStatusBadge');
 let isOpen = @json((bool)($restaurant->is_open ?? false));
-let dashboardRealtimeTimer = null;
 
 function formatPrice(value) {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) + ' ₪';
@@ -390,7 +389,7 @@ async function submitStatusToggle() {
 
 statusCard.addEventListener('click', openStatusModal);
 statusConfirmBtn.addEventListener('click', submitStatusToggle);
-dashboardRealtimeTimer = setInterval(fetchDashboardRealtime, 5000);
+document.addEventListener('food:restaurant-orders', fetchDashboardRealtime);
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) fetchDashboardRealtime();
 });

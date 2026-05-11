@@ -194,6 +194,27 @@
         .alert-success { background: rgba(34, 197, 94, 0.1); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.2); }
         .alert-danger { background: rgba(239, 68, 68, 0.1); color: #DC2626; border: 1px solid rgba(239, 68, 68, 0.2); }
 
+        .web-notification-center { position: fixed; top: 1.25rem; left: 1.5rem; z-index: 1100; }
+        .web-notification-button { width: 44px; height: 44px; border: 1px solid var(--border-subtle); border-radius: 14px; background: var(--bg-card); color: var(--accent-primary); box-shadow: var(--shadow-md); position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+        .web-notification-icon { width: 20px; height: 20px; border-radius: 999px; border: 2px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .8rem; }
+        .web-notification-count { position: absolute; top: -7px; right: -7px; min-width: 22px; height: 22px; border-radius: 999px; background: #DC2626; color: #fff; font-size: .72rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; padding: 0 .35rem; }
+        .web-notification-menu { position: absolute; top: 52px; left: 0; width: min(360px, calc(100vw - 2rem)); background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 18px; box-shadow: var(--shadow-xl); overflow: hidden; }
+        .web-notification-menu-head { padding: .9rem 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); }
+        .web-notification-menu-head button { border: 0; background: transparent; color: var(--accent-primary); font-size: .78rem; font-weight: 700; }
+        .web-notification-status { padding: .55rem 1rem; font-size: .76rem; color: var(--text-muted); background: #F8FAFC; border-bottom: 1px solid var(--border-subtle); }
+        .web-notification-status.is-error { color: #DC2626; background: #FEF2F2; }
+        .web-notification-list { max-height: 360px; overflow-y: auto; }
+        .web-notification-empty { padding: 1.25rem; color: var(--text-muted); text-align: center; font-size: .86rem; }
+        .web-notification-item { padding: .85rem 1rem; border-bottom: 1px solid #F1F5F9; }
+        .web-notification-item.important { background: #FFF7ED; }
+        .web-notification-item-title { font-size: .88rem; font-weight: 800; color: var(--text-primary); }
+        .web-notification-item-body { margin-top: .2rem; font-size: .8rem; color: var(--text-secondary); }
+        .web-notification-item-time { margin-top: .3rem; font-size: .72rem; color: var(--text-muted); direction: ltr; text-align: right; }
+        .web-live-toast { position: fixed; left: 1.5rem; bottom: 1.5rem; z-index: 1300; width: min(340px, calc(100vw - 2rem)); background: var(--bg-card); border: 1px solid var(--border-subtle); border-right: 4px solid var(--accent-primary); border-radius: 14px; box-shadow: var(--shadow-xl); padding: .85rem 1rem; opacity: 0; transform: translateY(12px); transition: all .25s ease; }
+        .web-live-toast.show { opacity: 1; transform: translateY(0); }
+        .web-live-toast strong { display: block; font-size: .88rem; color: var(--text-primary); }
+        .web-live-toast span { display: block; margin-top: .2rem; font-size: .8rem; color: var(--text-secondary); }
+
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -267,6 +288,7 @@
         </aside>
 
         <main class="main-content">
+            @include('partials.firestore-web-notifications', ['mode' => 'restaurant', 'restaurant' => $restaurant ?? null])
             @if(session('success'))
                 <div class="alert alert-success d-flex align-items-center mb-4 animate-fade-in">
                     <i class="bi bi-check-circle me-2"></i>{{ session('success') }}

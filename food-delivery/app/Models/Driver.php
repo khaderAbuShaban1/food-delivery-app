@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -31,6 +32,7 @@ class Driver extends Model implements Authenticatable
         'license_number',
         'approved_at',
         'rejected_at',
+        'fcm_token',
     ];
 
     protected $hidden = [
@@ -60,5 +62,10 @@ class Driver extends Model implements Authenticatable
     public function orders()
     {
         return $this->hasMany(Order::class, 'driver_id');
+    }
+
+    public function fcmTokens(): MorphMany
+    {
+        return $this->morphMany(FcmToken::class, 'tokenable');
     }
 }

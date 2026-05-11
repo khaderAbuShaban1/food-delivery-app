@@ -52,15 +52,19 @@ class DriverRealtimeSyncService {
     }).toList();
   }
 
-  static int _toEpochMillis(dynamic value) {
-    if (value == null) return 0;
-    if (value is Timestamp) return value.toDate().millisecondsSinceEpoch;
-    if (value is DateTime) return value.millisecondsSinceEpoch;
+  static DateTime? toDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
     if (value is String) {
       final parsed = DateTime.tryParse(value);
-      if (parsed != null) return parsed.millisecondsSinceEpoch;
+      if (parsed != null) return parsed;
     }
-    if (value is int) return value;
-    return 0;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
+  }
+
+  static int _toEpochMillis(dynamic value) {
+    return toDateTime(value)?.millisecondsSinceEpoch ?? 0;
   }
 }

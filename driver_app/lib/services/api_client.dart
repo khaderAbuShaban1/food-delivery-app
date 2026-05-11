@@ -98,6 +98,36 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> delete(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await http
+          .delete(
+            Uri.parse('${AppConfig.apiBaseUrl}$endpoint'),
+            headers: _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 15));
+      return _handleResponse(response);
+    } on TimeoutException {
+      return {'success': false, 'message': 'Connection timed out'};
+    } on SocketException {
+      return {
+        'success': false,
+        'message':
+            'Cannot reach server. Check Laravel is running and API host IP is correct: ${AppConfig.apiBaseUrl}',
+      };
+    } on HttpException {
+      return {'success': false, 'message': 'HTTP connection failed'};
+    } on FormatException {
+      return {'success': false, 'message': 'Invalid server response'};
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   Future<Map<String, dynamic>> postMultipart(
     String endpoint, {
     required Map<String, String> fields,

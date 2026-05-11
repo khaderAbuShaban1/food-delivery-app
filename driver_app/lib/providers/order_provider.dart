@@ -16,6 +16,14 @@ class OrderProvider extends ChangeNotifier {
   DriverModel? _driver;
   StreamSubscription<List<Map<String, dynamic>>>? _availableOrdersSub;
   StreamSubscription<List<Map<String, dynamic>>>? _driverOrdersSub;
+  Timer? _availableRefreshDebounce;
+  Timer? _activeRefreshDebounce;
+  DateTime? _lastFallbackRefreshAt;
+  String? _availableMirrorSignature;
+  String? _driverMirrorSignature;
+
+  static const Duration _fallbackRefreshInterval = Duration(seconds: 60);
+  static const Duration _firestoreRefreshDebounce = Duration(milliseconds: 700);
 
   List<OrderModel> availableOrders = [];
   OrderModel? activeOrder;
@@ -31,10 +39,18 @@ class OrderProvider extends ChangeNotifier {
 
   int get deliveredTodayCount => _deliveredTodayCount;
 
-  Future<void> refreshFromServer() async {
+  Future<void> refreshFromServer({bool force = false}) async {
+    if (!force && !_canRunFallbackRefresh()) return;
+    _lastFallbackRefreshAt = DateTime.now();
     await _refreshAvailableFromApi();
     await _refreshActiveFromApi();
     await _refreshTodayStatsFromApi();
+  }
+
+  bool _canRunFallbackRefresh() {
+    final last = _lastFallbackRefreshAt;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= _fallbackRefreshInterval;
   }
 
   void syncFromAuth(AuthProvider auth) {
@@ -114,11 +130,14 @@ class OrderProvider extends ChangeNotifier {
     hasSyncedAvailableOrders = false;
     hasSyncedActiveOrder = false;
     _deliveredTodayCount = 0;
+    _availableMirrorSignature = null;
+    _driverMirrorSignature = null;
+    _lastFallbackRefreshAt = null;
+    _availableRefreshDebounce?.cancel();
+    _activeRefreshDebounce?.cancel();
 
     if (_driver != null) {
-      unawaited(_refreshAvailableFromApi());
-      unawaited(_refreshActiveFromApi());
-      unawaited(_refreshTodayStatsFromApi());
+      unawaited(refreshFromServer(force: true));
       _startRealtimeListeners();
     }
     notifyListeners();
@@ -131,13 +150,16 @@ class OrderProvider extends ChangeNotifier {
     _availableOrdersSub?.cancel();
     _availableOrdersSub = DriverRealtimeSyncService.watchAvailableOrders().listen(
       (mirrors) {
+        final signature = _mirrorSignature(mirrors);
+        if (signature == _availableMirrorSignature) return;
+        _availableMirrorSignature = signature;
         if (kDebugMode) {
           debugPrint(
             '[OrderProvider] available Firestore event count=${mirrors.length}',
           );
         }
         if (_driver == null || _api?.token == null) return;
-        unawaited(_refreshAvailableFromApi());
+        _scheduleAvailableRefresh();
       },
       onError: (error) {
         if (kDebugMode) {
@@ -152,14 +174,18 @@ class OrderProvider extends ChangeNotifier {
     _driverOrdersSub = DriverRealtimeSyncService.watchDriverOrders(driver.id)
         .listen(
           (mirrors) {
+            final signature = _mirrorSignature(mirrors);
+            if (signature == _driverMirrorSignature) return;
+            _driverMirrorSignature = signature;
             if (kDebugMode) {
               debugPrint(
                 '[OrderProvider] driver Firestore event count=${mirrors.length}',
               );
             }
             if (_driver == null || _api?.token == null) return;
-            unawaited(_refreshActiveFromApi());
-            unawaited(_refreshTodayStatsFromApi());
+            _syncTodayStatsFromMirrors(mirrors);
+            _syncActiveEmptyStateFromMirrors(mirrors);
+            _scheduleActiveRefresh();
           },
           onError: (error) {
             if (kDebugMode) {
@@ -176,6 +202,76 @@ class OrderProvider extends ChangeNotifier {
     _availableOrdersSub = null;
     _driverOrdersSub?.cancel();
     _driverOrdersSub = null;
+    _availableRefreshDebounce?.cancel();
+    _availableRefreshDebounce = null;
+    _activeRefreshDebounce?.cancel();
+    _activeRefreshDebounce = null;
+  }
+
+  void _scheduleAvailableRefresh() {
+    _availableRefreshDebounce?.cancel();
+    _availableRefreshDebounce = Timer(_firestoreRefreshDebounce, () {
+      if (_driver == null || _api?.token == null) return;
+      unawaited(_refreshAvailableFromApi());
+    });
+  }
+
+  void _scheduleActiveRefresh() {
+    _activeRefreshDebounce?.cancel();
+    _activeRefreshDebounce = Timer(_firestoreRefreshDebounce, () {
+      if (_driver == null || _api?.token == null) return;
+      unawaited(_refreshActiveFromApi());
+    });
+  }
+
+  String _mirrorSignature(List<Map<String, dynamic>> mirrors) {
+    final parts = mirrors.map((mirror) {
+      final id = mirror['id']?.toString() ?? '';
+      final status = mirror['status']?.toString() ?? '';
+      final driverId = mirror['driver_id']?.toString() ?? '';
+      return '$id:$status:$driverId';
+    }).toList()..sort();
+    return parts.join('|');
+  }
+
+  bool _isDriverActiveStatus(String status) {
+    final normalized = status.trim().toLowerCase().replaceAll('-', '_');
+    return normalized == 'preparing' || normalized == 'on_the_way';
+  }
+
+  void _syncActiveEmptyStateFromMirrors(List<Map<String, dynamic>> mirrors) {
+    final hasActiveMirror = mirrors.any(
+      (mirror) => _isDriverActiveStatus(mirror['status']?.toString() ?? ''),
+    );
+    if (hasActiveMirror) return;
+    if (activeOrder == null && hasSyncedActiveOrder) return;
+    activeOrder = null;
+    hasSyncedActiveOrder = true;
+    notifyListeners();
+  }
+
+  void _syncTodayStatsFromMirrors(List<Map<String, dynamic>> mirrors) {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final nextDay = startOfDay.add(const Duration(days: 1));
+    final count = mirrors.where((mirror) {
+      final status = mirror['status']
+          ?.toString()
+          .trim()
+          .toLowerCase()
+          .replaceAll('-', '_');
+      if (status != 'delivered' && status != 'completed') return false;
+      final updatedAt = DriverRealtimeSyncService.toDateTime(
+        mirror['updated_at'],
+      );
+      if (updatedAt == null) return false;
+      final local = updatedAt.toLocal();
+      return !local.isBefore(startOfDay) && local.isBefore(nextDay);
+    }).length;
+
+    if (_deliveredTodayCount == count) return;
+    _deliveredTodayCount = count;
+    notifyListeners();
   }
 
   Future<void> acceptOrder(OrderModel order) async {

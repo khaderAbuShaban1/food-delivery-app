@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import '../models/driver_model.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/push_notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
   final ApiClient apiClient = ApiClient();
+  late final PushNotificationService _pushNotifications =
+      PushNotificationService(apiClient);
 
   DriverModel? driver;
   bool isLoading = false;
@@ -20,6 +23,7 @@ class AuthProvider extends ChangeNotifier {
     final (token, restoredDriver) = await _authService.restoreSession();
     apiClient.token = token;
     driver = restoredDriver;
+    await _pushNotifications.registerDeviceToken();
     isRestoring = false;
     notifyListeners();
   }
@@ -43,6 +47,7 @@ class AuthProvider extends ChangeNotifier {
 
     apiClient.token = token;
     driver = loggedDriver;
+    await _pushNotifications.registerDeviceToken();
     isLoading = false;
     notifyListeners();
     return true;
@@ -144,6 +149,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _pushNotifications.unregisterDeviceToken();
     await _authService.logout();
     apiClient.token = null;
     driver = null;

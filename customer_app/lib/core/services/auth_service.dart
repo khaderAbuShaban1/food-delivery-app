@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../api/api_client.dart';
+import 'push_notification_service.dart';
 
 class RegisterResult {
   final bool success;
@@ -92,6 +93,7 @@ class AuthService {
         ApiClient.token = token;
         _currentUser = _extractUser(response);
         _emitUser();
+        await PushNotificationService.registerDeviceToken();
         return 'success';
       }
 
@@ -141,6 +143,7 @@ class AuthService {
         ApiClient.token = token;
         _currentUser = _extractUser(response);
         _emitUser();
+        await PushNotificationService.registerDeviceToken();
         return RegisterResult(
           success: true,
           needsEmailVerification: false,
@@ -204,6 +207,7 @@ class AuthService {
 
   static Future<void> logout() async {
     try {
+      await PushNotificationService.unregisterDeviceToken();
       await ApiClient.post('/logout', {});
     } catch (_) {}
 
@@ -234,10 +238,9 @@ class AuthService {
     String? phone,
   }) async {
     try {
-      final response = await ApiClient.put('/profile', {
-        'name': name,
-        if (phone != null) 'phone': phone,
-      });
+      final payload = {'name': name}
+        ..addAll(phone == null ? {} : {'phone': phone});
+      final response = await ApiClient.put('/profile', payload);
 
       if (_isSuccess(response)) {
         final updated = _extractUser(response);
@@ -245,7 +248,7 @@ class AuthService {
           _currentUser = updated;
         } else if (_currentUser != null) {
           _currentUser!['name'] = name;
-          if (phone != null) _currentUser!['phone'] = phone;
+          _currentUser!['phone'] = phone ?? _currentUser!['phone'];
         }
         _emitUser();
         return 'success';

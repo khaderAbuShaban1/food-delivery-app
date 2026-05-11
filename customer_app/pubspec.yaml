@@ -1,4 +1,4 @@
-name: customer_app
+﻿name: customer_app
 description: "Food Delivery Customer App"
 publish_to: 'none'
 version: 1.0.0+1
@@ -20,6 +20,9 @@ dependencies:
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
   shared_preferences: ^2.3.2
+  firebase_messaging: ^16.2.0
+  device_info_plus: ^13.1.0
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:

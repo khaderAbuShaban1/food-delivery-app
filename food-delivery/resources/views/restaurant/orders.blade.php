@@ -381,7 +381,6 @@ document.addEventListener('DOMContentLoaded', function() {
         delivered: 'تم التسليم',
     };
 
-    let ordersRealtimeTimer = null;
     const ordersSearchInput = document.getElementById('ordersSearchInput');
     const ordersStatusFilter = document.getElementById('ordersStatusFilter');
     const ordersResetFiltersBtn = document.getElementById('ordersResetFiltersBtn');
@@ -591,7 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchOrdersRealtime();
         });
     }
-    ordersRealtimeTimer = setInterval(fetchOrdersRealtime, 5000);
+    document.addEventListener('food:restaurant-orders', fetchOrdersRealtime);
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) fetchOrdersRealtime();
     });

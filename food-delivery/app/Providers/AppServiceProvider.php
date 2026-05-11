@@ -16,6 +16,7 @@ use App\Models\Restaurant;
 use App\Models\RestaurantRating;
 use App\Models\User;
 use App\Observers\FirestoreMirrorObserver;
+use App\Observers\OrderPushNotificationObserver;
 use App\Observers\OrderItemObserver;
 use App\Observers\MenuItemObserver;
 
@@ -56,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
         OrderItem::observe(OrderItemObserver::class);
         MenuItem::observe(MenuItemObserver::class);
         Order::observe(FirestoreMirrorObserver::class);
+        Order::observe(OrderPushNotificationObserver::class);
         Restaurant::observe(FirestoreMirrorObserver::class);
         Address::observe(FirestoreMirrorObserver::class);
         RestaurantRating::observe(FirestoreMirrorObserver::class);

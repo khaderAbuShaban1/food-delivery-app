@@ -1136,7 +1136,7 @@ $('#searchInput').on('input', function() {
 selectOrder({{ $orders->first()->id }});
 @endif
 
-setInterval(loadOrders, 5000);
+document.addEventListener('food:admin-orders', loadOrders);
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) loadOrders();
 });

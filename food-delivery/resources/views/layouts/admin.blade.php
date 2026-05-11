@@ -223,6 +223,28 @@
 
         .alert-error { background: #FEE2E2; color: #DC2626; border: none; border-radius: 12px; padding: 1rem; }
 
+        .web-notification-center { position: fixed; top: 1.25rem; left: 1.5rem; z-index: 1100; }
+        .web-notification-button { width: 44px; height: 44px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); color: var(--primary); box-shadow: var(--shadow-md); position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+        .web-notification-icon { width: 20px; height: 20px; border-radius: 999px; border: 2px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .8rem; }
+        .web-notification-count { position: absolute; top: -7px; right: -7px; min-width: 22px; height: 22px; border-radius: 999px; background: var(--danger); color: #fff; font-size: .72rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; padding: 0 .35rem; }
+        .web-notification-menu { position: absolute; top: 52px; left: 0; width: min(360px, calc(100vw - 2rem)); background: var(--white); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-lg); overflow: hidden; }
+        .web-notification-menu-head { padding: .9rem 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+        .web-notification-menu-head button { border: 0; background: transparent; color: var(--primary); font-size: .78rem; font-weight: 700; }
+        .web-notification-status { padding: .55rem 1rem; font-size: .76rem; color: var(--text-muted); background: #F9FAFB; border-bottom: 1px solid var(--border); }
+        .web-notification-status.is-error { color: var(--danger); background: #FEF2F2; }
+        .web-notification-list { max-height: 360px; overflow-y: auto; }
+        .web-notification-empty { padding: 1.25rem; color: var(--text-muted); text-align: center; font-size: .86rem; }
+        .web-notification-item { padding: .85rem 1rem; border-bottom: 1px solid #F1F5F9; }
+        .web-notification-item.important { background: #FFF7ED; }
+        .web-notification-item-title { font-size: .88rem; font-weight: 800; color: var(--text-dark); }
+        .web-notification-item-body { margin-top: .2rem; font-size: .8rem; color: var(--text-muted); }
+        .web-notification-item-time { margin-top: .3rem; font-size: .72rem; color: #9CA3AF; direction: ltr; text-align: right; }
+        .web-live-toast { position: fixed; left: 1.5rem; bottom: 1.5rem; z-index: 1300; width: min(340px, calc(100vw - 2rem)); background: var(--white); border: 1px solid var(--border); border-right: 4px solid var(--info); border-radius: 14px; box-shadow: var(--shadow-lg); padding: .85rem 1rem; opacity: 0; transform: translateY(12px); transition: all .25s ease; }
+        .web-live-toast.important { border-right-color: var(--primary); }
+        .web-live-toast.show { opacity: 1; transform: translateY(0); }
+        .web-live-toast strong { display: block; font-size: .88rem; color: var(--text-dark); }
+        .web-live-toast span { display: block; margin-top: .2rem; font-size: .8rem; color: var(--text-muted); }
+
         @media (max-width: 992px) {
             .sidebar { display: none; }
             .main-content { margin-right: 0; }
@@ -290,6 +312,7 @@
             </div>
         </aside>
         <main class="main-content">
+            @include('partials.firestore-web-notifications', ['mode' => 'admin'])
             @if(session('success'))
                 <div class="alert-success d-flex align-items-center mb-4">
                     <i class="fas fa-check-circle me-2"></i>{{ session('success') }}

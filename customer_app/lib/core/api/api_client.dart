@@ -7,14 +7,14 @@ class ApiClient {
   // IMPORTANT: Change this to your computer's local IP
   // To find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)
   // Look for IPv4 Address like 192.168.x.x
-  // 
+  //
   // For Android Emulator: use 10.0.2.2 (special IP for host machine)
   // For iOS Emulator: use 127.0.0.1
   // For Real Device: use your actual network IP (e.g., 192.168.1.100)
-  // 
+  //
   // UPDATE THIS IP to match your network!
   static String baseUrl = 'http://YOUR_COMPUTER_IP_HERE:8000/api';
-  
+
   static String? token;
 
   static Map<String, String> get headers => {
@@ -25,10 +25,9 @@ class ApiClient {
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      ).timeout(Duration(seconds: 15));
+      final response = await http
+          .get(Uri.parse('$baseUrl$endpoint'), headers: headers)
+          .timeout(const Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -47,13 +46,18 @@ class ApiClient {
     }
   }
 
-  static Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> post(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-        body: jsonEncode(data),
-      ).timeout(Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -72,13 +76,18 @@ class ApiClient {
     }
   }
 
-  static Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> put(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-        body: jsonEncode(data),
-      ).timeout(Duration(seconds: 15));
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: headers,
+            body: jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -97,12 +106,18 @@ class ApiClient {
     }
   }
 
-  static Future<Map<String, dynamic>> delete(String endpoint) async {
+  static Future<Map<String, dynamic>> delete(
+    String endpoint, {
+    Map<String, dynamic>? data,
+  }) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      ).timeout(Duration(seconds: 15));
+      final response = await http
+          .delete(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: headers,
+            body: data == null ? null : jsonEncode(data),
+          )
+          .timeout(const Duration(seconds: 15));
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -137,7 +152,9 @@ class ApiClient {
       request.fields.addAll(fields);
       request.files.addAll(files);
 
-      final streamedResponse = await request.send().timeout(Duration(seconds: 45));
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 45),
+      );
       final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } on TimeoutException {
@@ -157,20 +174,24 @@ class ApiClient {
     }
   }
 
-  static Future<Map<String, dynamic>> uploadFile(String endpoint, String filePath, String fieldName) async {
+  static Future<Map<String, dynamic>> uploadFile(
+    String endpoint,
+    String filePath,
+    String fieldName,
+  ) async {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
       final request = http.MultipartRequest('POST', uri);
-      
+
       request.headers.addAll(headers);
       request.headers.remove('Content-Type');
-      
+
       final file = await http.MultipartFile.fromPath(fieldName, filePath);
       request.files.add(file);
-      
+
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      
+
       return _handleResponse(response);
     } on TimeoutException {
       return {
@@ -231,5 +252,3 @@ class ApiClient {
     baseUrl = 'http://$ip:8000/api';
   }
 }
-
-

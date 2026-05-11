@@ -44,8 +44,8 @@ return [
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
             'encryption' => env('MAIL_ENCRYPTION', null),
-            'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
+            'username' => filled(env('MAIL_USERNAME')) ? trim((string) env('MAIL_USERNAME')) : null,
+            'password' => filled(env('MAIL_PASSWORD')) ? preg_replace('/\s+/', '', (string) env('MAIL_PASSWORD')) : null,
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
@@ -112,7 +112,7 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        'address' => filled(env('MAIL_FROM_ADDRESS')) ? trim((string) env('MAIL_FROM_ADDRESS')) : 'hello@example.com',
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 

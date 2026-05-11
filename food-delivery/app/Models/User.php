@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'email_verification_code_hash',
         'email_verification_expires_at',
         'email_verification_last_sent_at',
+        'fcm_token',
     ];
 
     protected $hidden = [
@@ -54,6 +56,11 @@ class User extends Authenticatable
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
+    }
+
+    public function fcmTokens(): MorphMany
+    {
+        return $this->morphMany(FcmToken::class, 'tokenable');
     }
 
     public function getTotalSpentAttribute(): float

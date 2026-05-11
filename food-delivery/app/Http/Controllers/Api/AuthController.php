@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -24,21 +23,60 @@ class AuthController extends Controller
         return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
-    private function userEmailVerifyResendKey(string $email, string $ip): string
-    {
-        return 'user-email-verify-resend:' . Str::lower(trim($email)) . '|' . $ip;
-    }
-
     private function userEmailVerifyAttemptKey(int $userId, string $ip): string
     {
         return 'user-email-verify-attempt:' . $userId . '|' . $ip;
     }
 
+    private function mailLogContext(): array
+    {
+        return [
+            'mailer' => config('mail.default'),
+            'host' => config('mail.mailers.smtp.host'),
+            'port' => config('mail.mailers.smtp.port'),
+            'encryption' => config('mail.mailers.smtp.encryption'),
+            'username_set' => filled(config('mail.mailers.smtp.username')),
+            'password_set' => filled(config('mail.mailers.smtp.password')),
+            'from' => config('mail.from.address'),
+        ];
+    }
+
+    private function sendCustomerVerificationEmail(User $user, string $code, \DateTimeInterface $expiresAt, string $event): void
+    {
+        Log::info($event . '_attempt', array_merge([
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
+        ], $this->mailLogContext()));
+
+        Mail::to($user->email)->send(new CustomerEmailVerificationCodeMail(
+            code: $code,
+            expiresAt: $expiresAt,
+            customerName: (string) $user->name,
+        ));
+
+        Log::info($event . '_sent', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
+        ]);
+    }
+
     public function register(Request $request): JsonResponse
     {
+        Log::info('customer_registration_started', [
+            'email' => $request->input('email'),
+            'has_name' => filled($request->input('name')),
+            'has_phone' => filled($request->input('phone')),
+        ]);
+
         /** @var SystemSettingsService $settings */
         $settings = app(SystemSettingsService::class);
         if (!(bool) $settings->get('platform', 'platform_open', true)) {
+            Log::warning('customer_registration_blocked_platform_closed', [
+                'email' => $request->input('email'),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Platform is currently closed',
@@ -46,6 +84,10 @@ class AuthController extends Controller
         }
 
         if (!(bool) $settings->get('platform', 'registration_enabled', true)) {
+            Log::warning('customer_registration_blocked_registration_disabled', [
+                'email' => $request->input('email'),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Registration is currently disabled',
@@ -74,6 +116,11 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('customer_registration_validation_failed', [
+                'email' => $request->input('email'),
+                'fields' => array_keys($validator->errors()->toArray()),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -87,6 +134,10 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
         ]);
+        Log::info('customer_registration_user_created', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+        ]);
 
         $code = $this->generateOtpCode();
         $expiresAt = now()->addMinutes(self::EMAIL_VERIFICATION_TTL_MINUTES);
@@ -98,22 +149,20 @@ class AuthController extends Controller
         ])->save();
 
         try {
-            Mail::to($user->email)->send(new CustomerEmailVerificationCodeMail(
-                code: $code,
-                expiresAt: $expiresAt,
-                customerName: (string) $user->name,
-            ));
-            Log::info('customer_email_verification_sent', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'expires_at' => $expiresAt->toDateTimeString(),
-            ]);
+            $this->sendCustomerVerificationEmail($user, $code, $expiresAt, 'customer_email_verification');
         } catch (\Throwable $e) {
             Log::error('customer_email_verification_send_failed', [
                 'user_id' => $user->id,
                 'email' => $user->email,
+                'exception' => get_class($e),
+                'code' => $e->getCode(),
                 'error' => $e->getMessage(),
             ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'تعذر إرسال البريد الإلكتروني حالياً',
+            ], 500);
         }
 
         return response()->json([
@@ -207,6 +256,10 @@ class AuthController extends Controller
 
     public function resendEmailVerification(Request $request): JsonResponse
     {
+        Log::info('customer_email_verification_resend_started', [
+            'email' => $request->input('email'),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
         ], [
@@ -215,6 +268,11 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('customer_email_verification_resend_validation_failed', [
+                'email' => $request->input('email'),
+                'fields' => array_keys($validator->errors()->toArray()),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -223,8 +281,12 @@ class AuthController extends Controller
         }
 
         $email = (string) $request->email;
-        $user = User::where('email', $email)->first();
+        $user = User::query()->where('email', $email)->first();
         if (!$user) {
+            Log::warning('customer_email_verification_resend_user_not_found', [
+                'email' => $email,
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'بيانات غير صحيحة',
@@ -232,26 +294,22 @@ class AuthController extends Controller
         }
 
         if (!empty($user->email_verified_at)) {
+            Log::info('customer_email_verification_resend_skipped_already_verified', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم التحقق من البريد الإلكتروني مسبقاً',
             ]);
         }
 
-        $resendKey = $this->userEmailVerifyResendKey($email, (string) $request->ip());
-        if (RateLimiter::tooManyAttempts($resendKey, 5)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'يرجى الانتظار قبل إعادة الإرسال',
-            ], 429);
-        }
-
-        if (!empty($user->email_verification_last_sent_at) && now()->diffInSeconds($user->email_verification_last_sent_at) < 60) {
-            return response()->json([
-                'success' => false,
-                'message' => 'يرجى الانتظار قبل إعادة الإرسال',
-            ], 429);
-        }
+        Log::info('customer_email_verification_resend_allowed', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'previous_last_sent_at' => optional($user->email_verification_last_sent_at)->toDateTimeString(),
+        ]);
 
         $code = $this->generateOtpCode();
         $expiresAt = now()->addMinutes(self::EMAIL_VERIFICATION_TTL_MINUTES);
@@ -260,17 +318,16 @@ class AuthController extends Controller
             'email_verification_expires_at' => $expiresAt,
             'email_verification_last_sent_at' => now(),
         ])->save();
+        $user->refresh();
 
         try {
-            Mail::to($user->email)->send(new CustomerEmailVerificationCodeMail(
-                code: $code,
-                expiresAt: $expiresAt,
-                customerName: (string) $user->name,
-            ));
+            $this->sendCustomerVerificationEmail($user, $code, $expiresAt, 'customer_email_verification_resend');
         } catch (\Throwable $e) {
             Log::error('customer_email_verification_resend_failed', [
                 'user_id' => $user->id,
                 'email' => $user->email,
+                'exception' => get_class($e),
+                'code' => $e->getCode(),
                 'error' => $e->getMessage(),
             ]);
             return response()->json([
@@ -278,8 +335,6 @@ class AuthController extends Controller
                 'message' => 'تعذر إرسال البريد الإلكتروني حالياً',
             ], 500);
         }
-
-        RateLimiter::hit($resendKey, 600);
 
         return response()->json([
             'success' => true,
@@ -487,4 +542,3 @@ class AuthController extends Controller
         ]);
     }
 }
-

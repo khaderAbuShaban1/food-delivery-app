@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DriverAuthController;
 use App\Http\Controllers\Api\DriverOrderController;
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\FcmTokenController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentMethodController;
@@ -26,6 +27,8 @@ Route::post('/driver/verify-email', [DriverAuthController::class, 'verifyEmail']
 Route::post('/driver/resend-verification', [DriverAuthController::class, 'resendEmailVerification']);
 
 Route::middleware('auth:sanctum')->prefix('driver')->group(function () {
+    Route::post('/fcm-token', [FcmTokenController::class, 'store']);
+    Route::delete('/fcm-token', [FcmTokenController::class, 'destroy']);
     Route::get('/orders/available-pool', [DriverOrderController::class, 'availablePool']);
     Route::get('/orders/active', [DriverOrderController::class, 'activeOrder']);
     Route::post('/orders/{id}/accept', [DriverOrderController::class, 'accept']);
@@ -49,6 +52,8 @@ Route::get('/restaurants/{id}/menu', [MenuController::class, 'publicIndex']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/fcm-token', [FcmTokenController::class, 'store']);
+    Route::delete('/fcm-token', [FcmTokenController::class, 'destroy']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);

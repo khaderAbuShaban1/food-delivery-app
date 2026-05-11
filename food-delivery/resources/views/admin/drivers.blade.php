@@ -422,7 +422,6 @@
 <script>
 let pendingDriverDecision = null;
 let isRefreshingDrivers = false;
-const driversRefreshInterval = 5000;
 
 function getDriversRefreshUrl() {
     const url = new URL(window.location.href);
@@ -557,8 +556,8 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-window.setInterval(function () {
+document.addEventListener('food:admin-users', function () {
     refreshDriversList(false);
-}, driversRefreshInterval);
+});
 </script>
 @endsection

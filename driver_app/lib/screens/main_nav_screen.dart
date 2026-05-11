@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../core/theme/app_colors.dart';
 import '../providers/order_provider.dart';
 import 'active_order_screen.dart';
 import 'home_screen.dart';
@@ -14,8 +13,27 @@ class MainNavScreen extends StatefulWidget {
   State<MainNavScreen> createState() => _MainNavScreenState();
 }
 
-class _MainNavScreenState extends State<MainNavScreen> {
+class _MainNavScreenState extends State<MainNavScreen>
+    with WidgetsBindingObserver {
   int index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    context.read<OrderProvider>().refreshFromServer();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +61,8 @@ class _MainNavScreenState extends State<MainNavScreen> {
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           height: 68,
-          indicatorColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+          indicatorColor:
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             final selected = states.contains(WidgetState.selected);
             return TextStyle(
@@ -58,7 +77,9 @@ class _MainNavScreenState extends State<MainNavScreen> {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+            border: Border(
+              top: BorderSide(color: Theme.of(context).dividerColor),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -82,19 +103,34 @@ class _MainNavScreenState extends State<MainNavScreen> {
             },
             destinations: [
               NavigationDestination(
-                icon: _NavPoolIcon(showCount: homeBadge, count: poolCount, dimmed: hasActive, selected: false),
-                selectedIcon:
-                    _NavPoolIcon(showCount: homeBadge, count: poolCount, dimmed: hasActive, selected: true),
+                icon: _NavPoolIcon(
+                  showCount: homeBadge,
+                  count: poolCount,
+                  dimmed: hasActive,
+                  selected: false,
+                ),
+                selectedIcon: _NavPoolIcon(
+                  showCount: homeBadge,
+                  count: poolCount,
+                  dimmed: hasActive,
+                  selected: true,
+                ),
                 label: hasActive ? 'مؤجّلة' : 'المتاحة',
               ),
               NavigationDestination(
                 icon: _NavActiveIcon(showDot: hasActive, selected: false),
-                selectedIcon: _NavActiveIcon(showDot: hasActive, selected: true),
+                selectedIcon: _NavActiveIcon(
+                  showDot: hasActive,
+                  selected: true,
+                ),
                 label: 'نشط',
               ),
               NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded, color: Theme.of(context).colorScheme.secondary),
+                icon: const Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(
+                  Icons.person_rounded,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
                 label: 'حسابي',
               ),
             ],
@@ -167,7 +203,10 @@ class _NavActiveIcon extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
-              border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.surface,
+                width: 2,
+              ),
             ),
           ),
         ),

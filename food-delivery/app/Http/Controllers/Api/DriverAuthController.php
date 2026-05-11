@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class DriverAuthController extends Controller
@@ -24,18 +23,53 @@ class DriverAuthController extends Controller
         return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
-    private function driverEmailVerifyResendKey(string $email, string $ip): string
-    {
-        return 'driver-email-verify-resend:' . Str::lower(trim($email)) . '|' . $ip;
-    }
-
     private function driverEmailVerifyAttemptKey(int $driverId, string $ip): string
     {
         return 'driver-email-verify-attempt:' . $driverId . '|' . $ip;
     }
 
+    private function mailLogContext(): array
+    {
+        return [
+            'mailer' => config('mail.default'),
+            'host' => config('mail.mailers.smtp.host'),
+            'port' => config('mail.mailers.smtp.port'),
+            'encryption' => config('mail.mailers.smtp.encryption'),
+            'username_set' => filled(config('mail.mailers.smtp.username')),
+            'password_set' => filled(config('mail.mailers.smtp.password')),
+            'from' => config('mail.from.address'),
+        ];
+    }
+
+    private function sendDriverVerificationEmail(Driver $driver, string $code, \DateTimeInterface $expiresAt, string $event): void
+    {
+        Log::info($event . '_attempt', array_merge([
+            'driver_id' => $driver->id,
+            'email' => $driver->email,
+            'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
+        ], $this->mailLogContext()));
+
+        Mail::to($driver->email)->send(new DriverEmailVerificationCodeMail(
+            code: $code,
+            expiresAt: $expiresAt,
+            driverName: (string) $driver->name,
+        ));
+
+        Log::info($event . '_sent', [
+            'driver_id' => $driver->id,
+            'email' => $driver->email,
+            'expires_at' => $expiresAt->format('Y-m-d H:i:s'),
+        ]);
+    }
+
     public function register(Request $request): JsonResponse
     {
+        Log::info('driver_registration_started', [
+            'email' => $request->input('email'),
+            'has_name' => filled($request->input('name')),
+            'has_phone' => filled($request->input('phone')),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|min:3|max:255',
             'national_id' => 'required|string|min:5|max:64|unique:drivers,national_id',
@@ -71,6 +105,11 @@ class DriverAuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('driver_registration_validation_failed', [
+                'email' => $request->input('email'),
+                'fields' => array_keys($validator->errors()->toArray()),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -101,6 +140,10 @@ class DriverAuthController extends Controller
             'approval_status' => 'draft',
             'is_available' => false,
         ]);
+        Log::info('driver_registration_driver_created', [
+            'driver_id' => $driver->id,
+            'email' => $driver->email,
+        ]);
 
         $code = $this->generateOtpCode();
         $expiresAt = now()->addMinutes(self::EMAIL_VERIFICATION_TTL_MINUTES);
@@ -112,22 +155,20 @@ class DriverAuthController extends Controller
         ])->save();
 
         try {
-            Mail::to($driver->email)->send(new DriverEmailVerificationCodeMail(
-                code: $code,
-                expiresAt: $expiresAt,
-                driverName: (string) $driver->name,
-            ));
-            Log::info('driver_email_verification_sent', [
-                'driver_id' => $driver->id,
-                'email' => $driver->email,
-                'expires_at' => $expiresAt->toDateTimeString(),
-            ]);
+            $this->sendDriverVerificationEmail($driver, $code, $expiresAt, 'driver_email_verification');
         } catch (\Throwable $e) {
             Log::error('driver_email_verification_send_failed', [
                 'driver_id' => $driver->id,
                 'email' => $driver->email,
+                'exception' => get_class($e),
+                'code' => $e->getCode(),
                 'error' => $e->getMessage(),
             ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'تعذر إرسال البريد الإلكتروني حالياً',
+            ], 500);
         }
 
         return response()->json([
@@ -303,6 +344,10 @@ class DriverAuthController extends Controller
 
     public function resendEmailVerification(Request $request): JsonResponse
     {
+        Log::info('driver_email_verification_resend_started', [
+            'email' => $request->input('email'),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
         ], [
@@ -311,6 +356,11 @@ class DriverAuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('driver_email_verification_resend_validation_failed', [
+                'email' => $request->input('email'),
+                'fields' => array_keys($validator->errors()->toArray()),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -319,8 +369,12 @@ class DriverAuthController extends Controller
         }
 
         $email = (string) $request->email;
-        $driver = Driver::where('email', $email)->first();
+        $driver = Driver::query()->where('email', $email)->first();
         if (! $driver) {
+            Log::warning('driver_email_verification_resend_driver_not_found', [
+                'email' => $email,
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'بيانات غير صحيحة',
@@ -328,6 +382,12 @@ class DriverAuthController extends Controller
         }
 
         if (! empty($driver->email_verified_at)) {
+            Log::info('driver_email_verification_resend_skipped_already_verified', [
+                'driver_id' => $driver->id,
+                'email' => $driver->email,
+                'status' => $driver->approval_status,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم التحقق من البريد الإلكتروني مسبقاً',
@@ -335,20 +395,11 @@ class DriverAuthController extends Controller
             ]);
         }
 
-        $resendKey = $this->driverEmailVerifyResendKey($email, (string) $request->ip());
-        if (RateLimiter::tooManyAttempts($resendKey, 5)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'يرجى الانتظار قبل إعادة الإرسال',
-            ], 429);
-        }
-
-        if (! empty($driver->email_verification_last_sent_at) && now()->diffInSeconds($driver->email_verification_last_sent_at) < 60) {
-            return response()->json([
-                'success' => false,
-                'message' => 'يرجى الانتظار قبل إعادة الإرسال',
-            ], 429);
-        }
+        Log::info('driver_email_verification_resend_allowed', [
+            'driver_id' => $driver->id,
+            'email' => $driver->email,
+            'previous_last_sent_at' => optional($driver->email_verification_last_sent_at)->toDateTimeString(),
+        ]);
 
         $code = $this->generateOtpCode();
         $expiresAt = now()->addMinutes(self::EMAIL_VERIFICATION_TTL_MINUTES);
@@ -357,17 +408,16 @@ class DriverAuthController extends Controller
             'email_verification_expires_at' => $expiresAt,
             'email_verification_last_sent_at' => now(),
         ])->save();
+        $driver->refresh();
 
         try {
-            Mail::to($driver->email)->send(new DriverEmailVerificationCodeMail(
-                code: $code,
-                expiresAt: $expiresAt,
-                driverName: (string) $driver->name,
-            ));
+            $this->sendDriverVerificationEmail($driver, $code, $expiresAt, 'driver_email_verification_resend');
         } catch (\Throwable $e) {
             Log::error('driver_email_verification_resend_failed', [
                 'driver_id' => $driver->id,
                 'email' => $driver->email,
+                'exception' => get_class($e),
+                'code' => $e->getCode(),
                 'error' => $e->getMessage(),
             ]);
             return response()->json([
@@ -376,12 +426,9 @@ class DriverAuthController extends Controller
             ], 500);
         }
 
-        RateLimiter::hit($resendKey, 600);
-
         return response()->json([
             'success' => true,
             'message' => 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
         ]);
     }
 }
-

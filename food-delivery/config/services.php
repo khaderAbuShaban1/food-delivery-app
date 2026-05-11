@@ -41,6 +41,17 @@ return [
         'database' => env('FIRESTORE_DATABASE', '(default)'),
         'credentials_path' => env('FIRESTORE_CREDENTIALS_PATH', collect(glob(base_path('*firebase-adminsdk*.json')) ?: [])->first()),
         'timeout' => env('FIRESTORE_TIMEOUT', 5),
+        'web_api_key' => env('FIREBASE_WEB_API_KEY'),
+        'web_app_id' => env('FIREBASE_WEB_APP_ID'),
+        'web_messaging_sender_id' => env('FIREBASE_MESSAGING_SENDER_ID', '885023315229'),
+        'web_storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
+    ],
+
+    'fcm' => [
+        'enabled' => env('FCM_PUSH_ENABLED', env('FIRESTORE_SYNC_ENABLED', false)),
+        'project_id' => env('FCM_PROJECT_ID', env('FIRESTORE_PROJECT_ID')),
+        'credentials_path' => env('FCM_CREDENTIALS_PATH', env('FIRESTORE_CREDENTIALS_PATH', collect(glob(base_path('*firebase-adminsdk*.json')) ?: [])->first())),
+        'timeout' => env('FCM_TIMEOUT', 10),
     ],
 
 ];
