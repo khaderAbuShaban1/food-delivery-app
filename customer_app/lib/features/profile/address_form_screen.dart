@@ -69,13 +69,13 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
 
       if (!mounted) return;
       Navigator.pop(context, true);
+      return;
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+      setState(() => _isSaving = false);
     }
   }
 

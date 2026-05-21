@@ -1,7 +1,7 @@
 class AppConfig {
   // Android emulator uses 10.0.2.2, but real devices must use your PC LAN IP.
   // Update this value when your network IP changes.
-  static const String defaultApiHost = '10.0.0.11';
+  static const String defaultApiHost = '10.0.0.3';
   static String apiBaseUrl = 'http://$defaultApiHost:8000/api';
 
   static void setApiHost(String host) {

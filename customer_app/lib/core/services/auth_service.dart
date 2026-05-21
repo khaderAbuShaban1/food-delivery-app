@@ -290,8 +290,19 @@ class AuthService {
       );
 
       if (_isSuccess(response)) {
-        await fetchCurrentUser();
-        _emitUser();
+        final data = response['data'];
+        final profileImage = data is Map<String, dynamic>
+            ? data['profile_image']?.toString()
+            : null;
+
+        if (profileImage != null && profileImage.isNotEmpty) {
+          _currentUser ??= <String, dynamic>{};
+          _currentUser!['profile_image'] = profileImage;
+          _emitUser();
+        } else {
+          await fetchCurrentUser();
+          _emitUser();
+        }
         return 'success';
       }
 

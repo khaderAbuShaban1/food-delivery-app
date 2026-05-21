@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/theme/app_theme.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   };
 
   late Map<String, dynamic> _order;
-  Timer? _pollTimer;
+  StreamSubscription<Map<String, dynamic>?>? _orderSub;
   bool _isRefreshing = false;
 
   @override
@@ -69,7 +70,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     super.initState();
     _order = Map<String, dynamic>.from(widget.order);
     _refreshFromApi();
-    _pollTimer = Timer.periodic(Duration(seconds: 5), (_) => _refreshFromApi());
+    _subscribeToOrder();
+  }
+
+  void _subscribeToOrder() {
+    _orderSub?.cancel();
+    final rawId = _order['id'];
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (id == null || id <= 0) return;
+
+    _orderSub = RealtimeSyncService.watchOrderById(id).listen((item) {
+      if (!mounted || item == null) return;
+      setState(() {
+        _order = Map<String, dynamic>.from(item);
+      });
+    });
   }
 
   Future<void> _refreshFromApi() async {
@@ -77,13 +92,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final id =
         rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
     if (id == null || id <= 0) return;
-
-    final status = (_order['status'] ?? '').toString();
-    if (status == 'delivered' || status == 'payment_rejected') {
-      _pollTimer?.cancel();
-      _pollTimer = null;
-      return;
-    }
 
     if (_isRefreshing) return;
     _isRefreshing = true;
@@ -99,17 +107,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     } finally {
       _isRefreshing = false;
     }
-    if (!mounted) return;
-    final s = (_order['status'] ?? '').toString();
-    if (s == 'delivered' || s == 'payment_rejected') {
-      _pollTimer?.cancel();
-      _pollTimer = null;
-    }
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _orderSub?.cancel();
     super.dispose();
   }
 

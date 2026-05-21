@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -518,18 +519,15 @@ class AuthController extends Controller
         $oldImage = $user->profile_image ?? null;
 
         $filename = 'profile_' . $user->id . '_' . time() . '.' . $image->getClientOriginalExtension();
-        $destinationPath = public_path('storage/profile-images/' . $filename);
-
-        copy($image->getRealPath(), $destinationPath);
-        unlink($image->getRealPath());
-
-        $imageUrl = asset('storage/profile-images/' . $filename);
+        $storedPath = $image->storeAs('profile-images', $filename, 'public');
+        $imageUrl = Storage::disk('public')->url($storedPath);
         $user->update(['profile_image' => $imageUrl]);
 
         if ($oldImage) {
-            $oldPath = public_path(str_replace(asset('/'), '', $oldImage));
-            if (file_exists($oldPath)) {
-                unlink($oldPath);
+            $oldPath = parse_url((string) $oldImage, PHP_URL_PATH) ?: (string) $oldImage;
+            $oldPath = ltrim(str_replace('/storage/', '', $oldPath), '/');
+            if ($oldPath !== '') {
+                Storage::disk('public')->delete($oldPath);
             }
         }
 

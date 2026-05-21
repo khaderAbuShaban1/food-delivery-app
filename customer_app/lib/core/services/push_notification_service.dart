@@ -64,8 +64,13 @@ class PushNotificationService {
       await initialize();
       await _requestPermissionIfNeeded();
 
-      final token = await _messaging.getToken();
-      if (token == null || token.isEmpty) return;
+      final token = await _resolveFcmTokenWithRetry();
+      if (token == null || token.isEmpty) {
+        if (kDebugMode) {
+          debugPrint('[CustomerPush] FCM token is empty');
+        }
+        return;
+      }
 
       await _sendToken(token);
 
@@ -77,9 +82,23 @@ class PushNotificationService {
           }
         });
       }
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[CustomerPush] registerDeviceToken failed: $e');
+      }
       // Push registration must never block login or checkout.
     }
+  }
+
+  static Future<String?> _resolveFcmTokenWithRetry() async {
+    for (var i = 0; i < 5; i++) {
+      final token = await _messaging.getToken();
+      if (token != null && token.isNotEmpty) {
+        return token;
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    return null;
   }
 
   static Future<void> unregisterDeviceToken() async {
@@ -96,7 +115,24 @@ class PushNotificationService {
   }
 
   static Future<void> _sendToken(String token) async {
-    await ApiClient.post('/fcm-token', {'token': token, 'platform': _platform});
+    Map<String, dynamic> response = <String, dynamic>{};
+    for (var i = 0; i < 3; i++) {
+      response = await ApiClient.post('/fcm-token', {
+        'token': token,
+        'platform': _platform,
+      });
+      if (response['success'] == true || response['status'] == true) {
+        if (kDebugMode) {
+          debugPrint('[CustomerPush] token registered successfully');
+        }
+        return;
+      }
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+
+    final message =
+        response['message']?.toString() ?? 'Unknown FCM register error';
+    throw Exception(message);
   }
 
   static Future<void> _requestPermissionIfNeeded() async {

@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ApiClient.setBaseUrl('10.0.0.11');
+    ApiClient.setBaseUrl('10.0.0.3');
 
     return MultiProvider(
       providers: [

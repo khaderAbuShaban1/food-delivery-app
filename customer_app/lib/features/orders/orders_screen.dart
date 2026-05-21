@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import '../../core/api/api_client.dart';
+import '../../core/services/realtime_sync_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
@@ -21,7 +22,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   StreamSubscription<dynamic>? _userSub;
-  Timer? _ordersPollTimer;
+  StreamSubscription<List<Map<String, dynamic>>>? _ordersSub;
 
   static List<String> _statusFlow = [
     'pending_payment_verification',
@@ -63,7 +64,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     AuthService.fetchCurrentUser();
     _watchUserChanges();
-    _startOrdersPolling();
+    _subscribeToOrders();
     _loadOrders();
   }
 
@@ -71,14 +72,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _userSub?.cancel();
     _userSub = AuthService.watchCurrentUser().listen((_) {
       if (!mounted) return;
-      _loadOrders(showLoading: false);
+      _subscribeToOrders();
     });
   }
 
-  void _startOrdersPolling() {
-    _ordersPollTimer?.cancel();
-    _ordersPollTimer = Timer.periodic(Duration(seconds: 8), (_) {
-      _loadOrders(showLoading: false);
+  void _subscribeToOrders() {
+    _ordersSub?.cancel();
+    final userId = AuthService.currentUser?['id'];
+    final parsedUserId = userId is int ? userId : int.tryParse(userId?.toString() ?? '');
+    if (parsedUserId == null || parsedUserId <= 0) return;
+
+    _ordersSub = RealtimeSyncService.watchCustomerOrders(parsedUserId).listen((items) {
+      if (!mounted) return;
+      setState(() {
+        _orders = items;
+        _isLoading = false;
+        _errorMessage = null;
+      });
     });
   }
 
@@ -101,6 +111,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         if (showLoading) _isLoading = false;
         if (!showLoading && _errorMessage != null) _errorMessage = null;
       });
+      _subscribeToOrders();
       return;
     }
 
@@ -113,7 +124,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     _userSub?.cancel();
-    _ordersPollTimer?.cancel();
+    _ordersSub?.cancel();
     super.dispose();
   }
 

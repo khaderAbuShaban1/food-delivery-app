@@ -13,7 +13,7 @@ class ApiClient {
   // For Real Device: use your actual network IP (e.g., 192.168.1.100)
   //
   // UPDATE THIS IP to match your network!
-  static String baseUrl = 'http://YOUR_COMPUTER_IP_HERE:8000/api';
+  static String baseUrl = 'http://10.0.0.3:8000/api';
 
   static String? token;
 

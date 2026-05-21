@@ -7,6 +7,7 @@ use App\Models\FcmToken;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -43,6 +44,13 @@ class FcmTokenController extends Controller
             $actor->forceFill(['fcm_token' => $validated['token']])->saveQuietly();
         }
 
+        Log::info('FCM token registered via API.', [
+            'actor_type' => $actor::class,
+            'actor_id' => $actor->getKey(),
+            'platform' => $token->platform,
+            'token_hash' => sha1((string) $validated['token']),
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'FCM token registered',
@@ -74,6 +82,12 @@ class FcmTokenController extends Controller
             ->where('tokenable_type', $actor::class)
             ->where('tokenable_id', $actor->getKey())
             ->delete();
+
+        Log::info('FCM token removed via API.', [
+            'actor_type' => $actor::class,
+            'actor_id' => $actor->getKey(),
+            'token_hash' => sha1((string) $validated['token']),
+        ]);
 
         if (Schema::hasColumn($actor->getTable(), 'fcm_token') && ($actor->fcm_token ?? null) === $validated['token']) {
             $actor->forceFill(['fcm_token' => null])->saveQuietly();

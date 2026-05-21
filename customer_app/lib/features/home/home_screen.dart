@@ -34,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<Map<String, dynamic>?>? _userSub;
   StreamSubscription<List<Restaurant>>? _restaurantsSub;
   final _searchController = TextEditingController();
-  Timer? _realtimeBackfillTimer;
   String? _profileImage;
   int _imageCacheKey = 0;
   List<Address> _addresses = [];
@@ -52,14 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserProfile();
     _loadAddresses();
     _startRealtimeListeners();
-    _startRealtimeBackfillLoop();
-  }
-
-  void _startRealtimeBackfillLoop() {
-    _realtimeBackfillTimer?.cancel();
-    _realtimeBackfillTimer = Timer.periodic(Duration(seconds: 10), (_) {
-      _loadRestaurants(showLoading: false);
-    });
   }
 
   void _subscribeToUser() {
@@ -317,7 +308,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
-    _realtimeBackfillTimer?.cancel();
     _userSub?.cancel();
     _restaurantsSub?.cancel();
     _searchController.dispose();

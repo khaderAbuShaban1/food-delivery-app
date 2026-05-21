@@ -120,13 +120,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
     final streetCtl = TextEditingController();
     final detailsCtl = TextEditingController();
 
-    Future<void> disposeCtrls() async {
-      titleCtl.dispose();
-      cityCtl.dispose();
-      streetCtl.dispose();
-      detailsCtl.dispose();
-    }
-
     final createdAddressId = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -228,8 +221,6 @@ class _CheckoutFlowScreenState extends State<CheckoutFlowScreen> {
         );
       },
     );
-
-    await disposeCtrls();
 
     if (createdAddressId != null && mounted) {
       await _bootstrap();

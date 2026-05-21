@@ -146,6 +146,38 @@ class RealtimeSyncService {
         });
   }
 
+  static Stream<List<Map<String, dynamic>>> watchCustomerOrders(int userId) {
+    if (!_isReady) return Stream.value(<Map<String, dynamic>>[]);
+    return _db
+        .collection('orders')
+        .where('customer_id', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+          final docs = [...snapshot.docs];
+          docs.sort((a, b) {
+            final aMillis = _toEpochMillis(a.data()['updated_at']);
+            final bMillis = _toEpochMillis(b.data()['updated_at']);
+            return bMillis.compareTo(aMillis);
+          });
+
+          return docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+            data['id'] ??= int.tryParse(doc.id) ?? doc.id;
+            return data;
+          }).toList();
+        });
+  }
+
+  static Stream<Map<String, dynamic>?> watchOrderById(int orderId) {
+    if (!_isReady) return Stream.value(null);
+    return _db.collection('orders').doc(orderId.toString()).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      final data = Map<String, dynamic>.from(doc.data()!);
+      data['id'] ??= orderId;
+      return data;
+    });
+  }
+
   static Future<void> syncRestaurants(List<Restaurant> restaurants) async {
     if (!_isReady) return;
     final batch = _db.batch();

@@ -133,6 +133,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _currentImageUrl = newImageUrl;
           _selectedImage = null;
+          _imageCacheKey = DateTime.now().millisecondsSinceEpoch;
         });
       }
       
